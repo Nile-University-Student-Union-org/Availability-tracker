@@ -46,7 +46,7 @@ export default async function AdminPage() {
   const slotMatrix: SlotEntry[] = WEEK_DATES.flatMap((date) =>
     TIME_SLOTS.map((startTime) => {
       const matching = rawSlots.filter(
-        (s) =>
+        (s: typeof rawSlots[0]) =>
           s.date.toISOString().slice(0, 10) === date &&
           s.startTime === startTime,
       );
