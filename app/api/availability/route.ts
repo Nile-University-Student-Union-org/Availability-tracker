@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
   await prisma.$transaction([
     prisma.availability.deleteMany({
-      where: { userId: session.user.id },
+      where: { userId: session.user.id, date },
     }),
     prisma.availability.createMany({
       data: validSlots.map((startTime) => ({
