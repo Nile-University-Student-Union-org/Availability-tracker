@@ -1,6 +1,11 @@
+import type { Metadata } from "next"
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "Analytics",
+};
 import { prisma } from "@/lib/prisma";
 import { isAdminEmail } from "@/lib/admin";
 import { WEEK_DATES, TIME_SLOTS } from "@/components/calendar/constants";
@@ -98,7 +103,7 @@ export default async function AdminPage() {
       <Navbar />
       <main className="container mx-auto max-w-4xl px-4 pt-22 pb-10">
         <div className="mb-6">
-          <h1 className="font-heading text-2xl font-semibold italic tracking-tight">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
             Availability Analytics
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

@@ -1,8 +1,13 @@
+import type { Metadata } from "next"
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
+
+export const metadata: Metadata = {
+  title: "Sign In",
+};
 
 export default async function AuthPage() {
   // If the user is already signed in, send them straight to the app
@@ -30,7 +35,7 @@ export default async function AuthPage() {
           </div>
 
           <div className="space-y-2">
-            <h1 className="font-heading text-3xl font-semibold italic tracking-tight">
+            <h1 className="font-heading text-3xl font-semibold tracking-tight">
               Availability Tracker
             </h1>
             <p className="text-sm text-muted-foreground">

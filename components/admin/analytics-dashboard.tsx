@@ -96,7 +96,7 @@ function MetricCard({
       </p>
       <p
         className={cn(
-          "mt-1 font-heading text-3xl font-semibold italic",
+          "mt-1 font-heading text-3xl font-semibold",
           accent && "text-primary",
         )}
       >
@@ -192,7 +192,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       {/* ── Availability matrix ─────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-3xl border bg-card">
         <div className="border-b px-5 py-4">
-          <h2 className="font-heading text-base font-semibold italic">
+          <h2 className="font-heading text-base font-semibold">
             Availability Matrix
           </h2>
           <p className="text-xs text-muted-foreground">
@@ -312,7 +312,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         {/* Best meeting times */}
         <div className="overflow-hidden rounded-3xl border bg-card">
           <div className="border-b px-5 py-4">
-            <h2 className="font-heading text-base font-semibold italic">
+            <h2 className="font-heading text-base font-semibold">
               Best Meeting Times
             </h2>
             <p className="text-xs text-muted-foreground">
@@ -375,7 +375,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         {/* Per-day summary */}
         <div className="overflow-hidden rounded-3xl border bg-card">
           <div className="border-b px-5 py-4">
-            <h2 className="font-heading text-base font-semibold italic">
+            <h2 className="font-heading text-base font-semibold">
               Daily Participation
             </h2>
             <p className="text-xs text-muted-foreground">
@@ -424,7 +424,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       {/* ── Participants table ──────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-3xl border bg-card">
         <div className="border-b px-5 py-4">
-          <h2 className="font-heading text-base font-semibold italic">
+          <h2 className="font-heading text-base font-semibold">
             Participants
           </h2>
           <p className="text-xs text-muted-foreground">

@@ -1,5 +1,10 @@
+import type { Metadata } from "next"
 import { AvailabilityCalendar } from "@/components/calendar/availability-calendar";
 import { Navbar } from "@/components/navbar/navbar";
+
+export const metadata: Metadata = {
+  title: "Mark Availability",
+};
 
 export default function Page() {
   return (
@@ -7,7 +12,7 @@ export default function Page() {
       <Navbar />
       <main className="container mx-auto flex max-w-lg flex-col items-center gap-6 px-4 pt-22 pb-8">
         <div className="text-center">
-          <h1 className="font-heading text-2xl font-semibold italic tracking-tight">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">
             Mark Your Availability
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">

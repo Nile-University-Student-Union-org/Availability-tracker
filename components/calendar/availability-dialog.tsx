@@ -89,7 +89,7 @@ export function AvailabilityDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="font-heading text-lg italic">
+          <DialogTitle className="font-heading text-lg">
             {formattedDate}
           </DialogTitle>
           <DialogDescription>

@@ -1,7 +1,7 @@
 "use client";
 
 import { isSameDay } from "date-fns";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -30,36 +30,33 @@ export function AvailabilityCalendar() {
   const [dialogDate, setDialogDate] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  useEffect(() => {
-    async function fetchAvailability() {
-      try {
-        const res = await fetch("/api/availability");
-        if (!res.ok) return;
-        const data: { date: string; startTime: string }[] = await res.json();
+  const fetchAvailability = useCallback(async () => {
+    try {
+      const res = await fetch("/api/availability");
+      if (!res.ok) return;
+      const data: { date: string; startTime: string }[] = await res.json();
 
-        const map: AvailabilityMap = new Map();
-        for (const d of WEEK_DATES) map.set(d, new Set());
-        for (const { date, startTime } of data) map.get(date)?.add(startTime);
+      const map: AvailabilityMap = new Map();
+      for (const d of WEEK_DATES) map.set(d, new Set());
+      for (const { date, startTime } of data) map.get(date)?.add(startTime);
 
-        setAvailability(map);
-      } finally {
-        setIsLoading(false);
-      }
+      setAvailability(map);
+    } finally {
+      setIsLoading(false);
     }
-    fetchAvailability();
   }, []);
+
+  useEffect(() => {
+    fetchAvailability();
+  }, [fetchAvailability]);
 
   function openDialog(iso: string) {
     setDialogDate(iso);
     setDialogOpen(true);
   }
 
-  function handleSaved(date: string, slots: string[]) {
-    setAvailability((prev) => {
-      const next = new Map(prev);
-      next.set(date, new Set(slots));
-      return next;
-    });
+  function handleSaved() {
+    void fetchAvailability();
   }
 
   async function handleClear(date: string) {
@@ -174,7 +171,7 @@ export function AvailabilityCalendar() {
           initialSlots={Array.from(availability.get(dialogDate) ?? [])}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
-          onSaved={handleSaved}
+          onSaved={() => handleSaved()}
         />
       )}
     </div>
