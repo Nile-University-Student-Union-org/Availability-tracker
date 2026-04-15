@@ -1,19 +1,21 @@
-import { Button } from "@/components/ui/button"
+import { AvailabilityCalendar } from "@/components/calendar/availability-calendar";
+import { Navbar } from "@/components/navbar/navbar";
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
+    <div className="min-h-svh bg-background">
+      <Navbar />
+      <main className="container mx-auto flex max-w-lg flex-col items-center gap-6 px-4 pt-22 pb-8">
+        <div className="text-center">
+          <h1 className="font-heading text-2xl font-semibold italic tracking-tight">
+            Mark Your Availability
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Click a highlighted day (Apr 19–23) to set your free slots.
+          </p>
         </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
+        <AvailabilityCalendar />
+      </main>
     </div>
-  )
+  );
 }

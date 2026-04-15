@@ -10,27 +10,38 @@ export default async function AuthPage() {
   if (session) redirect("/");
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-background">
-      <div className="flex w-full max-w-sm flex-col items-center gap-8 px-6">
-        {/* Logo / heading */}
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Image
-            src="/logo.svg"
-            alt="SU Logo"
-            width={72}
-            height={94}
-            priority
-          />
-          <h1 className="text-2xl font-semibold tracking-tight">
-            SU Availability Tracker
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in to mark your free time slots for the week.
-          </p>
+    <main className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background">
+      {/* Warm glow behind content */}
+      <div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_70%_55%_at_50%_0%,oklch(0.60_0.155_52_/_0.09),transparent)] dark:[background:radial-gradient(ellipse_70%_55%_at_50%_0%,oklch(0.735_0.162_60_/_0.13),transparent)]" />
+
+      <div className="relative flex w-full max-w-xs flex-col items-center gap-10 px-6">
+        {/* Logo with subtle halo */}
+        <div className="flex flex-col items-center gap-5 text-center">
+          <div className="relative">
+            <div className="absolute -inset-4 rounded-full bg-primary/10 blur-2xl" />
+            <Image
+              src="/logo.svg"
+              alt="SU Logo"
+              width={76}
+              height={99}
+              priority
+              className="relative drop-shadow-sm"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="font-heading text-3xl font-semibold italic tracking-tight">
+              Availability Tracker
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Sign in to mark your free time slots for the week.
+            </p>
+          </div>
         </div>
 
-        {/* Google sign-in */}
-        <GoogleSignInButton />
+        <div className="w-full">
+          <GoogleSignInButton />
+        </div>
       </div>
     </main>
   );
