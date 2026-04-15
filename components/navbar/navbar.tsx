@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -29,7 +30,11 @@ function getInitials(name?: string | null, email?: string | null): string {
 }
 
 function ThemeToggle() {
+  const [mounted, setMounted] = useState(false)
   const { resolvedTheme, setTheme } = useTheme()
+
+  useEffect(() => setMounted(true), [])
+
   return (
     <Button
       variant="ghost"
@@ -38,11 +43,15 @@ function ThemeToggle() {
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       aria-label="Toggle theme"
     >
-      <HugeiconsIcon
-        icon={resolvedTheme === "dark" ? Sun03Icon : Moon02Icon}
-        className="size-4.5"
-        strokeWidth={1.5}
-      />
+      {mounted ? (
+        <HugeiconsIcon
+          icon={resolvedTheme === "dark" ? Sun03Icon : Moon02Icon}
+          className="size-4.5"
+          strokeWidth={1.5}
+        />
+      ) : (
+        <span className="size-4.5" />
+      )}
     </Button>
   )
 }
