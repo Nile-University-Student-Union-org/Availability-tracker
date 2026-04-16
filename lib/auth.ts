@@ -1,8 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-
-const client = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 const getAuthURL = () => {
   if (process.env.BETTER_AUTH_URL && process.env.BETTER_AUTH_URL !== "http://localhost:3000") {
@@ -20,7 +18,7 @@ const getAuthURL = () => {
 };
 
 export const auth = betterAuth({
-  database: prismaAdapter(client, { provider: "postgresql" }),
+  database: prismaAdapter(prisma, { provider: "postgresql" }),
   baseURL: getAuthURL(),
   trustedOrigins: ["https://availability-tracker.vercel.app"],
   socialProviders: {
