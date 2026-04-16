@@ -1,10 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useTheme } from "next-themes"
 import { authClient } from "@/lib/auth-client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -18,7 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Logout02Icon, Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons"
+import { Logout02Icon } from "@hugeicons/core-free-icons"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 function getInitials(name?: string | null, email?: string | null): string {
   if (name) {
@@ -27,33 +26,6 @@ function getInitials(name?: string | null, email?: string | null): string {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
   }
   return email?.slice(0, 2).toUpperCase() ?? "?"
-}
-
-function ThemeToggle() {
-  const [mounted, setMounted] = useState(false)
-  const { resolvedTheme, setTheme } = useTheme()
-
-  useEffect(() => setMounted(true), [])
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="rounded-full text-muted-foreground hover:text-foreground"
-      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      aria-label="Toggle theme"
-    >
-      {mounted ? (
-        <HugeiconsIcon
-          icon={resolvedTheme === "dark" ? Sun03Icon : Moon02Icon}
-          className="size-4.5"
-          strokeWidth={1.5}
-        />
-      ) : (
-        <span className="size-4.5" />
-      )}
-    </Button>
-  )
 }
 
 export function Navbar() {
