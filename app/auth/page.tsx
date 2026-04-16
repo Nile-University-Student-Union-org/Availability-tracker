@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const metadata: Metadata = {
   title: "Sign In",
@@ -16,6 +17,9 @@ export default async function AuthPage() {
 
   return (
     <main className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       {/* Warm glow behind content */}
       <div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_70%_55%_at_50%_0%,oklch(0.60_0.155_52_/_0.09),transparent)] dark:[background:radial-gradient(ellipse_70%_55%_at_50%_0%,oklch(0.735_0.162_60_/_0.13),transparent)]" />
 

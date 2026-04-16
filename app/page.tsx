@@ -16,7 +16,7 @@ export default function Page() {
             Mark Your Availability
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Click a highlighted day (Apr 19–23) to set your free slots.
+            Click a highlighted day to set your free slots.
           </p>
         </div>
         <AvailabilityCalendar />
