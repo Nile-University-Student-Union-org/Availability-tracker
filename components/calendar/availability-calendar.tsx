@@ -6,13 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ACTIVE_DATES,
-  TIME_SLOT_LABELS,
-  WEEK_DATES,
-  type WeekDate,
-} from "@/components/calendar/constants";
 import { AvailabilityDialog } from "@/components/calendar/availability-dialog";
+
+type ScheduleConfig = {
+  startDate: string;
+  endDate: string;
+  slotMode: "fixed" | "free";
+  timeSlots: string[];
+  dates: string[];
+};
 
 type AvailabilityMap = Map<string, Set<string>>;
 
@@ -24,31 +26,51 @@ function toISO(date: Date): string {
   ].join("-");
 }
 
+function formatTime(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
 export function AvailabilityCalendar() {
+  const [config, setConfig] = useState<ScheduleConfig | null>(null);
   const [availability, setAvailability] = useState<AvailabilityMap>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [dialogDate, setDialogDate] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const fetchAvailability = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/availability");
-      if (!res.ok) return;
-      const data: { date: string; startTime: string }[] = await res.json();
+      const [configRes, availRes] = await Promise.all([
+        fetch("/api/schedule-config"),
+        fetch("/api/availability"),
+      ]);
 
-      const map: AvailabilityMap = new Map();
-      for (const d of WEEK_DATES) map.set(d, new Set());
-      for (const { date, startTime } of data) map.get(date)?.add(startTime);
+      if (configRes.ok) {
+        const configData: ScheduleConfig = await configRes.json();
+        setConfig(configData);
 
-      setAvailability(map);
+        const map: AvailabilityMap = new Map();
+        for (const d of configData.dates) map.set(d, new Set());
+
+        if (availRes.ok) {
+          const availData: { date: string; startTime: string }[] =
+            await availRes.json();
+          for (const { date, startTime } of availData)
+            map.get(date)?.add(startTime);
+        }
+
+        setAvailability(map);
+      }
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchAvailability();
-  }, [fetchAvailability]);
+    fetchData();
+  }, [fetchData]);
 
   function openDialog(iso: string) {
     setDialogDate(iso);
@@ -56,7 +78,7 @@ export function AvailabilityCalendar() {
   }
 
   function handleSaved() {
-    void fetchAvailability();
+    void fetchData();
   }
 
   async function handleClear(date: string) {
@@ -72,32 +94,53 @@ export function AvailabilityCalendar() {
     });
   }
 
-  const datesWithSlots = ACTIVE_DATES.filter(
+  // Derived values from config
+  const activeDates = config
+    ? config.dates.map((d) => new Date(d + "T00:00:00"))
+    : [];
+  const weekDates = config?.dates ?? [];
+
+  const datesWithSlots = activeDates.filter(
     (d) => (availability.get(toISO(d))?.size ?? 0) > 0,
   );
 
-  // ISO strings for dates that have saved slots — drives the summary section
-  const datesWithSlotsISO = WEEK_DATES.filter(
+  const datesWithSlotsISO = weekDates.filter(
     (d) => (availability.get(d)?.size ?? 0) > 0,
+  );
+
+  // Determine which month to show based on config
+  const calendarMonth = config
+    ? new Date(config.startDate + "T00:00:00")
+    : new Date();
+  const displayMonth = new Date(
+    calendarMonth.getFullYear(),
+    calendarMonth.getMonth(),
+    1,
   );
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
       {isLoading ? (
         <Skeleton className="h-[340px] w-full max-w-sm rounded-3xl" />
+      ) : !config ? (
+        <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            No schedule has been configured yet. Please contact an admin.
+          </p>
+        </div>
       ) : (
         <Calendar
           mode="single"
-          month={new Date(2026, 3, 1)}
+          month={displayMonth}
           onMonthChange={() => undefined}
           selected={undefined}
           onDayClick={(day) => {
             const iso = toISO(day);
-            if (WEEK_DATES.includes(iso as WeekDate)) openDialog(iso);
+            if (weekDates.includes(iso)) openDialog(iso);
           }}
-          disabled={(day) => !ACTIVE_DATES.some((d) => isSameDay(d, day))}
+          disabled={(day) => !activeDates.some((d) => isSameDay(d, day))}
           modifiers={{
-            activeWeek: ACTIVE_DATES,
+            activeWeek: activeDates,
             hasSlots: datesWithSlots,
           }}
           modifiersClassNames={{
@@ -109,8 +152,8 @@ export function AvailabilityCalendar() {
         />
       )}
 
-      {/* Availability summary — shown whenever slots exist (on load or after save) */}
-      {!isLoading && datesWithSlotsISO.length > 0 && (
+      {/* Availability summary */}
+      {!isLoading && config && datesWithSlotsISO.length > 0 && (
         <div className="w-full max-w-sm overflow-hidden rounded-3xl border bg-card">
           <div className="border-b px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -145,7 +188,7 @@ export function AvailabilityCalendar() {
                         variant="secondary"
                         className="bg-emerald-500/15 text-xs text-emerald-700 dark:text-emerald-400"
                       >
-                        {TIME_SLOT_LABELS[slot as keyof typeof TIME_SLOT_LABELS]}
+                        {formatTime(slot)}
                       </Badge>
                     ))}
                   </div>
@@ -156,19 +199,22 @@ export function AvailabilityCalendar() {
         </div>
       )}
 
-      {/* Empty state — shown after loading when nothing is marked yet */}
-      {!isLoading && datesWithSlotsISO.length === 0 && (
+      {/* Empty state */}
+      {!isLoading && config && datesWithSlotsISO.length === 0 && (
         <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
           <p className="text-sm text-muted-foreground">
-            No availability marked yet — click a highlighted day above to get started.
+            No availability marked yet — click a highlighted day above to get
+            started.
           </p>
         </div>
       )}
 
-      {dialogDate !== null && (
+      {dialogDate !== null && config && (
         <AvailabilityDialog
           date={dialogDate}
           initialSlots={Array.from(availability.get(dialogDate) ?? [])}
+          slotMode={config.slotMode}
+          timeSlots={config.timeSlots}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           onSaved={() => handleSaved()}
