@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { TIME_SLOT_LABELS, WEEK_DATES } from "@/components/calendar/constants";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -30,24 +29,32 @@ export type AnalyticsData = {
   maxCount: number;
   slotMatrix: SlotEntry[];
   users: UserEntry[];
+  dates: string[];
+  timeSlots: string[];
 };
-
-// ─── Static data ──────────────────────────────────────────────────────────────
-
-const DAY_LABELS: Record<string, { short: string; full: string }> = {
-  "2026-04-19": { short: "Sun 19", full: "Sunday, Apr 19" },
-  "2026-04-20": { short: "Mon 20", full: "Monday, Apr 20" },
-  "2026-04-21": { short: "Tue 21", full: "Tuesday, Apr 21" },
-  "2026-04-22": { short: "Wed 22", full: "Wednesday, Apr 22" },
-  "2026-04-23": { short: "Thu 23", full: "Thursday, Apr 23" },
-};
-
-const TIME_SLOTS_ORDERED = [
-  "08:30", "09:30", "10:30", "11:30", "12:30",
-  "13:30", "14:30", "15:30", "16:30", "17:30",
-] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatTime(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+function formatDayShort(date: string): string {
+  const d = new Date(date + "T00:00:00");
+  return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
+}
+
+function formatDayFull(date: string): string {
+  const d = new Date(date + "T00:00:00");
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 function getInitials(name?: string | null, email?: string | null): string {
   if (name) {
@@ -131,7 +138,8 @@ function UserAvatar({
 // ─── Main dashboard ───────────────────────────────────────────────────────────
 
 export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
-  const { totalUsers, totalSlots, maxCount, slotMatrix, users } = data;
+  const { totalUsers, totalSlots, maxCount, slotMatrix, users, dates, timeSlots } =
+    data;
   const [activeCell, setActiveCell] = useState<{
     date: string;
     startTime: string;
@@ -178,7 +186,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           value={peakEntry?.count ?? 0}
           sub={
             peakEntry
-              ? `${DAY_LABELS[peakEntry.date]?.short} · ${TIME_SLOT_LABELS[peakEntry.startTime as keyof typeof TIME_SLOT_LABELS]}`
+              ? `${formatDayShort(peakEntry.date)} · ${formatTime(peakEntry.startTime)}`
               : "No data yet"
           }
         />
@@ -196,93 +204,103 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             Availability Matrix
           </h2>
           <p className="text-xs text-muted-foreground">
-            How many users are free per slot. Click any cell for details.
+            {dates.length === 0
+              ? "Configure a schedule to see availability data."
+              : timeSlots.length === 0
+                ? "No bookings yet — users will appear here once they submit availability."
+                : "How many users are free per slot. Click any cell for details."}
           </p>
         </div>
 
-        <div className="overflow-x-auto p-4">
-          <table className="w-full min-w-[360px] text-xs">
-            <thead>
-              <tr>
-                <th className="w-20 pb-2 pr-3 text-left text-[11px] font-medium text-muted-foreground" />
-                {WEEK_DATES.map((date) => (
-                  <th
-                    key={date}
-                    className="pb-2 text-center text-[11px] font-semibold"
-                  >
-                    {DAY_LABELS[date]?.short}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {TIME_SLOTS_ORDERED.map((startTime) => (
-                <tr key={startTime}>
-                  <td className="py-0.5 pr-3 text-right text-[11px] whitespace-nowrap text-muted-foreground">
-                    {TIME_SLOT_LABELS[startTime]}
-                  </td>
-                  {WEEK_DATES.map((date) => {
-                    const entry = slotMatrix.find(
-                      (s) => s.date === date && s.startTime === startTime,
-                    );
-                    const count = entry?.count ?? 0;
-                    const isActive =
-                      activeCell?.date === date &&
-                      activeCell?.startTime === startTime;
-
-                    return (
-                      <td key={date} className="px-1 py-0.5">
-                        <button
-                          onClick={() =>
-                            setActiveCell(
-                              isActive ? null : { date, startTime },
-                            )
-                          }
-                          disabled={count === 0}
-                          className={cn(
-                            "h-8 w-full rounded-lg text-xs font-semibold transition-all",
-                            cellStyle(count, maxCount),
-                            count > 0 && "cursor-pointer hover:opacity-75",
-                            count === 0 && "cursor-default",
-                            isActive &&
-                              "ring-2 ring-primary ring-offset-1 ring-offset-card",
-                          )}
-                        >
-                          {count > 0 ? count : "·"}
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center gap-2 border-t px-5 py-3 text-[11px] text-muted-foreground">
-          <span>Fewer</span>
-          <div className="flex gap-1">
-            <div className="h-3 w-5 rounded-sm bg-emerald-500/20" />
-            <div className="h-3 w-5 rounded-sm bg-emerald-500/40" />
-            <div className="h-3 w-5 rounded-sm bg-emerald-500/65" />
-            <div className="h-3 w-5 rounded-sm bg-emerald-600" />
+        {dates.length === 0 || timeSlots.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+            {dates.length === 0
+              ? "Set up a schedule below to start collecting availability."
+              : "Waiting for the first booking — the matrix will appear here."}
           </div>
-          <span>More users free</span>
-        </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto p-4">
+              <table className="w-full min-w-90 text-xs">
+                <thead>
+                  <tr>
+                    <th className="w-20 pb-2 pr-3 text-left text-[11px] font-medium text-muted-foreground" />
+                    {dates.map((date) => (
+                      <th
+                        key={date}
+                        className="pb-2 text-center text-[11px] font-semibold"
+                      >
+                        {formatDayShort(date)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {timeSlots.map((startTime) => (
+                    <tr key={startTime}>
+                      <td className="py-0.5 pr-3 text-right text-[11px] whitespace-nowrap text-muted-foreground">
+                        {formatTime(startTime)}
+                      </td>
+                      {dates.map((date) => {
+                        const entry = slotMatrix.find(
+                          (s) => s.date === date && s.startTime === startTime,
+                        );
+                        const count = entry?.count ?? 0;
+                        const isActive =
+                          activeCell?.date === date &&
+                          activeCell?.startTime === startTime;
+
+                        return (
+                          <td key={date} className="px-1 py-0.5">
+                            <button
+                              onClick={() =>
+                                setActiveCell(
+                                  isActive ? null : { date, startTime },
+                                )
+                              }
+                              disabled={count === 0}
+                              className={cn(
+                                "h-8 w-full rounded-lg text-xs font-semibold transition-all",
+                                cellStyle(count, maxCount),
+                                count > 0 && "cursor-pointer hover:opacity-75",
+                                count === 0 && "cursor-default",
+                                isActive &&
+                                  "ring-2 ring-primary ring-offset-1 ring-offset-card",
+                              )}
+                            >
+                              {count > 0 ? count : "·"}
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center gap-2 border-t px-5 py-3 text-[11px] text-muted-foreground">
+              <span>Fewer</span>
+              <div className="flex gap-1">
+                <div className="h-3 w-5 rounded-sm bg-emerald-500/20" />
+                <div className="h-3 w-5 rounded-sm bg-emerald-500/40" />
+                <div className="h-3 w-5 rounded-sm bg-emerald-500/65" />
+                <div className="h-3 w-5 rounded-sm bg-emerald-600" />
+              </div>
+              <span>More users free</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Active cell detail panel ─────────────────────────────────────── */}
       {activeCellData && activeCellData.count > 0 && (
         <div className="rounded-3xl border bg-card p-5">
           <p className="mb-3 text-sm font-medium">
-            {DAY_LABELS[activeCellData.date]?.full}
+            {formatDayFull(activeCellData.date)}
             {" · "}
-            {
-              TIME_SLOT_LABELS[
-                activeCellData.startTime as keyof typeof TIME_SLOT_LABELS
-              ]
-            }
+            {formatTime(activeCellData.startTime)}
             <span className="ml-2 text-muted-foreground">
               — {activeCellData.count}{" "}
               {activeCellData.count === 1 ? "user" : "users"} available
@@ -333,16 +351,12 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                   <span className="w-5 shrink-0 text-center text-xs font-semibold text-muted-foreground">
                     #{i + 1}
                   </span>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">
-                      {DAY_LABELS[slot.date]?.full}
+                      {formatDayFull(slot.date)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {
-                        TIME_SLOT_LABELS[
-                          slot.startTime as keyof typeof TIME_SLOT_LABELS
-                        ]
-                      }
+                      {formatTime(slot.startTime)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -383,7 +397,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             </p>
           </div>
           <div className="divide-y">
-            {WEEK_DATES.map((date) => {
+            {dates.map((date) => {
               const daySlots = slotMatrix.filter(
                 (s) => s.date === date && s.count > 0,
               );
@@ -400,12 +414,11 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
               return (
                 <div key={date} className="px-5 py-3">
                   <div className="mb-1.5 flex items-center justify-between text-sm">
-                    <span className="font-medium">
-                      {DAY_LABELS[date]?.full}
-                    </span>
+                    <span className="font-medium">{formatDayFull(date)}</span>
                     <span className="text-xs text-muted-foreground">
-                      {uniqueUsers.size} user{uniqueUsers.size !== 1 ? "s" : ""}{" "}
-                      · {totalDaySlots} slots
+                      {uniqueUsers.size} user
+                      {uniqueUsers.size !== 1 ? "s" : ""} · {totalDaySlots}{" "}
+                      slots
                     </span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
@@ -430,7 +443,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           <p className="text-xs text-muted-foreground">
             {totalUsers === 0
               ? "No availability submitted yet."
-              : `${totalUsers} ${totalUsers === 1 ? "user has" : "users have"} submitted availability this week.`}
+              : `${totalUsers} ${totalUsers === 1 ? "user has" : "users have"} submitted availability.`}
           </p>
         </div>
 
@@ -472,7 +485,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                           variant="secondary"
                           className="bg-emerald-500/12 text-[10px] text-emerald-700 dark:text-emerald-400"
                         >
-                          {DAY_LABELS[date]?.short} · {slots.length}×
+                          {formatDayShort(date)} · {slots.length}×
                         </Badge>
                       ))}
                   </div>

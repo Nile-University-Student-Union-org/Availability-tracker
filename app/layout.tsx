@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Anton, Poppins } from "next/font/google"
+import { Poppins } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -13,11 +13,6 @@ const poppins = Poppins({
 })
 
 // Anton — brand display font (Anton Regular in the SU brand guidelines)
-const anton = Anton({
-  weight: "400",
-  subsets: ["latin"],
-  variable: "--font-display",
-})
 
 export const metadata: Metadata = {
   title: {
@@ -40,7 +35,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", poppins.variable, anton.variable)}
+      className={cn("antialiased", poppins.variable)}
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>
