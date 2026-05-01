@@ -20,9 +20,30 @@ export const metadata: Metadata = {
 
 export default async function AdminPage() {
   const session = await auth.api.getSession({ headers: await headers() });
+  
+  if (!session) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <h1 className="text-2xl font-bold">Unauthorized</h1>
+        <p className="text-muted-foreground">Please log in to access the admin panel.</p>
+        <a href="/auth?callbackUrl=/admin" className="px-4 py-2 bg-primary text-primary-foreground rounded-lg">
+          Go to Login
+        </a>
+      </div>
+    );
+  }
 
-  if (!session) notFound();
-  if (!isAdminEmail(session.user.email)) notFound();
+  if (!isAdminEmail(session.user.email)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <h1 className="text-2xl font-bold">Access Denied</h1>
+        <p className="text-muted-foreground">Your account ({session.user.email}) does not have admin privileges.</p>
+        <a href="/" className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg">
+          Back to Home
+        </a>
+      </div>
+    );
+  }
 
   const config = await getScheduleConfig();
 
@@ -70,7 +91,7 @@ export default async function AdminPage() {
     const slotMatrix: SlotEntry[] = dates.flatMap((date) =>
       allTimeSlots.map((startTime) => {
         const matching = relevantSlots.filter(
-          (s) =>
+          (s: any) =>
             s.date.toISOString().slice(0, 10) === date &&
             s.startTime === startTime,
         );
@@ -79,8 +100,8 @@ export default async function AdminPage() {
           startTime,
           count: matching.length,
           users: matching
-            .filter((s) => s.user)
-            .map((s) => ({
+            .filter((s: any) => s.user)
+            .map((s: any) => ({
               name: s.user.name,
               email: s.user.email,
               image: s.user.image,
