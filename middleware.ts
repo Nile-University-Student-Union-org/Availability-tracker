@@ -8,7 +8,7 @@ export async function middleware(request: NextRequest) {
     {
       baseURL: request.nextUrl.origin,
       headers: {
-        cookie: request.headers.get("cookie") ?? "",
+        ...Object.fromEntries(request.headers.entries()),
       },
     },
   );
