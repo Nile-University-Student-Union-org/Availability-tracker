@@ -30,4 +30,18 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     },
   },
+  advanced: {
+    cookieOptions: {
+      useSecureCookies: process.env.NODE_ENV === "production",
+    },
+    cookies: {
+      session_token: {
+        attributes: {
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          partitioned: true,
+        },
+      },
+    },
+  },
 })

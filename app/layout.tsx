@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/sonner"
 import { cn } from "@/lib/utils"
 
 // Poppins — brand body font (Poppins in the SU brand guidelines)
@@ -11,8 +12,6 @@ const poppins = Poppins({
   subsets: ["latin"],
   variable: "--font-sans",
 })
-
-// Anton — brand display font (Anton Regular in the SU brand guidelines)
 
 export const metadata: Metadata = {
   title: {
@@ -38,7 +37,10 @@ export default function RootLayout({
       className={cn("antialiased", poppins.variable)}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )
