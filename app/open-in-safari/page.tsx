@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -19,13 +18,16 @@ function getSafeTarget(target: string | null) {
 }
 
 export default function OpenInSafariPage() {
-  const searchParams = useSearchParams();
-  const reason = searchParams.get("reason");
+  const [reason, setReason] = useState<string | null>(null);
+  const [rawTarget, setRawTarget] = useState<string | null>(null);
   const [autoTried, setAutoTried] = useState(false);
-  const target = useMemo(
-    () => getSafeTarget(searchParams.get("target")),
-    [searchParams],
-  );
+  const target = useMemo(() => getSafeTarget(rawTarget), [rawTarget]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setReason(params.get("reason"));
+    setRawTarget(params.get("target"));
+  }, []);
 
   useEffect(() => {
     if (autoTried) return;
