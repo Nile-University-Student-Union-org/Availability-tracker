@@ -24,11 +24,22 @@ export function GoogleSignInButton() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  function startDirectGoogleRedirect() {
+    const params = new URLSearchParams({
+      provider: "google",
+      callbackURL: "/",
+    });
+    window.location.assign(`/api/auth/sign-in/social?${params.toString()}`);
+  }
+
   async function handleSignIn() {
     if (isLikelyInAppBrowser()) {
       toast.message(
-        "Detected in-app browser. Trying Google sign-in now; if blocked, tap Open in Safari.",
+        "Detected in-app browser. Redirecting to Google sign-in...",
       );
+      setLoading(true);
+      startDirectGoogleRedirect();
+      return;
     }
 
     try {
@@ -44,9 +55,9 @@ export function GoogleSignInButton() {
         const message = error.message || "Failed to sign in with Google.";
 
         if (/too many requests/i.test(message)) {
-          toast.error(
-            "Too many attempts right now. Wait a minute, then open in Safari and try again.",
-          );
+          toast.error("Too many attempts. Retrying with direct redirect...");
+          startDirectGoogleRedirect();
+          return;
         } else if (/disallowed_useragent|user agent/i.test(message)) {
           toast.error(
             "This app browser is blocked by Google. Tap menu and choose Open in Safari.",
