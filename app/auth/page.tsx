@@ -10,10 +10,15 @@ export const metadata: Metadata = {
   title: "Sign In",
 };
 
-export default async function AuthPage() {
+export default async function AuthPage(props: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) {
+  const searchParams = await props.searchParams;
+  const callbackUrl = searchParams.callbackUrl || "/";
+
   // If the user is already signed in, send them straight to the app
   const session = await auth.api.getSession({ headers: await headers() });
-  if (session) redirect("/");
+  if (session) redirect(callbackUrl);
 
   return (
     <main className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background">

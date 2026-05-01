@@ -13,6 +13,7 @@ model User {
   id            String         @id
   name          String
   email         String
+  nuId          String?        // 9-digit student ID
   emailVerified Boolean        @default(false)
   image         String?
   createdAt     DateTime       @default(now())

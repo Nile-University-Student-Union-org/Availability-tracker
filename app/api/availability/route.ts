@@ -60,13 +60,30 @@ export async function POST(request: NextRequest) {
     slots: string[];
     memberName: string;
     memberEmail: string;
+    memberId: string;
   };
 
   const memberEmail = body.memberEmail?.trim().toLowerCase();
   const memberName = body.memberName?.trim();
-  if (!isValidEmail(memberEmail) || !memberName) {
+  const memberId = body.memberId?.trim();
+
+  if (!memberName || !memberEmail || !memberId) {
     return NextResponse.json(
-      { error: "Name and valid email are required" },
+      { error: "Name, email, and ID are required" },
+      { status: 400 },
+    );
+  }
+
+  if (!memberEmail.endsWith("@nu.edu.eg")) {
+    return NextResponse.json(
+      { error: "Only @nu.edu.eg emails are allowed" },
+      { status: 400 },
+    );
+  }
+
+  if (!/^\d{9}$/.test(memberId)) {
+    return NextResponse.json(
+      { error: "NU ID must be 9 digits" },
       { status: 400 },
     );
   }
@@ -88,11 +105,12 @@ export async function POST(request: NextRequest) {
   const date = new Date(body.date);
   const user = await prisma.user.upsert({
     where: { email: memberEmail },
-    update: { name: memberName },
+    update: { name: memberName, nuId: memberId },
     create: {
       id: crypto.randomUUID(),
       name: memberName,
       email: memberEmail,
+      nuId: memberId,
       emailVerified: false,
     },
     select: { id: true },
