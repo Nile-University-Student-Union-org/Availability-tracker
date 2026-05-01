@@ -3,7 +3,24 @@
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const COMMITTEES = [
+  "Activities",
+  "Academics",
+  "Community Service",
+  "Technical",
+  "PR",
+  "Media",
+];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,7 +28,7 @@ export type SlotEntry = {
   date: string;
   startTime: string;
   count: number;
-  users: { name: string | null; email: string; image: string | null }[];
+  users: { name: string | null; email: string; image: string | null; committee: string | null }[];
 };
 
 export type UserEntry = {
@@ -20,6 +37,7 @@ export type UserEntry = {
   email: string;
   nuId: string | null;
   image: string | null;
+  committee: string | null;
   totalSlots: number;
   byDate: Record<string, string[]>;
 };
@@ -137,7 +155,6 @@ function UserAvatar({
 }
 
 // ─── Main dashboard ───────────────────────────────────────────────────────────
-
 export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
   const { totalUsers, totalSlots, maxCount, slotMatrix, users, dates, timeSlots } =
     data;
@@ -146,55 +163,121 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     startTime: string;
   } | null>(null);
 
-  const avgSlots =
-    totalUsers > 0 ? (totalSlots / totalUsers).toFixed(1) : "—";
+  const [selectedCommittee, setSelectedCommittee] = useState<string>("all");
 
-  const peakEntry = slotMatrix.reduce<SlotEntry | null>(
+  const filteredUsers =
+    selectedCommittee === "all"
+      ? users
+      : users.filter((u) => u.committee === selectedCommittee);
+
+  const filteredUserIds = new Set(filteredUsers.map((u) => u.id));
+
+  // Recalculate everything based on filtered users
+  const filteredSlotMatrix = slotMatrix.map((slot) => {
+    const matchingUsers = slot.users.filter((u) => {
+      // Find the user object in the main users list to get their ID for filtering
+      const mainUser = users.find((mu) => mu.email === u.email);
+      return mainUser && filteredUserIds.has(mainUser.id);
+    });
+    return {
+      ...slot,
+      count: matchingUsers.length,
+      users: matchingUsers,
+    };
+  });
+
+  const filteredTotalSlots = filteredUsers.reduce(
+    (sum, u) => sum + u.totalSlots,
+    0,
+  );
+  const filteredMaxCount = filteredSlotMatrix.reduce(
+    (m, s) => Math.max(m, s.count),
+    0,
+  );
+
+  const avgSlots =
+    filteredUsers.length > 0
+      ? (filteredTotalSlots / filteredUsers.length).toFixed(1)
+      : "—";
+
+  const peakEntry = filteredSlotMatrix.reduce<SlotEntry | null>(
     (best, entry) => (entry.count > (best?.count ?? 0) ? entry : best),
     null,
   );
 
   const activeCellData = activeCell
-    ? (slotMatrix.find(
+    ? (filteredSlotMatrix.find(
         (s) =>
           s.date === activeCell.date && s.startTime === activeCell.startTime,
       ) ?? null)
     : null;
 
   // Top-5 busiest slots
-  const topSlots = [...slotMatrix]
+  const topSlots = [...filteredSlotMatrix]
     .filter((s) => s.count > 0)
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
+  // Committee breakdown for insights
+  const committeeStats = COMMITTEES.map((c) => {
+    const cUsers = users.filter((u) => u.committee === c);
+    const cSlots = cUsers.reduce((sum, u) => sum + u.totalSlots, 0);
+    return { name: c, users: cUsers.length, slots: cSlots };
+  }).sort((a, b) => b.slots - a.slots);
+
+  const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null;
+
   return (
     <div className="space-y-5">
+      {/* ── Committee Filter ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Label htmlFor="committee-filter" className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+            Filter by Committee:
+          </Label>
+          <Select value={selectedCommittee} onValueChange={(val) => setSelectedCommittee(val ?? "all")}>
+            <SelectTrigger id="committee-filter" className="h-8 w-40 rounded-xl text-xs">
+              <SelectValue placeholder="All Committees" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Committees</SelectItem>
+              {COMMITTEES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {selectedCommittee !== "all" && (
+          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+            Showing {filteredUsers.length} from {selectedCommittee}
+          </Badge>
+        )}
+      </div>
+
       {/* ── Metric cards ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MetricCard
           label="Participants"
-          value={totalUsers}
-          sub="users with availability"
+          value={filteredUsers.length}
+          sub={selectedCommittee === "all" ? "total users" : `members in ${selectedCommittee}`}
           accent
         />
         <MetricCard
-          label="Total Selections"
-          value={totalSlots}
-          sub="time slots marked"
+          label="Selections"
+          value={filteredTotalSlots}
+          sub="total slots marked"
         />
         <MetricCard
-          label="Peak Slot"
-          value={peakEntry?.count ?? 0}
-          sub={
-            peakEntry
-              ? `${formatDayShort(peakEntry.date)} · ${formatTime(peakEntry.startTime)}`
-              : "No data yet"
-          }
+          label="Peak Committee"
+          value={topCommittee?.name ?? "—"}
+          sub={topCommittee ? `${topCommittee.slots} slots marked` : "No data yet"}
         />
         <MetricCard
           label="Avg / User"
           value={avgSlots}
-          sub="time slots on average"
+          sub="slots per member"
         />
       </div>
 
@@ -209,7 +292,9 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
               ? "Configure a schedule to see availability data."
               : timeSlots.length === 0
                 ? "No bookings yet — users will appear here once they submit availability."
-                : "How many users are free per slot. Click any cell for details."}
+                : selectedCommittee === "all"
+                  ? "How many users are free per slot. Click any cell for details."
+                  : `Group availability for ${selectedCommittee} members.`}
           </p>
         </div>
 
@@ -243,7 +328,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                         {formatTime(startTime)}
                       </td>
                       {dates.map((date) => {
-                        const entry = slotMatrix.find(
+                        const entry = filteredSlotMatrix.find(
                           (s) => s.date === date && s.startTime === startTime,
                         );
                         const count = entry?.count ?? 0;
@@ -262,7 +347,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                               disabled={count === 0}
                               className={cn(
                                 "h-8 w-full rounded-lg text-xs font-semibold transition-all",
-                                cellStyle(count, maxCount),
+                                cellStyle(count, filteredMaxCount),
                                 count > 0 && "cursor-pointer hover:opacity-75",
                                 count === 0 && "cursor-default",
                                 isActive &&
@@ -319,7 +404,14 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                   image={user.image}
                   size="xs"
                 />
-                <span>{user.name ?? user.email}</span>
+                <div className="flex flex-col">
+                  <span>{user.name ?? user.email}</span>
+                  {user.committee && (
+                    <span className="text-[10px] text-muted-foreground leading-tight">
+                      {user.committee}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -399,7 +491,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           </div>
           <div className="divide-y">
             {dates.map((date) => {
-              const daySlots = slotMatrix.filter(
+              const daySlots = filteredSlotMatrix.filter(
                 (s) => s.date === date && s.count > 0,
               );
               const uniqueUsers = new Set(
@@ -410,7 +502,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                 0,
               );
               const fill =
-                totalUsers > 0 ? uniqueUsers.size / totalUsers : 0;
+                filteredUsers.length > 0 ? uniqueUsers.size / filteredUsers.length : 0;
 
               return (
                 <div key={date} className="px-5 py-3">
@@ -442,19 +534,19 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             Participants
           </h2>
           <p className="text-xs text-muted-foreground">
-            {totalUsers === 0
-              ? "No availability submitted yet."
-              : `${totalUsers} ${totalUsers === 1 ? "user has" : "users have"} submitted availability.`}
+            {filteredUsers.length === 0
+              ? "No members match the selected filter."
+              : `${filteredUsers.length} member${filteredUsers.length === 1 ? "" : "s"} shown.`}
           </p>
         </div>
 
-        {users.length === 0 ? (
+        {filteredUsers.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-            Waiting for participants to mark their availability.
+            No participants found for the current selection.
           </div>
         ) : (
           <div className="divide-y">
-            {users.map((user) => (
+            {filteredUsers.map((user) => (
               <div key={user.id} className="flex items-start gap-3 px-5 py-4">
                 <UserAvatar
                   name={user.name}
@@ -475,7 +567,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     </Badge>
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {user.email} {user.nuId && `· ID: ${user.nuId}`}
+                    {user.email} {user.nuId && `· ID: ${user.nuId}`} {user.committee && `· ${user.committee}`}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {Object.entries(user.byDate)

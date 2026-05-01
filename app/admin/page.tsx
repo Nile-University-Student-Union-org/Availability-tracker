@@ -68,7 +68,7 @@ export default async function AdminPage() {
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true, nuId: true, image: true },
+          select: { id: true, name: true, email: true, nuId: true, image: true, committee: true },
         },
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
@@ -105,6 +105,7 @@ export default async function AdminPage() {
               name: s.user.name,
               email: s.user.email,
               image: s.user.image,
+              committee: s.user.committee,
             })),
         };
       }),
@@ -124,6 +125,7 @@ export default async function AdminPage() {
           email: user.email,
           nuId: user.nuId,
           image: user.image,
+          committee: user.committee,
           totalSlots: 0,
           byDate: {},
         });

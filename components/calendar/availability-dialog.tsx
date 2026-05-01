@@ -30,6 +30,7 @@ interface AvailabilityDialogProps {
   memberName: string;
   memberEmail: string;
   memberId: string;
+  memberCommittee: string;
   slotMode: "fixed" | "free";
   timeSlots: string[];
   open: boolean;
@@ -43,6 +44,7 @@ export function AvailabilityDialog({
   memberName,
   memberEmail,
   memberId,
+  memberCommittee,
   slotMode,
   timeSlots,
   open,
@@ -111,6 +113,7 @@ export function AvailabilityDialog({
           memberName,
           memberEmail,
           memberId,
+          memberCommittee,
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
