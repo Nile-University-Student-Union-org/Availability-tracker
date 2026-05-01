@@ -31,6 +31,9 @@ export function LoginForm() {
 
       if (error) {
         toast.error(error.message || "Invalid credentials. Please try again.");
+      } else {
+        toast.success("Signed in successfully!");
+        window.location.href = new URL(window.location.href).searchParams.get("callbackUrl") || "/admin";
       }
     } catch (err) {
       console.error("Login error:", err);
