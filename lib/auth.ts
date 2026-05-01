@@ -31,17 +31,6 @@ export const auth = betterAuth({
     },
   },
   advanced: {
-    cookieOptions: {
-      useSecureCookies: process.env.NODE_ENV === "production",
-    },
-    cookies: {
-      session_token: {
-        attributes: {
-          sameSite: "lax",
-          secure: process.env.NODE_ENV === "production",
-          partitioned: true,
-        },
-      },
-    },
+    useSecureCookies: process.env.NODE_ENV === "production",
   },
 })
