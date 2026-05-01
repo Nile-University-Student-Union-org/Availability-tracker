@@ -6,22 +6,78 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+function isLikelyInAppBrowser() {
+  if (typeof navigator === "undefined") return false;
+
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const knownInAppUA =
+    /WhatsApp|Instagram|FBAN|FBAV|FB_IAB|Messenger|Line|Telegram|Twitter|Snapchat/i.test(
+      ua,
+    );
+  const iOSWebView = isIOS && /AppleWebKit/i.test(ua) && !/Safari/i.test(ua);
+
+  return knownInAppUA || iOSWebView;
+}
+
 export function GoogleSignInButton() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  function getCallbackURL() {
+    if (typeof window === "undefined") return "/";
+    return new URL("/", window.location.origin).toString();
+  }
+
+  function goToSafariHandoff(reason?: string) {
+    const params = new URLSearchParams({
+      target: typeof window !== "undefined" ? window.location.origin : "",
+    });
+    if (reason) params.set("reason", reason);
+    window.location.assign(`/open-in-safari?${params.toString()}`);
+  }
+
+  function startDirectGoogleRedirect() {
+    const params = new URLSearchParams({
+      provider: "google",
+      callbackURL: getCallbackURL(),
+    });
+    window.location.assign(`/api/auth/sign-in/social?${params.toString()}`);
+  }
+
   async function handleSignIn() {
+    if (isLikelyInAppBrowser()) {
+      toast.message(
+        "You're in an in-app browser. Opening Safari instructions...",
+      );
+      setLoading(true);
+      goToSafariHandoff("in_app_browser");
+      return;
+    }
+
     try {
       setLoading(true);
       const { error } = await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: getCallbackURL(),
         // Use redirect (default) but explicitly handle errors
       });
 
       if (error) {
         console.error("Sign-in error:", error);
-        toast.error(error.message || "Failed to sign in with Google.");
+        const message = error.message || "Failed to sign in with Google.";
+
+        if (/too many requests/i.test(message)) {
+          toast.error("Too many attempts right now. Open in Safari and try again in 1 minute.");
+          goToSafariHandoff("too_many_requests");
+          return;
+        } else if (/disallowed_useragent|user agent/i.test(message)) {
+          toast.error("Google sign-in is blocked here. Please open in Safari.");
+          goToSafariHandoff("disallowed_useragent");
+          return;
+        } else {
+          toast.error(message);
+        }
         setLoading(false);
         return;
       }

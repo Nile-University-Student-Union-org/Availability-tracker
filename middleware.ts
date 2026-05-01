@@ -25,12 +25,13 @@ export async function middleware(request: NextRequest) {
 export const config = {
   // Run on every route EXCEPT:
   //   /auth               – the sign-in page itself
+  //   /open-in-safari     – helper page for iOS in-app browser handoff
   //   /api/auth/**        – better-auth API handlers
   //   /_next/**           – Next.js internal assets
   //   /favicon.ico        – browser favicon request
   //   any path with a file extension (e.g. /logo.svg, /image.png)
   //     → public folder static files must never be gated
   matcher: [
-    "/((?!auth|api/auth|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|webp|woff2?|ttf|eot|css|js)$).*)",
+    "/((?!auth|open-in-safari|api/auth|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|webp|woff2?|ttf|eot|css|js)$).*)",
   ],
 };
