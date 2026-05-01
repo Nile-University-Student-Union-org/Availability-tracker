@@ -37,14 +37,6 @@ export function GoogleSignInButton() {
     window.location.assign(`/open-in-safari?${params.toString()}`);
   }
 
-  function startDirectGoogleRedirect() {
-    const params = new URLSearchParams({
-      provider: "google",
-      callbackURL: getCallbackURL(),
-    });
-    window.location.assign(`/api/auth/sign-in/social?${params.toString()}`);
-  }
-
   async function handleSignIn() {
     if (isLikelyInAppBrowser()) {
       toast.message(
