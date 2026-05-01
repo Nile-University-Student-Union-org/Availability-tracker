@@ -10,8 +10,11 @@ export async function GET() {
   */
 
   try {
-    const existing = await auth.api.getSession({ headers: await headers() });
-    
+    // Force reset: delete existing user if they exist to ensure new password is applied
+    await prisma.user.deleteMany({
+      where: { email: "admin@nu.edu.eg" }
+    });
+
     await auth.api.signUpEmail({
       body: {
         email: "admin@nu.edu.eg",
@@ -21,11 +24,8 @@ export async function GET() {
       headers: await headers(),
     });
 
-    return NextResponse.json({ message: "Admin user created successfully", email: "admin@nu.edu.eg" });
+    return NextResponse.json({ message: "Admin user created/reset successfully", email: "admin@nu.edu.eg" });
   } catch (error: any) {
-    if (error.message?.includes("already exists")) {
-      return NextResponse.json({ message: "Admin user already exists" });
-    }
-    return NextResponse.json({ error: error.message || "Failed to create admin" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to setup admin" }, { status: 500 });
   }
 }
