@@ -61,15 +61,17 @@ export async function POST(request: NextRequest) {
     memberName: string;
     memberEmail: string;
     memberId: string;
+    memberCommittee: string;
   };
 
   const memberEmail = body.memberEmail?.trim().toLowerCase();
   const memberName = body.memberName?.trim();
   const memberId = body.memberId?.trim();
+  const memberCommittee = body.memberCommittee?.trim();
 
-  if (!memberName || !memberEmail || !memberId) {
+  if (!memberName || !memberEmail || !memberId || !memberCommittee) {
     return NextResponse.json(
-      { error: "Name, email, and ID are required" },
+      { error: "Name, email, ID, and committee are required" },
       { status: 400 },
     );
   }
@@ -105,12 +107,13 @@ export async function POST(request: NextRequest) {
   const date = new Date(body.date);
   const user = await prisma.user.upsert({
     where: { email: memberEmail },
-    update: { name: memberName, nuId: memberId },
+    update: { name: memberName, nuId: memberId, committee: memberCommittee },
     create: {
       id: crypto.randomUUID(),
       name: memberName,
       email: memberEmail,
       nuId: memberId,
+      committee: memberCommittee,
       emailVerified: false,
     },
     select: { id: true },
