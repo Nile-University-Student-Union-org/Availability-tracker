@@ -4,20 +4,35 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export function GoogleSignInButton() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleSignIn() {
-    setLoading(true);
-    await authClient.signIn.social({
-      provider: "google",
-      callbackURL: "/",
-    });
-    // redirect is handled by better-auth after the OAuth flow
-    router.refresh();
-    setLoading(false);
+    try {
+      setLoading(true);
+      const { error } = await authClient.signIn.social({
+        provider: "google",
+        callbackURL: "/",
+        // Use redirect (default) but explicitly handle errors
+      });
+
+      if (error) {
+        console.error("Sign-in error:", error);
+        toast.error(error.message || "Failed to sign in with Google.");
+        setLoading(false);
+        return;
+      }
+      
+      // Better-auth usually redirects the page, but if it doesn't:
+      router.refresh();
+    } catch (err: unknown) {
+      console.error("Sign-in catch:", err);
+      toast.error("An unexpected error occurred during sign-in.");
+      setLoading(false);
+    }
   }
 
   return (
