@@ -11,11 +11,14 @@ export async function GET() {
       info: dbInfo,
       tables: tables
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const stack = error instanceof Error ? error.stack : undefined;
+
     return NextResponse.json({
       success: false,
-      error: error.message,
-      stack: error.stack
+      error: message,
+      stack,
     }, { status: 500 });
   }
 }
