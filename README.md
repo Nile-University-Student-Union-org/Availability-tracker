@@ -50,6 +50,7 @@ Open `.env` and fill in every value.
 | --- | --- |
 | `BETTER_AUTH_SECRET` | Random secret used to sign session tokens. Generate with `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | Public URL of the app — `http://localhost:3000` in dev, `https://your-domain.com` in production |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | Optional comma-separated extra trusted origins for auth requests (custom domains/previews) |
 | `DATABASE_URL` | PostgreSQL connection string, e.g. `postgresql://user:pass@host:5432/db` |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
@@ -85,6 +86,11 @@ pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). You will be redirected to the sign-in page if you are not authenticated.
+
+### iPhone and in-app browser note
+
+Google OAuth may be blocked inside some iOS in-app browsers (for example WhatsApp/Instagram).  
+The app includes an `/open-in-safari` handoff page to guide users into Safari when this happens.
 
 ---
 
