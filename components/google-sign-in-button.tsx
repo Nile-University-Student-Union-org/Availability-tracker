@@ -6,11 +6,31 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
+function isLikelyInAppBrowser() {
+  if (typeof navigator === "undefined") return false;
+
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const knownInAppUA =
+    /WhatsApp|Instagram|FBAN|FBAV|FB_IAB|Messenger|Line|Telegram|Twitter|Snapchat/i.test(
+      ua,
+    );
+  const iOSWebView = isIOS && /AppleWebKit/i.test(ua) && !/Safari/i.test(ua);
+
+  return knownInAppUA || iOSWebView;
+}
+
 export function GoogleSignInButton() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleSignIn() {
+    if (isLikelyInAppBrowser()) {
+      toast.message(
+        "Detected in-app browser. Trying Google sign-in now; if blocked, tap Open in Safari.",
+      );
+    }
+
     try {
       setLoading(true);
       const { error } = await authClient.signIn.social({
@@ -21,7 +41,19 @@ export function GoogleSignInButton() {
 
       if (error) {
         console.error("Sign-in error:", error);
-        toast.error(error.message || "Failed to sign in with Google.");
+        const message = error.message || "Failed to sign in with Google.";
+
+        if (/too many requests/i.test(message)) {
+          toast.error(
+            "Too many attempts right now. Wait a minute, then open in Safari and try again.",
+          );
+        } else if (/disallowed_useragent|user agent/i.test(message)) {
+          toast.error(
+            "This app browser is blocked by Google. Tap menu and choose Open in Safari.",
+          );
+        } else {
+          toast.error(message);
+        }
         setLoading(false);
         return;
       }
