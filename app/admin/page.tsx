@@ -91,7 +91,7 @@ export default async function AdminPage() {
     const slotMatrix: SlotEntry[] = dates.flatMap((date) =>
       allTimeSlots.map((startTime) => {
         const matching = relevantSlots.filter(
-          (s) =>
+          (s: any) =>
             s.date.toISOString().slice(0, 10) === date &&
             s.startTime === startTime,
         );
@@ -100,8 +100,8 @@ export default async function AdminPage() {
           startTime,
           count: matching.length,
           users: matching
-            .filter((s) => s.user)
-            .map((s) => ({
+            .filter((s: any) => s.user)
+            .map((s: any) => ({
               name: s.user.name,
               email: s.user.email,
               image: s.user.image,
