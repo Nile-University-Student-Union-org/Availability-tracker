@@ -10,6 +10,22 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { AvailabilityDialog } from "@/components/calendar/availability-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const COMMITTEES = [
+  "Activities",
+  "Academics",
+  "Community Service",
+  "Technical",
+  "PR",
+  "Media",
+];
 
 type ScheduleConfig = {
   startDate: string;
@@ -40,6 +56,7 @@ export function AvailabilityCalendar() {
   const [memberName, setMemberName] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
   const [memberId, setMemberId] = useState("");
+  const [memberCommittee, setMemberCommittee] = useState("");
   const [memberSaved, setMemberSaved] = useState(false);
   const [config, setConfig] = useState<ScheduleConfig | null>(null);
   const [availability, setAvailability] = useState<AvailabilityMap>(new Map());
@@ -82,10 +99,12 @@ export function AvailabilityCalendar() {
     const savedName = localStorage.getItem("memberName") ?? "";
     const savedEmail = localStorage.getItem("memberEmail") ?? "";
     const savedId = localStorage.getItem("memberId") ?? "";
-    if (savedName && savedEmail && savedId) {
+    const savedCommittee = localStorage.getItem("memberCommittee") ?? "";
+    if (savedName && savedEmail && savedId && savedCommittee) {
       setMemberName(savedName);
       setMemberEmail(savedEmail);
       setMemberId(savedId);
+      setMemberCommittee(savedCommittee);
       setMemberSaved(true);
     }
   }, []);
@@ -98,6 +117,7 @@ export function AvailabilityCalendar() {
     const name = memberName.trim();
     const email = memberEmail.trim().toLowerCase();
     const id = memberId.trim();
+    const committee = memberCommittee;
 
     if (!name) {
       toast.error("Please enter your name");
@@ -114,12 +134,19 @@ export function AvailabilityCalendar() {
       return;
     }
 
+    if (!committee) {
+      toast.error("Please select your committee");
+      return;
+    }
+
     localStorage.setItem("memberName", name);
     localStorage.setItem("memberEmail", email);
     localStorage.setItem("memberId", id);
+    localStorage.setItem("memberCommittee", committee);
     setMemberName(name);
     setMemberEmail(email);
     setMemberId(id);
+    setMemberCommittee(committee);
     setMemberSaved(true);
     toast.success("Details saved!");
   }
@@ -205,6 +232,21 @@ export function AvailabilityCalendar() {
               placeholder="9 digits (e.g. 211100000)"
               maxLength={9}
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="member-committee">Committee</Label>
+            <Select value={memberCommittee} onValueChange={(val) => setMemberCommittee(val ?? "")}>
+              <SelectTrigger id="member-committee">
+                <SelectValue placeholder="Select your committee" />
+              </SelectTrigger>
+              <SelectContent>
+                {COMMITTEES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button className="w-full" onClick={handleSaveMember}>
             Save Details
@@ -314,6 +356,7 @@ export function AvailabilityCalendar() {
           memberName={memberName}
           memberEmail={memberEmail}
           memberId={memberId}
+          memberCommittee={memberCommittee}
           slotMode={config.slotMode}
           timeSlots={config.timeSlots}
           open={dialogOpen}
