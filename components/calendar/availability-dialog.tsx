@@ -29,6 +29,7 @@ interface AvailabilityDialogProps {
   initialSlots: string[];
   memberName: string;
   memberEmail: string;
+  memberId: string;
   slotMode: "fixed" | "free";
   timeSlots: string[];
   open: boolean;
@@ -41,6 +42,7 @@ export function AvailabilityDialog({
   initialSlots,
   memberName,
   memberEmail,
+  memberId,
   slotMode,
   timeSlots,
   open,
@@ -108,6 +110,7 @@ export function AvailabilityDialog({
           slots: Array.from(selectedSlots),
           memberName,
           memberEmail,
+          memberId,
         }),
       });
       if (!res.ok) throw new Error("Failed to save");

@@ -18,6 +18,7 @@ export type UserEntry = {
   id: string;
   name: string | null;
   email: string;
+  nuId: string | null;
   image: string | null;
   totalSlots: number;
   byDate: Record<string, string[]>;
@@ -474,7 +475,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     </Badge>
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {user.email}
+                    {user.email} {user.nuId && `· ID: ${user.nuId}`}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {Object.entries(user.byDate)

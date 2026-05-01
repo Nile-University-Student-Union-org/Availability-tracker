@@ -46,7 +46,7 @@ export default async function AdminPage() {
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true, image: true },
+          select: { id: true, name: true, email: true, nuId: true, image: true },
         },
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
@@ -97,6 +97,7 @@ export default async function AdminPage() {
           id: user.id,
           name: user.name,
           email: user.email,
+          nuId: user.nuId,
           image: user.image,
           totalSlots: 0,
           byDate: {},
