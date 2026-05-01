@@ -3,18 +3,18 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { GoogleSignInButton } from "@/components/google-sign-in-button";
+import { LoginForm } from "@/components/login-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export const metadata: Metadata = {
-  title: "Sign In",
+  title: "Admin Sign In",
 };
 
 export default async function AuthPage(props: {
   searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   const searchParams = await props.searchParams;
-  const callbackUrl = searchParams.callbackUrl || "/";
+  const callbackUrl = searchParams.callbackUrl || "/admin";
 
   // If the user is already signed in, send them straight to the app
   const session = await auth.api.getSession({ headers: await headers() });
@@ -28,7 +28,7 @@ export default async function AuthPage(props: {
       {/* Warm glow behind content */}
       <div className="pointer-events-none absolute inset-0 [background:radial-gradient(ellipse_70%_55%_at_50%_0%,oklch(0.60_0.155_52_/_0.09),transparent)] dark:[background:radial-gradient(ellipse_70%_55%_at_50%_0%,oklch(0.735_0.162_60_/_0.13),transparent)]" />
 
-      <div className="relative flex w-full max-w-xs flex-col items-center gap-10 px-6">
+      <div className="relative flex w-full max-w-sm flex-col items-center gap-10 px-6">
         {/* Logo with subtle halo */}
         <div className="flex flex-col items-center gap-5 text-center">
           <div className="relative">
@@ -45,16 +45,16 @@ export default async function AuthPage(props: {
 
           <div className="space-y-2">
             <h1 className="font-heading text-3xl font-semibold tracking-tight">
-              Availability Tracker
+              Admin Access
             </h1>
             <p className="text-sm text-muted-foreground">
-              Sign in to mark your free time slots for the week.
+              Sign in with your credentials to access the dashboard.
             </p>
           </div>
         </div>
 
         <div className="w-full">
-          <GoogleSignInButton />
+          <LoginForm />
         </div>
       </div>
     </main>

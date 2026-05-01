@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 
 export default async function AdminPage() {
   const session = await auth.api.getSession({ headers: await headers() });
+
   if (!session) notFound();
   if (!isAdminEmail(session.user.email)) notFound();
 
@@ -77,11 +78,13 @@ export default async function AdminPage() {
           date,
           startTime,
           count: matching.length,
-          users: matching.map((s) => ({
-            name: s.user.name,
-            email: s.user.email,
-            image: s.user.image,
-          })),
+          users: matching
+            .filter((s) => s.user)
+            .map((s) => ({
+              name: s.user.name,
+              email: s.user.email,
+              image: s.user.image,
+            })),
         };
       }),
     );
@@ -90,8 +93,9 @@ export default async function AdminPage() {
 
     const userMap = new Map<string, UserEntry>();
     for (const slot of relevantSlots) {
-      const { user, date, startTime } = slot;
-      const isoDate = date.toISOString().slice(0, 10);
+      const { user, date, startTime } = slot as any;
+      if (!user) continue;
+      const isoDate = (date as Date).toISOString().slice(0, 10);
       if (!userMap.has(user.id)) {
         userMap.set(user.id, {
           id: user.id,
