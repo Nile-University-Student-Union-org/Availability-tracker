@@ -27,6 +27,8 @@ function formatTime(time: string): string {
 interface AvailabilityDialogProps {
   date: string;
   initialSlots: string[];
+  memberName: string;
+  memberEmail: string;
   slotMode: "fixed" | "free";
   timeSlots: string[];
   open: boolean;
@@ -37,6 +39,8 @@ interface AvailabilityDialogProps {
 export function AvailabilityDialog({
   date,
   initialSlots,
+  memberName,
+  memberEmail,
   slotMode,
   timeSlots,
   open,
@@ -99,7 +103,12 @@ export function AvailabilityDialog({
       const res = await fetch("/api/availability", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, slots: Array.from(selectedSlots) }),
+        body: JSON.stringify({
+          date,
+          slots: Array.from(selectedSlots),
+          memberName,
+          memberEmail,
+        }),
       });
       if (!res.ok) throw new Error("Failed to save");
       onSaved(date, Array.from(selectedSlots));

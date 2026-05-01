@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -18,24 +18,22 @@ function getSafeTarget(target: string | null) {
 }
 
 export default function OpenInSafariPage() {
-  const [reason, setReason] = useState<string | null>(null);
-  const [rawTarget, setRawTarget] = useState<string | null>(null);
-  const [autoTried, setAutoTried] = useState(false);
-  const target = useMemo(() => getSafeTarget(rawTarget), [rawTarget]);
+  const autoTriedRef = useRef(false);
+  const params =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : null;
+  const reason = params?.get("reason") ?? null;
+  const rawTarget = params?.get("target") ?? null;
+  const target = getSafeTarget(rawTarget);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setReason(params.get("reason"));
-    setRawTarget(params.get("target"));
-  }, []);
-
-  useEffect(() => {
-    if (autoTried) return;
-    setAutoTried(true);
+    if (autoTriedRef.current) return;
+    autoTriedRef.current = true;
 
     // Attempt immediate handoff; some webviews may keep users in-app, so fallbacks remain visible.
     window.location.assign(target);
-  }, [autoTried, target]);
+  }, [target]);
 
   async function handleCopyLink() {
     try {
