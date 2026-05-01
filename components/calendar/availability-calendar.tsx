@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AvailabilityDialog } from "@/components/calendar/availability-dialog";
 
@@ -34,6 +36,9 @@ function formatTime(time: string): string {
 }
 
 export function AvailabilityCalendar() {
+  const [memberName, setMemberName] = useState("");
+  const [memberEmail, setMemberEmail] = useState("");
+  const [memberSaved, setMemberSaved] = useState(false);
   const [config, setConfig] = useState<ScheduleConfig | null>(null);
   const [availability, setAvailability] = useState<AvailabilityMap>(new Map());
   const [isLoading, setIsLoading] = useState(true);
@@ -42,10 +47,7 @@ export function AvailabilityCalendar() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [configRes, availRes] = await Promise.all([
-        fetch("/api/schedule-config"),
-        fetch("/api/availability"),
-      ]);
+      const configRes = await fetch("/api/schedule-config");
 
       if (configRes.ok) {
         const configData: ScheduleConfig = await configRes.json();
@@ -54,11 +56,17 @@ export function AvailabilityCalendar() {
         const map: AvailabilityMap = new Map();
         for (const d of configData.dates) map.set(d, new Set());
 
-        if (availRes.ok) {
-          const availData: { date: string; startTime: string }[] =
-            await availRes.json();
-          for (const { date, startTime } of availData)
-            map.get(date)?.add(startTime);
+        if (memberSaved && memberEmail) {
+          const availRes = await fetch(
+            `/api/availability?email=${encodeURIComponent(memberEmail)}`,
+          );
+          if (availRes.ok) {
+            const availData: { date: string; startTime: string }[] =
+              await availRes.json();
+            for (const { date, startTime } of availData) {
+              map.get(date)?.add(startTime);
+            }
+          }
         }
 
         setAvailability(map);
@@ -66,11 +74,32 @@ export function AvailabilityCalendar() {
     } finally {
       setIsLoading(false);
     }
+  }, [memberEmail, memberSaved]);
+
+  useEffect(() => {
+    const savedName = localStorage.getItem("memberName") ?? "";
+    const savedEmail = localStorage.getItem("memberEmail") ?? "";
+    if (savedName && savedEmail) {
+      setMemberName(savedName);
+      setMemberEmail(savedEmail);
+      setMemberSaved(true);
+    }
   }, []);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  function handleSaveMember() {
+    const name = memberName.trim();
+    const email = memberEmail.trim().toLowerCase();
+    if (!name || !email) return;
+    localStorage.setItem("memberName", name);
+    localStorage.setItem("memberEmail", email);
+    setMemberName(name);
+    setMemberEmail(email);
+    setMemberSaved(true);
+  }
 
   function openDialog(iso: string) {
     setDialogDate(iso);
@@ -85,7 +114,7 @@ export function AvailabilityCalendar() {
     await fetch("/api/availability", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, slots: [] }),
+      body: JSON.stringify({ date, slots: [], memberName, memberEmail }),
     });
     setAvailability((prev) => {
       const next = new Map(prev);
@@ -120,8 +149,44 @@ export function AvailabilityCalendar() {
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
+      <div className="w-full max-w-sm rounded-3xl border bg-card p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Member Details
+        </p>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="member-name">Name</Label>
+            <Input
+              id="member-name"
+              value={memberName}
+              onChange={(e) => setMemberName(e.target.value)}
+              placeholder="Your full name"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="member-email">Email</Label>
+            <Input
+              id="member-email"
+              type="email"
+              value={memberEmail}
+              onChange={(e) => setMemberEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+          </div>
+          <Button className="w-full" onClick={handleSaveMember}>
+            Save Details
+          </Button>
+        </div>
+      </div>
+
       {isLoading ? (
         <Skeleton className="h-[340px] w-full max-w-sm rounded-3xl" />
+      ) : !memberSaved ? (
+        <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Save your name and email first to start tracking availability.
+          </p>
+        </div>
       ) : !config ? (
         <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
           <p className="text-sm text-muted-foreground">
@@ -213,6 +278,8 @@ export function AvailabilityCalendar() {
         <AvailabilityDialog
           date={dialogDate}
           initialSlots={Array.from(availability.get(dialogDate) ?? [])}
+          memberName={memberName}
+          memberEmail={memberEmail}
           slotMode={config.slotMode}
           timeSlots={config.timeSlots}
           open={dialogOpen}
