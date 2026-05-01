@@ -3,9 +3,11 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function GET() {
+  /*
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ error: "Not allowed in production" }, { status: 403 });
   }
+  */
 
   try {
     const existing = await auth.api.getSession({ headers: await headers() });
