@@ -83,14 +83,7 @@ export function Navbar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            <Link
-              href="/auth"
-              className="inline-flex h-8 items-center rounded-md border border-input bg-background px-3 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              Admin sign in
-            </Link>
-          )}
+          ) : null}
         </div>
       </nav>
     </header>
