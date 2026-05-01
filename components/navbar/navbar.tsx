@@ -67,21 +67,29 @@ export function Navbar() {
                 </Avatar>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent align="end">
-                <DropdownMenuGroup>
+                <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
-                    <p className="font-medium">{session.user.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {session.user.email}
-                    </p>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {session.user.name}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {session.user.email}
+                      </p>
+                    </div>
                   </DropdownMenuLabel>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} variant="destructive">
-                  <HugeiconsIcon icon={Logout02Icon} />
-                  Sign out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={() => router.push("/admin")}>
+                      Admin Panel
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} variant="destructive">
+                    <HugeiconsIcon icon={Logout02Icon} className="mr-2 size-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
             </DropdownMenu>
           ) : null}
         </div>
