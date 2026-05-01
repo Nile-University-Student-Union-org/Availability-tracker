@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { AvailabilityDialog } from "@/components/calendar/availability-dialog";
 
 type ScheduleConfig = {
@@ -38,6 +39,7 @@ function formatTime(time: string): string {
 export function AvailabilityCalendar() {
   const [memberName, setMemberName] = useState("");
   const [memberEmail, setMemberEmail] = useState("");
+  const [memberId, setMemberId] = useState("");
   const [memberSaved, setMemberSaved] = useState(false);
   const [config, setConfig] = useState<ScheduleConfig | null>(null);
   const [availability, setAvailability] = useState<AvailabilityMap>(new Map());
@@ -79,9 +81,11 @@ export function AvailabilityCalendar() {
   useEffect(() => {
     const savedName = localStorage.getItem("memberName") ?? "";
     const savedEmail = localStorage.getItem("memberEmail") ?? "";
-    if (savedName && savedEmail) {
+    const savedId = localStorage.getItem("memberId") ?? "";
+    if (savedName && savedEmail && savedId) {
       setMemberName(savedName);
       setMemberEmail(savedEmail);
+      setMemberId(savedId);
       setMemberSaved(true);
     }
   }, []);
@@ -93,12 +97,31 @@ export function AvailabilityCalendar() {
   function handleSaveMember() {
     const name = memberName.trim();
     const email = memberEmail.trim().toLowerCase();
-    if (!name || !email) return;
+    const id = memberId.trim();
+
+    if (!name) {
+      toast.error("Please enter your name");
+      return;
+    }
+
+    if (!email.endsWith("@nu.edu.eg")) {
+      toast.error("Please use your NU email (@nu.edu.eg)");
+      return;
+    }
+
+    if (!/^\d{9}$/.test(id)) {
+      toast.error("NU ID must be exactly 9 digits");
+      return;
+    }
+
     localStorage.setItem("memberName", name);
     localStorage.setItem("memberEmail", email);
+    localStorage.setItem("memberId", id);
     setMemberName(name);
     setMemberEmail(email);
+    setMemberId(id);
     setMemberSaved(true);
+    toast.success("Details saved!");
   }
 
   function openDialog(iso: string) {
@@ -164,13 +187,23 @@ export function AvailabilityCalendar() {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="member-email">Email</Label>
+            <Label htmlFor="member-email">NU Email</Label>
             <Input
               id="member-email"
               type="email"
               value={memberEmail}
               onChange={(e) => setMemberEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="username@nu.edu.eg"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="member-id">NU ID</Label>
+            <Input
+              id="member-id"
+              value={memberId}
+              onChange={(e) => setMemberId(e.target.value)}
+              placeholder="9 digits (e.g. 211100000)"
+              maxLength={9}
             />
           </div>
           <Button className="w-full" onClick={handleSaveMember}>
@@ -280,6 +313,7 @@ export function AvailabilityCalendar() {
           initialSlots={Array.from(availability.get(dialogDate) ?? [])}
           memberName={memberName}
           memberEmail={memberEmail}
+          memberId={memberId}
           slotMode={config.slotMode}
           timeSlots={config.timeSlots}
           open={dialogOpen}
