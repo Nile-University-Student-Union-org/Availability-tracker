@@ -23,6 +23,7 @@ export function LoginForm() {
 
     try {
       setLoading(true);
+      console.log("Attempting sign in for:", email);
       const { error } = await authClient.signIn.email({
         email,
         password,
@@ -30,14 +31,16 @@ export function LoginForm() {
       });
 
       if (error) {
+        console.error("Sign in error:", error);
         toast.error(error.message || "Invalid credentials. Please try again.");
       } else {
+        console.log("Sign in successful, redirecting...");
         toast.success("Signed in successfully!");
         window.location.href = new URL(window.location.href).searchParams.get("callbackUrl") || "/admin";
       }
-    } catch (err) {
-      console.error("Login error:", err);
-      toast.error("An unexpected error occurred.");
+    } catch (err: any) {
+      console.error("Critical login error:", err);
+      toast.error(`Error: ${err.message || "An unexpected error occurred."}`);
     } finally {
       setLoading(false);
     }
