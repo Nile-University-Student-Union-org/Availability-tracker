@@ -12,6 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const COMMITTEES = [
   "Activities",
@@ -162,6 +170,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     date: string;
     startTime: string;
   } | null>(null);
+  const [viewingUser, setViewingUser] = useState<UserEntry | null>(null);
 
   const [selectedCommittee, setSelectedCommittee] = useState<string>("all");
 
@@ -547,7 +556,11 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         ) : (
           <div className="divide-y">
             {filteredUsers.map((user) => (
-              <div key={user.id} className="flex items-start gap-3 px-5 py-4">
+              <div
+                key={user.id}
+                onClick={() => setViewingUser(user)}
+                className="flex cursor-pointer items-start gap-3 px-5 py-4 transition-colors hover:bg-muted/30"
+              >
                 <UserAvatar
                   name={user.name}
                   email={user.email}
@@ -588,6 +601,64 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           </div>
         )}
       </div>
+
+      {/* ── Individual member schedule dialog ──────────────────────────── */}
+      <Dialog open={!!viewingUser} onOpenChange={(open) => !open && setViewingUser(null)}>
+        <DialogContent className="max-w-md rounded-3xl">
+          {viewingUser && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  <UserAvatar
+                    name={viewingUser.name}
+                    email={viewingUser.email}
+                    image={viewingUser.image}
+                    size="sm"
+                  />
+                  <div className="text-left">
+                    <DialogTitle className="font-heading text-lg">
+                      {viewingUser.name ?? "Member Schedule"}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs">
+                      {viewingUser.email} {viewingUser.nuId && `· ID: ${viewingUser.nuId}`}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              <ScrollArea className="mt-4 max-h-[60vh] pr-4">
+                <div className="space-y-6 pb-2">
+                  {Object.entries(viewingUser.byDate)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([date, slots]) => (
+                      <div key={date}>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                          {formatDayFull(date)}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {slots.sort().map((slot) => (
+                            <Badge
+                              key={slot}
+                              variant="secondary"
+                              className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                            >
+                              {formatTime(slot)}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  {Object.keys(viewingUser.byDate).length === 0 && (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      No availability marked yet.
+                    </p>
+                  )}
+                </div>
+              </ScrollArea>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
