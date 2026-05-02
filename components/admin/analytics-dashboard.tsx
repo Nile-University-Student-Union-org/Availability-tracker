@@ -21,6 +21,15 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { COMMITTEES } from "@/lib/constants";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -228,6 +237,32 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
 
   const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null;
 
+  // NEW: Best slot per committee
+  const bestSlotPerCommittee = COMMITTEES.map((c) => {
+    const cSlots = filteredSlotMatrix.map((slot) => {
+      const cUsers = slot.users.filter((u) => u.committee === c);
+      return { ...slot, cCount: cUsers.size ?? cUsers.length };
+    });
+    const best = cSlots.reduce<{ date: string; startTime: string; cCount: number } | null>(
+      (acc, s) => (s.cCount > (acc?.cCount ?? 0) ? { date: s.date, startTime: s.startTime, cCount: s.cCount } : acc),
+      null,
+    );
+    return { committee: c, best };
+  }).filter((b) => b.best && b.best.cCount > 0);
+
+  // NEW: Committee x Date matrix
+  const committeeDateMatrix = COMMITTEES.map((c) => {
+    const datesData = dates.map((d) => {
+      const uniqueUsers = new Set(
+        filteredSlotMatrix
+          .filter((s) => s.date === d)
+          .flatMap((s) => s.users.filter((u) => u.committee === c).map((u) => u.email)),
+      );
+      return { date: d, count: uniqueUsers.size };
+    });
+    return { committee: c, dates: datesData };
+  });
+
   return (
     <div className="space-y-5">
       {/* ── Committee Filter ─────────────────────────────────────────── */}
@@ -280,6 +315,55 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           value={avgSlots}
           sub="slots per member"
         />
+      </div>
+
+      {/* ── NEW: Committee Breakdown Chart ────────────────────────────── */}
+      <div className="overflow-hidden rounded-3xl border bg-card">
+        <div className="border-b px-5 py-4">
+          <h2 className="font-heading text-base font-semibold">
+            Committee Breakdown
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Distribution of members and total availability slots per committee
+          </p>
+        </div>
+        <div className="h-64 w-full p-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={committeeStats}
+              layout="vertical"
+              margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+            >
+              <XAxis type="number" hide />
+              <YAxis
+                dataKey="name"
+                type="category"
+                width={80}
+                tick={{ fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: "transparent" }}
+                contentStyle={{
+                  borderRadius: "16px",
+                  border: "none",
+                  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                  fontSize: "12px",
+                }}
+              />
+              <Bar dataKey="slots" radius={[0, 4, 4, 0]} barSize={20}>
+                {committeeStats.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={index % 2 === 0 ? "var(--color-primary)" : "var(--color-primary-foreground)"}
+                    className="fill-primary"
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* ── Availability matrix ─────────────────────────────────────────── */}
@@ -393,28 +477,36 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
               {activeCellData.count === 1 ? "user" : "users"} available
             </span>
           </p>
-          <div className="flex flex-wrap gap-2">
-            {activeCellData.users.map((user) => (
-              <div
-                key={user.email}
-                className="flex items-center gap-2 rounded-xl border bg-muted/30 px-2.5 py-1.5 text-xs"
-              >
-                <UserAvatar
-                  name={user.name}
-                  email={user.email}
-                  image={user.image}
-                  size="xs"
-                />
-                <div className="flex flex-col">
-                  <span>{user.name ?? user.email}</span>
-                  {user.committee && (
-                    <span className="text-[10px] text-muted-foreground leading-tight">
-                      {user.committee}
-                    </span>
-                  )}
+          <div className="space-y-4">
+            {COMMITTEES.map((c) => {
+              const cUsers = activeCellData.users.filter((u) => u.committee === c);
+              if (cUsers.length === 0) return null;
+              return (
+                <div key={c}>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {c} ({cUsers.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {cUsers.map((user) => (
+                      <div
+                        key={user.email}
+                        className="flex items-center gap-2 rounded-xl border bg-muted/30 px-2.5 py-1.5 text-xs"
+                      >
+                        <UserAvatar
+                          name={user.name}
+                          email={user.email}
+                          image={user.image}
+                          size="xs"
+                        />
+                        <div className="flex flex-col">
+                          <span>{user.name ?? user.email}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -525,6 +617,79 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* ── NEW: Committee x Date Table ────────────────────────────────── */}
+      <div className="overflow-hidden rounded-3xl border bg-card">
+        <div className="border-b px-5 py-4">
+          <h2 className="font-heading text-base font-semibold">
+            Committee × Date Coverage
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Number of unique members available each day per committee
+          </p>
+        </div>
+        <div className="overflow-x-auto p-4">
+          <table className="w-full text-xs">
+            <thead>
+              <tr>
+                <th className="pb-2 text-left text-[11px] font-medium text-muted-foreground">Committee</th>
+                {dates.map((d) => (
+                  <th key={d} className="pb-2 text-center text-[11px] font-medium text-muted-foreground">
+                    {formatDayShort(d)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {committeeDateMatrix.map((row) => (
+                <tr key={row.committee}>
+                  <td className="py-2 text-[11px] font-semibold">{row.committee}</td>
+                  {row.dates.map((d) => (
+                    <td key={d.date} className="py-2 text-center">
+                      <span className={cn(
+                        "inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px]",
+                        d.count > 0 ? "bg-emerald-500/15 text-emerald-700 font-bold" : "text-muted-foreground/30"
+                      )}>
+                        {d.count > 0 ? d.count : "0"}
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── NEW: Best Slot per Committee ──────────────────────────────── */}
+      <div className="overflow-hidden rounded-3xl border bg-card">
+        <div className="border-b px-5 py-4">
+          <h2 className="font-heading text-base font-semibold">
+            Best Slots by Committee
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Recommended time slots with peak attendance for each committee
+          </p>
+        </div>
+        <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
+          {bestSlotPerCommittee.map((b) => (
+            <div key={b.committee} className="bg-card p-4">
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {b.committee}
+              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">{formatDayFull(b.best!.date)}</p>
+                  <p className="text-xs text-muted-foreground">{formatTime(b.best!.startTime)}</p>
+                </div>
+                <Badge className="bg-emerald-500/20 text-emerald-700 border-none">
+                  {b.best!.cCount} members
+                </Badge>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
