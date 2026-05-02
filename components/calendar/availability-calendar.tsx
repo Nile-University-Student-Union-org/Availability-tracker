@@ -17,15 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const COMMITTEES = [
-  "Activities",
-  "Academics",
-  "Community Service",
-  "Technical",
-  "PR",
-  "Media",
-];
+import { COMMITTEES } from "@/lib/constants";
 
 type ScheduleConfig = {
   startDate: string;
