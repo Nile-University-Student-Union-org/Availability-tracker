@@ -56,36 +56,46 @@ export function AvailabilityCalendar() {
   const [dialogDate, setDialogDate] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       const configRes = await fetch("/api/schedule-config");
-
       if (configRes.ok) {
         const configData: ScheduleConfig = await configRes.json();
         setConfig(configData);
-
-        const map: AvailabilityMap = new Map();
-        for (const d of configData.dates) map.set(d, new Set());
-
-        if (memberSaved && memberEmail) {
-          const availRes = await fetch(
-            `/api/availability?email=${encodeURIComponent(memberEmail)}`,
-          );
-          if (availRes.ok) {
-            const availData: { date: string; startTime: string }[] =
-              await availRes.json();
-            for (const { date, startTime } of availData) {
-              map.get(date)?.add(startTime);
-            }
-          }
-        }
-
-        setAvailability(map);
+        // Initialize map with empty sets for all dates
+        setAvailability(new Map(configData.dates.map((d) => [d, new Set()])));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [memberEmail, memberSaved]);
+  }, []);
+
+  const fetchAvailability = useCallback(async () => {
+    if (!memberSaved || !memberEmail || !config) return;
+    try {
+      const availRes = await fetch(
+        `/api/availability?email=${encodeURIComponent(memberEmail)}`,
+      );
+      if (availRes.ok) {
+        const availData: { date: string; startTime: string }[] =
+          await availRes.json();
+        setAvailability((prev) => {
+          const map = new Map(prev);
+          // Reset only the dates that are in the config
+          for (const d of config.dates) map.set(d, new Set());
+          // Fill with new data
+          for (const { date, startTime } of availData) {
+            if (map.has(date)) {
+              map.get(date)?.add(startTime);
+            }
+          }
+          return map;
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch availability", err);
+    }
+  }, [memberEmail, memberSaved, config]);
 
   useEffect(() => {
     const savedName = localStorage.getItem("memberName") ?? "";
@@ -102,8 +112,12 @@ export function AvailabilityCalendar() {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchConfig();
+  }, [fetchConfig]);
+
+  useEffect(() => {
+    fetchAvailability();
+  }, [fetchAvailability]);
 
   function handleSaveMember() {
     const name = memberName.trim();
@@ -149,7 +163,7 @@ export function AvailabilityCalendar() {
   }
 
   function handleSaved() {
-    void fetchData();
+    void fetchAvailability();
   }
 
   async function handleClear(date: string) {
