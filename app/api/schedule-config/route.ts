@@ -11,5 +11,9 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json(config);
+  return NextResponse.json(config, {
+    headers: {
+      "Cache-Control": "s-maxage=60, stale-while-revalidate=300",
+    },
+  });
 }
