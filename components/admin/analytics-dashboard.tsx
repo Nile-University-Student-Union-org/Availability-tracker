@@ -241,7 +241,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
   const bestSlotPerCommittee = COMMITTEES.map((c) => {
     const cSlots = filteredSlotMatrix.map((slot) => {
       const cUsers = slot.users.filter((u) => u.committee === c);
-      return { ...slot, cCount: cUsers.size ?? cUsers.length };
+      return { ...slot, cCount: cUsers.length };
     });
     const best = cSlots.reduce<{ date: string; startTime: string; cCount: number } | null>(
       (acc, s) => (s.cCount > (acc?.cCount ?? 0) ? { date: s.date, startTime: s.startTime, cCount: s.cCount } : acc),
