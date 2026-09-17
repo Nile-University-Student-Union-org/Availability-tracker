@@ -174,7 +174,7 @@ DIRECT_URL="postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/po
 # Initial Admin Credentials
 ADMIN_EMAILS="admin@nu.edu.eg"
 ADMIN_EMAIL="admin@nu.edu.eg"
-ADMIN_PASSWORD="***REMOVED***"
+ADMIN_PASSWORD="your-strong-admin-password"
 
 # Optional: Google OAuth Credentials (if enabled)
 # GOOGLE_CLIENT_ID=""
@@ -208,7 +208,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 Once the application is running, initialize or reset the admin user:
 - Visit [http://localhost:3000/api/setup-admin](http://localhost:3000/api/setup-admin)
-- Login with `admin@nu.edu.eg` / `***REMOVED***`
+- Login with your configured admin email and password (from `.env`)
 - Navigate to `/admin` to access the command center.
 
 ---

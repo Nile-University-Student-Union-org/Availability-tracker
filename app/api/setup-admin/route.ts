@@ -10,7 +10,14 @@ export async function GET(req: Request) {
     process.env.ADMIN_SETUP_SECRET || process.env.BETTER_AUTH_SECRET
 
   const adminEmail = process.env.ADMIN_EMAIL || "admin@nu.edu.eg"
-  const adminPassword = process.env.ADMIN_PASSWORD || "***REMOVED***"
+  const adminPassword = process.env.ADMIN_PASSWORD
+
+  if (!adminPassword) {
+    return NextResponse.json(
+      { error: "ADMIN_PASSWORD environment variable is not configured" },
+      { status: 500 }
+    )
+  }
 
   // In production, require an explicit, matching secret before allowing admin setup/reset
   if (process.env.NODE_ENV === "production") {

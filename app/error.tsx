@@ -49,8 +49,11 @@ export default function GlobalError({
 
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:gap-3">
           <Button
-            onClick={() => reset()}
-            className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold shadow-xs touch-manipulation active:scale-[0.98] sm:flex-1"
+            onClick={() => {
+              reset()
+              window.location.reload()
+            }}
+            className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold shadow-xs touch-manipulation active:scale-[0.98] sm:flex-1 cursor-pointer"
             variant="default"
           >
             <HugeiconsIcon icon={RefreshIcon} className="mr-2 size-4.5 shrink-0" />
@@ -58,9 +61,11 @@ export default function GlobalError({
           </Button>
 
           <Button
-            render={<Link href="/" />}
+            onClick={() => {
+              window.location.href = "/"
+            }}
             variant="outline"
-            className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98] sm:flex-1"
+            className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98] sm:flex-1 cursor-pointer"
           >
             <HugeiconsIcon icon={Home01Icon} className="mr-2 size-4.5 shrink-0" />
             Return Home

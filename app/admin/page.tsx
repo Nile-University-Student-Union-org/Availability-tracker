@@ -19,7 +19,13 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminPage() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  let session = null
+  try {
+    session = await auth.api.getSession({ headers: await headers() })
+  } catch (err) {
+    console.error("Admin session lookup failed:", err)
+    redirect("/auth?mode=signin&callbackUrl=/admin")
+  }
 
   if (!session) {
     redirect("/auth?mode=signin&callbackUrl=/admin")

@@ -11,7 +11,13 @@ export const metadata: Metadata = {
 }
 
 export default async function Page() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  let session = null
+  try {
+    session = await auth.api.getSession({ headers: await headers() })
+  } catch (err) {
+    console.error("Session lookup failed on /:", err)
+    redirect("/auth?mode=signin&callbackUrl=/")
+  }
 
   if (!session) {
     redirect("/auth?mode=signin&callbackUrl=/")

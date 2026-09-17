@@ -77,4 +77,4 @@ Whenever the user says **"start"** (or begins a new session):
   - Database GUI: `pnpm prisma:studio`
   - Seed Default Schedule: `pnpm prisma:seed`
 - **Admin Setup Endpoint**:
-  - `http://localhost:3000/api/setup-admin` (initializes or resets admin: `admin@nu.edu.eg` / `***REMOVED***`)
+  - `http://localhost:3000/api/setup-admin` (initializes or resets admin configured via `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env`)

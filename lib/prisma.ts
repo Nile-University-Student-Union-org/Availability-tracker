@@ -9,10 +9,10 @@ function getDatabaseUrl(): string | undefined {
   // Ensure connection pool size does not exhaust cloud PostgreSQL limits (e.g. Aiven 20-conn ceiling)
   if (!url.includes("connection_limit")) {
     const separator = url.includes("?") ? "&" : "?"
-    // In production serverless lambdas, limit to 2 connections per container.
+    // In production serverless lambdas, limit to 1 connection per lambda container.
     // In local development, limit to 3 connections to leave headroom for cloud/remote clients.
-    const limit = process.env.NODE_ENV === "production" ? 2 : 3
-    return `${url}${separator}connection_limit=${limit}&pool_timeout=20`
+    const limit = process.env.NODE_ENV === "production" ? 1 : 3
+    return `${url}${separator}connection_limit=${limit}&pool_timeout=10`
   }
 
   return url
