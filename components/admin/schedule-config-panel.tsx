@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -67,15 +67,6 @@ function getDaysInRange(startIso?: string, endIso?: string): string[] {
   return days;
 }
 
-function formatDayChip(iso: string): { weekday: string; date: string } {
-  const [y, m, d] = iso.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  return {
-    weekday: date.toLocaleDateString("en-US", { weekday: "short" }),
-    date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-  };
-}
-
 interface DatePickerProps {
   label: string;
   value: string;
@@ -94,14 +85,6 @@ function DatePicker({
   onChange,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
-  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
-
   const selected = value ? new Date(value + "T00:00:00") : undefined;
 
   // Compute active range boundaries for calendar highlight
@@ -128,10 +111,6 @@ function DatePicker({
   const defaultMonth =
     selected ||
     (isEndDate && startDate ? new Date(startDate + "T00:00:00") : undefined);
-
-  const activeDaysCount = hasRange
-    ? getDaysInRange(effectiveStart, effectiveEnd).length
-    : 0;
 
   return (
     <div className="flex-1 space-y-1.5">
@@ -180,65 +159,24 @@ function DatePicker({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-auto p-0 rounded-3xl overflow-hidden shadow-2xl border-border/80"
+          className="w-auto p-0 rounded-3xl overflow-hidden shadow-xl border-border/80"
         >
-          <div className="p-3">
-            <Calendar
-              mode="single"
-              selected={selected}
-              defaultMonth={defaultMonth}
-              disabled={
-                isEndDate && startDate ? (d) => toISO(d) < startDate : undefined
+          <Calendar
+            mode="single"
+            selected={selected}
+            defaultMonth={defaultMonth}
+            disabled={
+              isEndDate && startDate ? (d) => toISO(d) < startDate : undefined
+            }
+            modifiers={rangeModifiers}
+            onSelect={(day) => {
+              if (day) {
+                onChange(toISO(day));
+                setOpen(false);
               }
-              modifiers={rangeModifiers}
-              onSelect={(day) => {
-                if (day) {
-                  const iso = toISO(day);
-                  onChange(iso);
-                  if (closeTimerRef.current)
-                    clearTimeout(closeTimerRef.current);
-                  closeTimerRef.current = setTimeout(() => {
-                    setOpen(false);
-                  }, 350);
-                }
-              }}
-              className="rounded-2xl"
-            />
-          </div>
-
-          {hasRange && (
-            <div className="flex items-center justify-between gap-3 border-t border-border/70 bg-muted/40 px-4 py-2.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="relative flex size-2 shrink-0">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[11px] font-semibold text-foreground truncate">
-                    {activeDaysCount} active day
-                    {activeDaysCount !== 1 ? "s" : ""}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground font-mono truncate">
-                    {effectiveStart} → {effectiveEnd}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                  Last day included ✓
-                </span>
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="ghost"
-                  className="h-6 px-2 text-[11px] rounded-lg text-muted-foreground hover:text-foreground"
-                  onClick={() => setOpen(false)}
-                >
-                  Done
-                </Button>
-              </div>
-            </div>
-          )}
+            }}
+            className="rounded-3xl p-3"
+          />
         </PopoverContent>
       </Popover>
     </div>
@@ -396,72 +334,16 @@ export function ScheduleConfigPanel() {
           </div>
 
           {dateCount > 0 && (
-            <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3.5 sm:p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant="secondary"
-                    className="rounded-full bg-primary/15 text-primary border border-primary/25 text-xs px-2.5 py-0.5 font-semibold"
-                  >
-                    {dateCount} active day{dateCount !== 1 ? "s" : ""} selected
-                  </Badge>
-                  <span className="text-xs text-muted-foreground font-mono">
-                    {config.startDate} → {config.endDate}
-                  </span>
-                </div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
-                  <HugeiconsIcon
-                    icon={Tick01Icon}
-                    className="size-3.5 text-emerald-600 dark:text-emerald-400"
-                    strokeWidth={2.5}
-                  />
-                  <span>
-                    Last day ({formatDateLabel(config.endDate)}) is included
-                  </span>
-                </div>
-              </div>
-
-              {/* Active days preview */}
-              <div className="space-y-1.5 pt-1">
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Active Schedule Days
-                </p>
-                <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto pr-1">
-                  {activeDays.map((dayIso, idx) => {
-                    const isStart = idx === 0;
-                    const isLast = idx === activeDays.length - 1;
-                    const chip = formatDayChip(dayIso);
-                    return (
-                      <div
-                        key={dayIso}
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs transition-all",
-                          isLast
-                            ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-950 dark:text-emerald-200 font-bold shadow-xs ring-1 ring-emerald-500/30"
-                            : isStart
-                              ? "border-primary/40 bg-primary/20 text-primary font-bold shadow-xs ring-1 ring-primary/30"
-                              : "border-border/60 bg-card text-foreground font-medium",
-                        )}
-                      >
-                        <span className="text-[10px] text-muted-foreground font-semibold">
-                          {chip.weekday}
-                        </span>
-                        <span>{chip.date}</span>
-                        {isStart && (
-                          <span className="ml-0.5 text-[9px] uppercase tracking-wider bg-primary/25 text-primary px-1.5 py-0.2 rounded font-bold">
-                            Start
-                          </span>
-                        )}
-                        {isLast && (
-                          <span className="ml-0.5 text-[9px] uppercase tracking-wider bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black px-1.5 py-0.2 rounded-full font-bold inline-flex items-center gap-0.5">
-                            End ✓
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Badge
+                variant="secondary"
+                className="rounded-full bg-primary/10 text-primary border border-primary/20 text-xs px-2.5 py-0.5 font-medium"
+              >
+                {dateCount} active day{dateCount !== 1 ? "s" : ""} selected
+              </Badge>
+              <span className="text-xs text-muted-foreground font-mono">
+                {config.startDate} → {config.endDate}
+              </span>
             </div>
           )}
         </div>
