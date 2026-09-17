@@ -21,7 +21,7 @@ export function ThemeToggle() {
     const nextTheme = resolvedTheme === "dark" ? "light" : "dark"
 
     setIsToggling(true)
-    setTimeout(() => setIsToggling(false), 560)
+    setTimeout(() => setIsToggling(false), 440)
 
     executeThemeTransition(nextTheme, setTheme)
   }

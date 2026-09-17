@@ -100,7 +100,7 @@ export function ThemeBeam() {
         if (switchTimer) clearTimeout(switchTimer)
         switchTimer = setTimeout(() => {
           setTheme(targetTheme)
-        }, 220)
+        }, 180)
       }
 
       // Automatically unmount overlay and clean up classes after beam exits
@@ -108,7 +108,7 @@ export function ThemeBeam() {
       cleanupTimer = setTimeout(() => {
         setActive(false)
         document.documentElement.classList.remove("theme-transitioning")
-      }, 580)
+      }, 460)
     }
 
     window.addEventListener(THEME_BEAM_EVENT, handleBeamEvent)
@@ -142,36 +142,36 @@ export function ThemeBeam() {
 
       {/* GPU-composited diagonal photon beam wavefront */}
       <div
-        className="animate-beam-sweep pointer-events-none absolute -top-[45vh] -bottom-[45vh] flex w-[220px] items-center justify-center sm:w-[320px]"
+        className="animate-beam-sweep pointer-events-none absolute -top-[30vh] -bottom-[30vh] flex w-[200px] items-center justify-center sm:w-[280px]"
         style={{ transformOrigin: "center center" }}
       >
-        {/* Ethereal atmospheric wide aura glow */}
+        {/* Soft atmospheric aura glow using pure linear gradient without heavy blurs */}
         <div
           className={cn(
-            "absolute inset-0 rounded-full opacity-60 blur-2xl sm:opacity-75 sm:blur-3xl",
+            "absolute inset-0 rounded-full opacity-60",
             isGoingDark
-              ? "bg-gradient-to-r from-transparent via-cyan-400/40 via-emerald-500/40 to-transparent"
-              : "bg-gradient-to-r from-transparent via-amber-400/50 via-emerald-400/35 to-transparent"
+              ? "bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent"
+              : "bg-gradient-to-r from-transparent via-amber-400/35 to-transparent"
           )}
         />
 
         {/* Medium prismatic blade */}
         <div
           className={cn(
-            "relative h-full w-[100px] opacity-90 blur-md sm:w-[150px]",
+            "relative h-full w-[80px] sm:w-[120px] opacity-85",
             isGoingDark
-              ? "bg-gradient-to-r from-transparent via-cyan-300/50 via-white/80 to-transparent"
-              : "bg-gradient-to-r from-transparent via-amber-200/65 via-white/85 to-transparent"
+              ? "bg-gradient-to-r from-transparent via-cyan-300/40 via-white/70 to-transparent"
+              : "bg-gradient-to-r from-transparent via-amber-200/50 via-white/75 to-transparent"
           )}
         />
 
         {/* Specular razor laser filament */}
         <div
           className={cn(
-            "absolute h-full w-[1.5px] rounded-full bg-white sm:w-[2px]",
+            "absolute h-full w-[1.5px] rounded-full bg-white",
             isGoingDark
-              ? "shadow-[0_0_10px_#ffffff,0_0_22px_#38bdf8,0_0_50px_#10b981]"
-              : "shadow-[0_0_10px_#ffffff,0_0_22px_#fbbf24,0_0_50px_#34d399]"
+              ? "shadow-[0_0_8px_#ffffff,0_0_16px_#38bdf8]"
+              : "shadow-[0_0_8px_#ffffff,0_0_16px_#fbbf24]"
           )}
         />
       </div>
