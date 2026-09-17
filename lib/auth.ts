@@ -3,7 +3,7 @@ import { APIError } from "better-auth/api"
 import { prismaAdapter } from "better-auth/adapters/prisma"
 import { prisma } from "@/lib/prisma"
 
-const DEFAULT_PROD_URL = "https://availability-tracker.vercel.app"
+const DEFAULT_PROD_URL = "https://nusu-availability-tracker.vercel.app"
 
 const getAuthURL = () => {
   if (process.env.BETTER_AUTH_URL) {
@@ -29,16 +29,17 @@ const getTrustedOrigins = (authURL: string) => {
     // Fallback for unexpected URL parsing issues in misconfigured environments.
   }
 
+  origins.add("https://nusu-availability-tracker.vercel.app")
+  origins.add("https://availability-tracker.vercel.app")
+  origins.add("http://localhost:3000")
+  origins.add("http://127.0.0.1:3000")
+
   const configuredOrigins = process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",")
     .map((origin) => origin.trim())
     .filter(Boolean)
 
   for (const origin of configuredOrigins ?? []) {
     origins.add(origin)
-  }
-
-  if (process.env.NODE_ENV !== "production") {
-    origins.add("http://localhost:3000")
   }
 
   return [...origins]
