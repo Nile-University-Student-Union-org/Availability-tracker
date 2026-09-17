@@ -12,16 +12,13 @@ export async function GET(req: Request) {
   const adminEmail = process.env.ADMIN_EMAIL || "admin@nu.edu.eg"
   const adminPassword = process.env.ADMIN_PASSWORD || "***REMOVED***"
 
-  // In production, prevent random external users from wiping the existing admin account
-  if (process.env.NODE_ENV === "production" && secret !== expectedSecret) {
-    const existing = await prisma.user.findUnique({
-      where: { email: adminEmail },
-    })
-    if (existing) {
+  // In production, require an explicit, matching secret before allowing admin setup/reset
+  if (process.env.NODE_ENV === "production") {
+    if (!expectedSecret || secret !== expectedSecret) {
       return NextResponse.json(
         {
           error:
-            "Admin is already initialized. Provide ?secret=<BETTER_AUTH_SECRET> to reset in production.",
+            "Unauthorized. Provide ?secret=<ADMIN_SETUP_SECRET> to manage admin in production.",
         },
         { status: 403 }
       )

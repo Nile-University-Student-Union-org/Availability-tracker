@@ -8,6 +8,8 @@ import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons"
 
+import { getSafeCallbackUrl } from "@/lib/url-helpers"
+
 export function LoginForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -23,24 +25,21 @@ export function LoginForm() {
 
     try {
       setLoading(true)
-      console.log("Attempting sign in for:", email)
+      const targetUrl = getSafeCallbackUrl(
+        new URL(window.location.href).searchParams.get("callbackUrl"),
+        "/admin"
+      )
       const { error } = await authClient.signIn.email({
-        email,
+        email: email.trim().toLowerCase(),
         password,
-        callbackURL:
-          new URL(window.location.href).searchParams.get("callbackUrl") ||
-          "/admin",
+        callbackURL: targetUrl,
       })
 
       if (error) {
-        console.error("Sign in error:", error)
         toast.error(error.message || "Invalid credentials. Please try again.")
       } else {
-        console.log("Sign in successful, redirecting...")
         toast.success("Signed in successfully!")
-        window.location.href =
-          new URL(window.location.href).searchParams.get("callbackUrl") ||
-          "/admin"
+        window.location.href = targetUrl
       }
     } catch (err: any) {
       console.error("Critical login error:", err)

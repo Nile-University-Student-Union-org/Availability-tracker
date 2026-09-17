@@ -1,4 +1,7 @@
+import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/lib/auth"
+import { isAdminEmail } from "@/lib/admin"
 import { prisma } from "@/lib/prisma"
 import { getScheduleConfig } from "@/lib/schedule"
 
@@ -7,9 +10,19 @@ function isValidEmail(value: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const email = request.nextUrl.searchParams.get("email")?.trim() ?? ""
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const email = request.nextUrl.searchParams.get("email")?.trim().toLowerCase() ?? ""
   if (!isValidEmail(email)) {
     return NextResponse.json([])
+  }
+
+  const isUserAdmin = await isAdminEmail(session.user.email)
+  if (!isUserAdmin && session.user.email.toLowerCase() !== email) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   const config = await getScheduleConfig()
@@ -47,6 +60,19 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  // admin@nu.edu.eg cannot mark availability
+  if (session.user.email === "admin@nu.edu.eg") {
+    return NextResponse.json(
+      { error: "Admin accounts cannot mark availability" },
+      { status: 403 }
+    )
+  }
+
   const config = await getScheduleConfig()
   if (!config) {
     return NextResponse.json(
@@ -64,7 +90,7 @@ export async function POST(request: NextRequest) {
     memberCommittee?: string
   }
 
-  const memberEmail = body.memberEmail?.trim().toLowerCase()
+  const memberEmail = (body.memberEmail || session.user.email)?.trim().toLowerCase()
   const memberName = body.memberName?.trim()
   const memberId = body.memberId?.trim()
   const memberCommittee = body.memberCommittee?.trim()
@@ -77,6 +103,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Only @nu.edu.eg emails are allowed" },
       { status: 400 }
+    )
+  }
+
+  const isUserAdmin = await isAdminEmail(session.user.email)
+  if (!isUserAdmin && session.user.email.toLowerCase() !== memberEmail) {
+    return NextResponse.json(
+      { error: "Forbidden: You can only submit availability for your own account" },
+      { status: 403 }
     )
   }
 

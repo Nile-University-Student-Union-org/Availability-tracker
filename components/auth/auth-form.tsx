@@ -28,6 +28,8 @@ import {
 } from "@hugeicons/core-free-icons"
 import { cn } from "@/lib/utils"
 
+import { getSafeCallbackUrl } from "@/lib/url-helpers"
+
 interface AuthFormProps {
   initialMode?: "signup" | "signin"
   callbackUrl?: string
@@ -40,7 +42,10 @@ export function AuthForm({ initialMode, callbackUrl }: AuthFormProps) {
     initialMode ?? (modeParam === "signup" ? "signup" : "signin")
 
   const [activeTab, setActiveTab] = useState<"signup" | "signin">(defaultMode)
-  const resolvedCallback = callbackUrl || searchParams.get("callbackUrl") || "/"
+  const resolvedCallback = getSafeCallbackUrl(
+    callbackUrl || searchParams.get("callbackUrl"),
+    "/"
+  )
 
   // Signup Form State
   const [name, setName] = useState("")

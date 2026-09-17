@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma"
 
 async function requireAdmin() {
   const session = await auth.api.getSession({ headers: await headers() })
-  if (!session || !isAdminEmail(session.user.email)) {
+  if (!session || !(await isAdminEmail(session.user.email))) {
     return null
   }
   return session

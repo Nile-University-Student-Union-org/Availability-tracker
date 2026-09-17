@@ -6,6 +6,8 @@ import { AuthForm } from "@/components/auth/auth-form"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { NusuLogo } from "@/components/nusu-logo"
 
+import { getSafeCallbackUrl } from "@/lib/url-helpers"
+
 export const metadata: Metadata = {
   title: "Member Access | Nile University Student Union",
   description:
@@ -16,7 +18,7 @@ export default async function AuthPage(props: {
   searchParams: Promise<{ callbackUrl?: string; mode?: string }>
 }) {
   const searchParams = await props.searchParams
-  const callbackUrl = searchParams.callbackUrl || "/"
+  const callbackUrl = getSafeCallbackUrl(searchParams.callbackUrl, "/")
   const mode = searchParams.mode === "signup" ? "signup" : "signin"
 
   // If the user is already signed in, send them straight to their destination

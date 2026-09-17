@@ -77,9 +77,16 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user) => {
+          user.email = user.email.trim().toLowerCase()
           if (!user.email.endsWith("@nu.edu.eg")) {
             throw new APIError("BAD_REQUEST", {
               message: "Only @nu.edu.eg emails are allowed",
+            })
+          }
+          const nuId = (user as any).nuId
+          if (typeof nuId === "string" && nuId.trim() && !/^\d{9}$/.test(nuId.trim())) {
+            throw new APIError("BAD_REQUEST", {
+              message: "NU ID must be exactly 9 digits",
             })
           }
           const { isAdminEmail } = await import("@/lib/admin")
