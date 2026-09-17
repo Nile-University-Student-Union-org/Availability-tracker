@@ -1,0 +1,31 @@
+name: Export .env File
+
+on:
+  workflow_dispatch:
+    inputs:
+      retention_days:
+        description: 'Retention period in days for the downloaded artifact (default: 1)'
+        required: false
+        default: '1'
+
+jobs:
+  export:
+    name: Generate .env Artifact
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Generate .env from Secret
+        env:
+          ENV_CONTENT: ${{ secrets.ENV_FILE }}
+        run: |
+          printf "%s\n" "$ENV_CONTENT" > .env
+
+      - name: Upload .env Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: env-bundle
+          path: .env
+          retention-days: ${{ fromJSON(github.event.inputs.retention_days || '1') }}
