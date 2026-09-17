@@ -153,24 +153,16 @@
 
 /* ─── Theme Transition & Beam Sweep Animations ───────────────────────────── */
 
-html.theme-transitioning,
-html.theme-transitioning *,
-html.theme-transitioning *::before,
-html.theme-transitioning *::after {
-  transition: background-color 650ms cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 650ms cubic-bezier(0.16, 1, 0.3, 1),
-              color 500ms cubic-bezier(0.16, 1, 0.3, 1),
-              fill 500ms cubic-bezier(0.16, 1, 0.3, 1),
-              stroke 500ms cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 650ms cubic-bezier(0.16, 1, 0.3, 1) !important;
-  transition-delay: 0s !important;
+/* Hardware-friendly root background easing for fallback transitions without layout thrashing */
+html.theme-transitioning body {
+  transition: background-color 450ms cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
-/* ─── View Transition Screen Reveal Animation (Wipes With The Beam) ───────── */
+/* ─── View Transition Screen Reveal Animation (Wipes In Lockstep With The Beam) ── */
 
 ::view-transition-group(root) {
-  animation-duration: 780ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-duration: 560ms;
+  animation-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 
 ::view-transition-old(root) {
@@ -179,47 +171,33 @@ html.theme-transitioning *::after {
 }
 
 ::view-transition-new(root) {
-  animation: theme-beam-reveal 780ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: theme-beam-reveal 560ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
   z-index: 2;
   mix-blend-mode: normal;
 }
 
-.dark::view-transition-new(root) {
-  /* Switching to dark mode: cosmic cyan-emerald laser glow on the cutting edge */
-  filter: drop-shadow(-4px 0 12px #38bdf8)
-          drop-shadow(-1px 0 4px #ffffff)
-          drop-shadow(-15px 0 35px #10b981);
-}
-
-:root:not(.dark)::view-transition-new(root) {
-  /* Switching to light mode: warm amber-gold and emerald sunbeam glow on the cutting edge */
-  filter: drop-shadow(-4px 0 12px #f59e0b)
-          drop-shadow(-1px 0 4px #ffffff)
-          drop-shadow(-15px 0 35px #10b981);
-}
-
 @keyframes theme-beam-reveal {
   0% {
-    clip-path: polygon(-35vw 0, -35vw 0, -65vw 100%, -65vw 100%);
+    clip-path: polygon(-30vw 0, -30vw 0, -55vw 100%, -55vw 100%);
   }
   100% {
-    clip-path: polygon(0 0, 160vw 0, 130vw 100%, 0 100%);
+    clip-path: polygon(0 0, 160vw 0, 135vw 100%, 0 100%);
   }
 }
 
 @keyframes beam-sweep-across {
   0% {
-    transform: translate3d(-100vw, 0, 0) skewX(-32deg);
+    transform: translate3d(-45vw, 0, 0) skewX(-25deg);
     opacity: 0;
   }
-  15% {
+  12% {
     opacity: 1;
   }
-  80% {
+  82% {
     opacity: 1;
   }
   100% {
-    transform: translate3d(140vw, 0, 0) skewX(-32deg);
+    transform: translate3d(145vw, 0, 0) skewX(-25deg);
     opacity: 0;
   }
 }
@@ -228,11 +206,11 @@ html.theme-transitioning *::after {
   0% {
     opacity: 0;
   }
-  35% {
-    opacity: 0.45;
+  30% {
+    opacity: 0.35;
   }
-  65% {
-    opacity: 0.2;
+  70% {
+    opacity: 0.15;
   }
   100% {
     opacity: 0;
@@ -240,13 +218,28 @@ html.theme-transitioning *::after {
 }
 
 .animate-beam-sweep {
-  animation: beam-sweep-across 780ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: beam-sweep-across 560ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
   will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 .animate-beam-flash {
-  animation: beam-ambient-flash 780ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: beam-ambient-flash 560ms cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
   will-change: opacity;
+  transform: translateZ(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+  .animate-beam-sweep,
+  .animate-beam-flash {
+    animation: none !important;
+    display: none !important;
+  }
 }
 
 /* ── Apple-grade Liquid Glass Navbar & Specular Caustic Refraction ── */

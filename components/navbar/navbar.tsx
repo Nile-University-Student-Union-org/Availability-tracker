@@ -14,6 +14,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Sun, Moon, Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { executeThemeTransition } from "@/components/theme-beam"
 
 export function Navbar() {
   const pathname = usePathname()
@@ -192,28 +193,8 @@ export function Navbar() {
 
   const handleThemeToggle = () => {
     const nextTheme = isDark ? "light" : "dark"
-
     triggerSheen()
-
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("theme-beam-start", {
-          detail: { targetTheme: nextTheme },
-        })
-      )
-    }
-
-    if (
-      typeof document !== "undefined" &&
-      "startViewTransition" in document &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      document.startViewTransition(() => {
-        setTheme(nextTheme)
-      })
-    } else {
-      setTheme(nextTheme)
-    }
+    executeThemeTransition(nextTheme, setTheme)
   }
 
   async function handleSignOut() {

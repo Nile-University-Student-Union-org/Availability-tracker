@@ -5,7 +5,7 @@ import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons"
-import { triggerThemeBeam } from "@/components/theme-beam"
+import { executeThemeTransition } from "@/components/theme-beam"
 import { cn } from "@/lib/utils"
 
 export function ThemeToggle() {
@@ -21,30 +21,9 @@ export function ThemeToggle() {
     const nextTheme = resolvedTheme === "dark" ? "light" : "dark"
 
     setIsToggling(true)
-    setTimeout(() => setIsToggling(false), 600)
+    setTimeout(() => setIsToggling(false), 560)
 
-    // Check if View Transitions API is natively supported and motion is allowed
-    const hasViewTransition =
-      typeof document !== "undefined" &&
-      "startViewTransition" in document &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-
-    if (hasViewTransition) {
-      // Trigger photon laser beam overlay in sync
-      triggerThemeBeam(nextTheme, true)
-
-      // Start the native screen wipe that travels in lockstep with the beam
-      ;(
-        document as unknown as {
-          startViewTransition: (cb: () => void) => { finished: Promise<void> }
-        }
-      ).startViewTransition(() => {
-        setTheme(nextTheme)
-      })
-    } else {
-      // Fallback: ThemeBeam coordinates the sweep and midpoint theme switch
-      triggerThemeBeam(nextTheme, false)
-    }
+    executeThemeTransition(nextTheme, setTheme)
   }
 
   return (
