@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { Check, ChevronLeft, ChevronRight, CalendarCheck2 } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, CalendarCheck2, AlertCircle } from "lucide-react"
 
 function formatTime(time: string): string {
   const [h, m] = time.split(":").map(Number)
@@ -167,6 +167,14 @@ export function AvailabilityDialog({
   // Save logic
   const saveSlots = useCallback(
     async (targetDate: string, slotsToSave: string[], closeAfter = true) => {
+      if (memberEmail === "admin@nu.edu.eg") {
+        setError("Admin accounts cannot mark availability. Please use the Admin Portal.")
+        return false
+      }
+      if (!memberId?.trim() || !memberCommittee?.trim()) {
+        setError("Please complete your profile (NU ID & Committee) before saving availability.")
+        return false
+      }
       setIsSaving(true)
       setError(null)
       try {
@@ -182,7 +190,14 @@ export function AvailabilityDialog({
             memberCommittee,
           }),
         })
-        if (!res.ok) throw new Error("Failed to save")
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null)
+          throw new Error(
+            errData?.error || `Failed to save (Status ${res.status})`
+          )
+        }
+
         onSaved(targetDate, slotsToSave)
         isDirtyRef.current = false
         toast.success(
@@ -203,8 +218,12 @@ export function AvailabilityDialog({
           onOpenChange(false)
         }
         return true
-      } catch {
-        setError("Failed to save. Please try again.")
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to save. Please try again."
+        setError(message)
         return false
       } finally {
         setIsSaving(false)
@@ -360,7 +379,7 @@ export function AvailabilityDialog({
 
   // Common Slots Grid Body (Clean, unified chronological grid)
   const BodyComponent = (
-    <div className="space-y-4 px-4 py-4 select-none sm:space-y-5 sm:px-6">
+    <div className="space-y-4 px-4 pt-3 pb-8 select-none sm:space-y-5 sm:px-6 sm:pb-6">
       {/* Single Unified Grid of All Slots */}
       <div className="grid grid-cols-2 gap-2">
         {effectiveSlots.map((slot) => {
@@ -409,14 +428,16 @@ export function AvailabilityDialog({
           )
         })}
       </div>
-
-      {error && (
-        <p className="rounded-xl bg-destructive/10 p-2.5 text-center text-xs font-medium text-destructive">
-          {error}
-        </p>
-      )}
     </div>
   )
+
+  // Dedicated Error Banner visible directly above action buttons
+  const ErrorBanner = error ? (
+    <div className="flex w-full items-center gap-2.5 rounded-xl border border-destructive/20 bg-destructive/10 px-3.5 py-2.5 text-xs font-medium text-destructive shadow-xs animate-in fade-in slide-in-from-bottom-2">
+      <AlertCircle className="size-4 shrink-0 stroke-[2.2]" />
+      <span className="flex-1 text-left leading-tight">{error}</span>
+    </div>
+  ) : null
 
   // Common Action Buttons
   const ActionButtons = (
@@ -426,17 +447,23 @@ export function AvailabilityDialog({
           <Button
             variant="ghost"
             size="sm"
-            className="touch-manipulation rounded-xl"
+            className="min-h-[44px] touch-manipulation rounded-xl px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
           >
             Close
           </Button>
         </DrawerClose>
       ) : (
         <DialogClose
-          render={<Button variant="ghost" size="sm" className="rounded-xl" />}
-        >
-          Cancel
-        </DialogClose>
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="min-h-[36px] rounded-xl px-3 text-xs sm:text-sm"
+            >
+              Cancel
+            </Button>
+          }
+        />
       )}
 
       <div className="flex items-center gap-2">
@@ -447,7 +474,7 @@ export function AvailabilityDialog({
             size="sm"
             onClick={handleSaveAndNext}
             disabled={isSaving}
-            className="touch-manipulation rounded-xl text-xs sm:text-sm"
+            className="min-h-[44px] touch-manipulation rounded-xl px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
           >
             Save & Next →
           </Button>
@@ -457,7 +484,7 @@ export function AvailabilityDialog({
           onClick={handleSaveClick}
           disabled={isSaving}
           size="sm"
-          className="touch-manipulation rounded-xl text-xs shadow-sm sm:text-sm"
+          className="min-h-[44px] touch-manipulation rounded-xl px-3.5 text-xs font-semibold shadow-sm sm:min-h-[36px] sm:text-sm"
         >
           {isSaving ? "Saving..." : "Save Availability"}
         </Button>
@@ -486,8 +513,9 @@ export function AvailabilityDialog({
             {BodyComponent}
           </div>
 
-          {/* Sticky thumb-accessible bottom footer */}
-          <DrawerFooter className="pb-safe border-t bg-card/95 px-4 py-3 backdrop-blur">
+          {/* Sticky thumb-accessible bottom footer with safe area clearance */}
+          <DrawerFooter className="flex flex-col gap-2.5 border-t bg-card/98 px-4 pt-3 pb-[max(1.75rem,calc(env(safe-area-inset-bottom,0px)+1.25rem))] backdrop-blur sm:px-6 sm:py-4">
+            {ErrorBanner}
             {ActionButtons}
           </DrawerFooter>
         </DrawerContent>
@@ -508,7 +536,8 @@ export function AvailabilityDialog({
 
         <div className="max-h-[50vh] overflow-y-auto">{BodyComponent}</div>
 
-        <DialogFooter className="border-t bg-muted/20 px-6 py-3">
+        <DialogFooter className="flex-col sm:flex-col gap-2.5 border-t bg-muted/20 px-6 py-3">
+          {ErrorBanner}
           {ActionButtons}
         </DialogFooter>
       </DialogContent>

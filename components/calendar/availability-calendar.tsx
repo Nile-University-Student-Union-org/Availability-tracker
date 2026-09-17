@@ -138,9 +138,14 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
       if (activeUser.name) setMemberName(activeUser.name)
       if (activeUser.email) setMemberEmail(activeUser.email)
       const userRecord = activeUser as Record<string, unknown>
-      if (userRecord.nuId) setMemberId(userRecord.nuId as string)
-      if (userRecord.committee)
-        setMemberCommittee(userRecord.committee as string)
+      const resolvedId =
+        (userRecord.nuId as string) || localStorage.getItem("memberId") || ""
+      const resolvedCommittee =
+        (userRecord.committee as string) ||
+        localStorage.getItem("memberCommittee") ||
+        ""
+      if (resolvedId) setMemberId(resolvedId)
+      if (resolvedCommittee) setMemberCommittee(resolvedCommittee)
       if (activeUser.email) setMemberSaved(true)
     } else {
       const savedName = localStorage.getItem("memberName") ?? ""
@@ -361,6 +366,61 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
                 </span>
               )}
             </div>
+          )}
+
+          {activeUser?.email === "admin@nu.edu.eg" ? (
+            <div className="mt-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-blue-800 dark:text-blue-300">
+              <p className="font-semibold">Admin Account Notice</p>
+              <p className="mt-0.5 text-[11px] text-blue-700 dark:text-blue-400">
+                You are logged in as Union Administrator. Admin accounts manage schedules and view team availability in the Admin Portal, and cannot submit member availability.
+              </p>
+            </div>
+          ) : (
+            (!memberCommittee || !memberId) && (
+              <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+                <p className="font-semibold">⚠️ Complete Your Profile</p>
+                <p className="mt-0.5 text-[11px] text-amber-700 dark:text-amber-400">
+                  Please enter your 9-digit NU ID and select your committee to submit availability.
+                </p>
+                <div className="mt-2 space-y-2">
+                  {!memberId && (
+                    <Input
+                      placeholder="9-digit NU ID (e.g. 211100000)"
+                      maxLength={9}
+                      value={memberId}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "")
+                        setMemberId(val)
+                        localStorage.setItem("memberId", val)
+                      }}
+                      className="h-8 text-xs bg-background/80"
+                    />
+                  )}
+                  {!memberCommittee && (
+                    <Select
+                      value={memberCommittee}
+                      onValueChange={(val) => {
+                        if (val) {
+                          setMemberCommittee(val)
+                          localStorage.setItem("memberCommittee", val)
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs bg-background/80">
+                        <SelectValue placeholder="Select Committee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COMMITTEES.map((c) => (
+                          <SelectItem key={c} value={c} className="text-xs">
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+            )
           )}
         </div>
       ) : (
