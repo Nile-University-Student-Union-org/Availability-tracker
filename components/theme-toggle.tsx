@@ -31,7 +31,7 @@ export function ThemeToggle() {
       variant="ghost"
       size="icon"
       className={cn(
-        "relative size-9 cursor-pointer rounded-full text-muted-foreground transition-all duration-300 hover:text-foreground",
+        "relative size-9 cursor-pointer rounded-full text-muted-foreground transition-all duration-300 hover:text-foreground touch-manipulation select-none",
         "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
         "active:scale-90",
         isToggling &&

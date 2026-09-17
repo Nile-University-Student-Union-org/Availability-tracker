@@ -142,8 +142,8 @@ export function ThemeBeam() {
 
       {/* GPU-composited diagonal photon beam wavefront */}
       <div
-        className="animate-beam-sweep pointer-events-none absolute -top-[30vh] -bottom-[30vh] flex w-[200px] items-center justify-center sm:w-[280px]"
-        style={{ transformOrigin: "center center" }}
+        className="animate-beam-sweep pointer-events-none absolute -top-[30vh] -bottom-[30vh] flex w-[160px] items-center justify-center sm:w-[260px]"
+        style={{ transformOrigin: "center center", WebkitBackfaceVisibility: "hidden" }}
       >
         {/* Soft atmospheric aura glow using pure linear gradient without heavy blurs */}
         <div
