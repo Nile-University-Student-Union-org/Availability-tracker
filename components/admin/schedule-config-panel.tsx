@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Label } from "@/components/ui/label";
+import { useCallback, useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Label } from "@/components/ui/label"
 import {
   Popover,
   PopoverContent,
@@ -22,12 +23,12 @@ import {
   Tick01Icon,
 } from "@hugeicons/core-free-icons";
 
-type ScheduleConfigData = {
-  startDate: string;
-  endDate: string;
-  slotMode: "fixed" | "free";
-  timeSlots: string[];
-};
+export type ScheduleConfigData = {
+  startDate: string
+  endDate: string
+  slotMode: "fixed" | "free"
+  timeSlots: string[]
+}
 
 function formatTime(time: string): string {
   const [h, m] = time.split(":").map(Number);
@@ -183,39 +184,54 @@ function DatePicker({
   );
 }
 
-export function ScheduleConfigPanel() {
-  const [config, setConfig] = useState<ScheduleConfigData>({
-    startDate: "",
-    endDate: "",
-    slotMode: "fixed",
-    timeSlots: [],
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [newSlotTime, setNewSlotTime] = useState("09:00");
+interface ScheduleConfigPanelProps {
+  initialConfig?: ScheduleConfigData | null
+}
+
+export function ScheduleConfigPanel({
+  initialConfig = null,
+}: ScheduleConfigPanelProps = {}) {
+  const router = useRouter()
+  const [config, setConfig] = useState<ScheduleConfigData>(() => ({
+    startDate: initialConfig?.startDate ?? "",
+    endDate: initialConfig?.endDate ?? "",
+    slotMode: initialConfig?.slotMode ?? "fixed",
+    timeSlots: initialConfig?.timeSlots ?? [],
+  }))
+  const [isLoading, setIsLoading] = useState(!initialConfig)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [newSlotTime, setNewSlotTime] = useState("09:00")
 
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch("/api/schedule-config");
+      const res = await fetch(`/api/schedule-config?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: {
+          Pragma: "no-cache",
+          "Cache-Control": "no-cache",
+        },
+      })
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json()
         setConfig({
           startDate: data.startDate,
           endDate: data.endDate,
           slotMode: data.slotMode,
-          timeSlots: data.timeSlots,
-        });
+          timeSlots: data.timeSlots ?? [],
+        })
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
-    fetchConfig();
-  }, [fetchConfig]);
+    if (!initialConfig) {
+      void fetchConfig()
+    }
+  }, [fetchConfig, initialConfig])
 
   async function handleSave() {
     setError(null);
@@ -240,12 +256,19 @@ export function ScheduleConfigPanel() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
-      });
-      if (!res.ok) throw new Error("Failed to save");
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    } catch {
-      setError("Failed to save configuration. Please try again.");
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null)
+        throw new Error(errData?.error || "Failed to save")
+      }
+      setSaved(true)
+      router.refresh()
+      await fetchConfig()
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to save configuration. Please try again."
+      )
     } finally {
       setIsSaving(false);
     }
@@ -276,12 +299,11 @@ export function ScheduleConfigPanel() {
 
   if (isLoading) {
     return (
-      <div className="rounded-3xl border bg-card p-6">
-        <div className="h-6 w-48 animate-pulse rounded-lg bg-muted" />
-        <div className="mt-4 space-y-3">
-          <div className="h-10 animate-pulse rounded-2xl bg-muted" />
-          <div className="h-10 animate-pulse rounded-2xl bg-muted" />
-        </div>
+      <div className="flex min-h-[360px] w-full flex-col items-center justify-center rounded-3xl border border-border/80 bg-card p-8 shadow-xs">
+        <div className="size-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="mt-3 text-xs font-medium text-muted-foreground">
+          Loading schedule configuration...
+        </p>
       </div>
     );
   }

@@ -15,12 +15,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 import type { AdminUserInfo } from "@/lib/admin"
 
-export function AdminUsersPanel() {
-  const [admins, setAdmins] = React.useState<AdminUserInfo[]>([])
-  const [loading, setLoading] = React.useState(true)
+interface AdminUsersPanelProps {
+  initialAdmins?: AdminUserInfo[]
+}
+
+export function AdminUsersPanel({ initialAdmins = [] }: AdminUsersPanelProps = {}) {
+  const [admins, setAdmins] = React.useState<AdminUserInfo[]>(initialAdmins)
+  const [loading, setLoading] = React.useState(initialAdmins.length === 0)
   const [newEmail, setNewEmail] = React.useState("")
   const [submitting, setSubmitting] = React.useState(false)
   const [revokingEmail, setRevokingEmail] = React.useState<string | null>(null)
@@ -42,8 +48,10 @@ export function AdminUsersPanel() {
   }, [])
 
   React.useEffect(() => {
-    fetchAdmins()
-  }, [fetchAdmins])
+    if (initialAdmins.length === 0) {
+      void fetchAdmins()
+    }
+  }, [fetchAdmins, initialAdmins])
 
   async function handleGrantAccess(e: React.FormEvent) {
     e.preventDefault()
@@ -213,17 +221,35 @@ export function AdminUsersPanel() {
           </Button>
         </div>
 
-        {loading ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-10 text-sm text-muted-foreground">
-            <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <span>Loading admin accounts...</span>
+        {loading && admins.length === 0 ? (
+          <div className="divide-y divide-border/60">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex flex-col justify-between gap-3 py-3.5 first:pt-1 last:pb-1 sm:flex-row sm:items-center"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <Skeleton className="size-10 shrink-0 rounded-full" />
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-32 rounded-md" />
+                      <Skeleton className="h-4 w-14 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-40 rounded-md" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <Skeleton className="h-8 w-16 rounded-xl" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : admins.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground">
             No administrators found.
           </div>
         ) : (
-          <div className="divide-y divide-border/60">
+          <div className={cn("divide-y divide-border/60 transition-opacity duration-200", loading && "opacity-60")}>
             {admins.map((admin) => {
               const initials = admin.name
                 ? admin.name

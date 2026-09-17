@@ -14,7 +14,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Sun, Moon, Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { executeThemeTransition } from "@/components/theme-beam"
+import { executeThemeTransition, THEME_BEAM_EVENT } from "@/components/theme-beam"
 import { SignOutDialog } from "@/components/auth/sign-out-dialog"
 
 export function Navbar() {
@@ -56,8 +56,18 @@ export function Navbar() {
   }, [])
 
   React.useEffect(() => {
+    function handleBeam() {
+      triggerSheen()
+    }
+    window.addEventListener(THEME_BEAM_EVENT, handleBeam)
+    return () => window.removeEventListener(THEME_BEAM_EVENT, handleBeam)
+  }, [triggerSheen])
+
+  React.useEffect(() => {
     setMounted(true)
   }, [])
+
+  const isSpecialAdmin = session?.user?.email === "admin@nu.edu.eg"
 
   // Admin access check for active session
   React.useEffect(() => {
@@ -66,7 +76,7 @@ export function Navbar() {
       return
     }
 
-    if (session.user.email === "admin@nu.edu.eg") {
+    if (isSpecialAdmin) {
       setIsAdmin(true)
       return
     }
@@ -94,7 +104,14 @@ export function Navbar() {
     return () => {
       cancelled = true
     }
-  }, [session?.user])
+  }, [session?.user, isSpecialAdmin])
+
+  // Aggressively prefetch the admin console as soon as user is recognized as admin
+  React.useEffect(() => {
+    if (isAdmin || isSpecialAdmin) {
+      router.prefetch("/admin")
+    }
+  }, [isAdmin, isSpecialAdmin, router])
 
   // Scroll detection
   React.useEffect(() => {
@@ -134,13 +151,16 @@ export function Navbar() {
   }, [mobileOpen])
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark")
-  const isSpecialAdmin = session?.user?.email === "admin@nu.edu.eg"
 
   // Role-based navigation links
   // - admin@nu.edu.eg: Only "Admin Panel" (cannot mark availability)
   // - Other admins: "Mark Availability" and "Admin Panel"
   // - Normal users: No center nav links (only Logo, Theme Toggle, and Sign out)
-  const navLinks: { label: string; href: string; icon: any }[] = []
+  const navLinks: {
+    label: string
+    href: string
+    icon: Parameters<typeof HugeiconsIcon>[0]["icon"]
+  }[] = []
   if (isSpecialAdmin) {
     navLinks.push({
       label: "Admin Panel",
@@ -195,7 +215,6 @@ export function Navbar() {
 
   const handleThemeToggle = () => {
     const nextTheme = isDark ? "light" : "dark"
-    triggerSheen()
     executeThemeTransition(nextTheme, setTheme)
   }
 
@@ -315,9 +334,14 @@ export function Navbar() {
                       ref={(el) => {
                         linkRefs.current[index] = el
                       }}
-                      onMouseEnter={() => handleLinkMouseEnter(index)}
+                      onMouseEnter={() => {
+                        handleLinkMouseEnter(index)
+                        router.prefetch(link.href)
+                      }}
+                      onPointerDown={() => router.prefetch(link.href)}
                       onClick={() => handleLinkClick(index)}
                       href={link.href}
+                      prefetch={true}
                       aria-current={active ? "page" : undefined}
                       className={cn(
                         "relative z-10 flex cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors duration-200 select-none",
@@ -482,6 +506,8 @@ export function Navbar() {
                       <Link
                         key={link.href}
                         href={link.href}
+                        prefetch={true}
+                        onTouchStart={() => router.prefetch(link.href)}
                         aria-current={active ? "page" : undefined}
                         onClick={() => setMobileOpen(false)}
                         className={cn(

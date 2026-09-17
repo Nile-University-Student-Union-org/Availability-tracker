@@ -1,8 +1,11 @@
 import { headers } from "next/headers"
+import { revalidatePath } from "next/cache"
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { isAdminEmail } from "@/lib/admin"
 import { prisma } from "@/lib/prisma"
+
+export const dynamic = "force-dynamic"
 
 async function requireAdmin() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -71,8 +74,30 @@ export async function PUT(request: NextRequest) {
             startTime,
           })),
         })
+
+        // In fixed mode, prune any previously submitted availability records
+        // that were marked for time slots that the admin has now deleted.
+        if (body.slotMode === "fixed") {
+          await tx.availability.deleteMany({
+            where: {
+              startTime: { notIn: validSlots },
+            },
+          })
+        }
       }
+
+      // Also clean up any availability records that fall outside the new date range
+      await tx.availability.deleteMany({
+        where: {
+          OR: [{ date: { lt: start } }, { date: { gt: end } }],
+        },
+      })
     })
+
+    // Immediately purge Next.js server-side cached routes
+    revalidatePath("/admin")
+    revalidatePath("/")
+    revalidatePath("/api/schedule-config")
 
     return NextResponse.json({ success: true })
   } catch (error: unknown) {

@@ -27,22 +27,48 @@ import {
   Home01Icon,
   Logout02Icon,
   ArrowRight01Icon,
-  UserGroupIcon,
 } from "@hugeicons/core-free-icons"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SignOutDialog } from "@/components/auth/sign-out-dialog"
-import { authClient } from "@/lib/auth-client"
+import dynamic from "next/dynamic"
 import {
   AnalyticsDashboard,
   type AnalyticsData,
 } from "@/components/admin/analytics-dashboard"
-import { ScheduleConfigPanel } from "@/components/admin/schedule-config-panel"
-import { AdminUsersPanel } from "@/components/admin/admin-users-panel"
+import type { ScheduleConfigData } from "@/components/admin/schedule-config-panel"
+import type { AdminUserInfo } from "@/lib/admin"
 import { NusuLogo } from "@/components/nusu-logo"
 import { cn } from "@/lib/utils"
+
+const ScheduleConfigPanel = dynamic(
+  () =>
+    import("@/components/admin/schedule-config-panel").then(
+      (m) => m.ScheduleConfigPanel
+    ),
+  {
+    loading: () => (
+      <div className="flex h-40 items-center justify-center">
+        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    ),
+  }
+)
+
+const AdminUsersPanel = dynamic(
+  () =>
+    import("@/components/admin/admin-users-panel").then(
+      (m) => m.AdminUsersPanel
+    ),
+  {
+    loading: () => (
+      <div className="flex h-40 items-center justify-center">
+        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    ),
+  }
+)
 
 export type AdminTab = "analytics" | "schedule" | "admins"
 
@@ -60,6 +86,8 @@ interface AdminLayoutShellProps {
   analytics: AnalyticsData
   dateRangeLabel: string
   initialTab?: AdminTab
+  initialConfig?: ScheduleConfigData | null
+  initialAdmins?: AdminUserInfo[]
 }
 
 export function AdminLayoutShell({
@@ -67,6 +95,8 @@ export function AdminLayoutShell({
   analytics,
   dateRangeLabel,
   initialTab = "analytics",
+  initialConfig = null,
+  initialAdmins = [],
 }: AdminLayoutShellProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -376,12 +406,12 @@ export function AdminLayoutShell({
               )}
               {activeTab === "schedule" && (
                 <div className="max-w-2xl">
-                  <ScheduleConfigPanel />
+                  <ScheduleConfigPanel initialConfig={initialConfig} />
                 </div>
               )}
               {activeTab === "admins" && (
                 <div className="max-w-3xl">
-                  <AdminUsersPanel />
+                  <AdminUsersPanel initialAdmins={initialAdmins} />
                 </div>
               )}
             </div>

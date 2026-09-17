@@ -9,6 +9,9 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth.api.getSession({ headers: await headers() })
@@ -59,7 +62,13 @@ export async function GET(request: NextRequest) {
       slots.map((s) => ({
         date: s.date.toISOString().slice(0, 10),
         startTime: s.startTime,
-      }))
+      })),
+      {
+        headers: {
+          "Cache-Control":
+            "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        },
+      }
     )
   } catch (error: unknown) {
     console.error("Error in GET /api/availability:", error)

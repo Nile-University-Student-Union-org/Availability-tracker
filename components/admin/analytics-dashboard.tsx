@@ -142,7 +142,7 @@ function MetricCard({
   return (
     <div
       className={cn(
-        "rounded-3xl border px-4 py-4",
+        "rounded-3xl border px-4 py-4 transition-all",
         accent ? "border-primary/25 bg-primary/8" : "bg-card"
       )}
     >
@@ -213,11 +213,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     setIsRefreshing(true)
     setJustRefreshed(false)
 
-    const start = Date.now()
     router.refresh()
-
-    const elapsed = Date.now() - start
-    const minDelay = Math.max(750 - elapsed, 0)
 
     setTimeout(() => {
       setIsRefreshing(false)
@@ -229,7 +225,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       setTimeout(() => {
         setJustRefreshed(false)
       }, 2000)
-    }, minDelay)
+    }, 250)
   }, [isRefreshing, router])
 
   const lastUpdatedTime = lastRefreshedAt.toLocaleTimeString([], {
@@ -582,8 +578,8 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             Distribution of members and total availability slots per committee
           </p>
         </div>
-        <div className="h-64 w-full p-4">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-64 w-full min-w-0 p-4">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
             <BarChart
               data={committeeStats}
               layout="vertical"
@@ -704,7 +700,12 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         ) : (
           <>
             <div className="overflow-x-auto p-4">
-              <table className="w-full min-w-90 text-xs">
+              <table
+                className={cn(
+                  "w-full min-w-90 text-xs transition-opacity duration-200",
+                  isRefreshing && "opacity-60"
+                )}
+              >
                 <thead>
                   <tr>
                     <th className="w-20 pr-3 pb-2 text-left text-[11px] font-medium text-muted-foreground" />

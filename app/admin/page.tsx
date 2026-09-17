@@ -1,9 +1,9 @@
 import type { Metadata } from "next"
 import { headers } from "next/headers"
-import { notFound, redirect } from "next/navigation"
+import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { isAdminEmail } from "@/lib/admin"
+import { isAdminEmail, getEnvAdminEmails } from "@/lib/admin"
 import { getScheduleConfig } from "@/lib/schedule"
 import {
   type AnalyticsData,
@@ -22,16 +22,24 @@ export const dynamic = "force-dynamic"
 
 export default async function AdminPage() {
   let session = null
+  let config: Awaited<ReturnType<typeof getScheduleConfig>> = null
+
   try {
-    session = await auth.api.getSession({ headers: await headers() })
-  } catch (err: any) {
+    const [fetchedSession, fetchedConfig] = await Promise.all([
+      auth.api.getSession({ headers: await headers() }),
+      getScheduleConfig(),
+    ])
+    session = fetchedSession
+    config = fetchedConfig
+  } catch (err: unknown) {
+    const error = err as { digest?: string }
     if (
-      err?.digest?.startsWith("NEXT_REDIRECT") ||
-      err?.digest === "DYNAMIC_SERVER_USAGE"
+      error?.digest?.startsWith("NEXT_REDIRECT") ||
+      error?.digest === "DYNAMIC_SERVER_USAGE"
     ) {
       throw err
     }
-    console.error("Admin session lookup failed:", err)
+    console.error("Admin session or config lookup failed:", err)
     redirect("/auth?mode=signin&callbackUrl=/admin")
   }
 
@@ -39,11 +47,20 @@ export default async function AdminPage() {
     redirect("/auth?mode=signin&callbackUrl=/admin")
   }
 
-  if (!(await isAdminEmail(session.user.email))) {
+  const userEmail = session.user.email.toLowerCase()
+  const isSpecialAdmin = userEmail === "admin@nu.edu.eg"
+  const userRole = (session.user as Record<string, unknown>).role
+  const isRoleAdmin = userRole === "admin" || userRole === "super-admin"
+  const isEnvAdmin = getEnvAdminEmails().includes(userEmail)
+  const isAuthorized =
+    isSpecialAdmin ||
+    isRoleAdmin ||
+    isEnvAdmin ||
+    (await isAdminEmail(userEmail))
+
+  if (!isAuthorized) {
     redirect("/")
   }
-
-  const config = await getScheduleConfig()
 
   let analytics: AnalyticsData = {
     totalUsers: 0,
@@ -60,13 +77,17 @@ export default async function AdminPage() {
   if (config) {
     try {
       const { dates, timeSlots } = config
-      const targetDates = dates.map((d) => new Date(d + "T00:00:00.000Z"))
 
       const rawSlots = await prisma.availability.findMany({
         where: {
-          date: { in: targetDates },
+          date: {
+            gte: new Date(config.startDate + "T00:00:00.000Z"),
+            lte: new Date(config.endDate + "T00:00:00.000Z"),
+          },
         },
-        include: {
+        select: {
+          date: true,
+          startTime: true,
           user: {
             select: {
               id: true,
@@ -81,34 +102,65 @@ export default async function AdminPage() {
         orderBy: [{ date: "asc" }, { startTime: "asc" }],
       })
 
-      // In fixed mode: only count slots that match the configured time slots
-      // (ignores any old free-booking records that remain in the DB).
+      // In fixed mode: only count slots that match the configured time slots.
       // In free mode: derive the slot list from actual bookings so the matrix reflects reality.
       const allTimeSlots =
         config.slotMode === "fixed"
           ? timeSlots
           : Array.from(new Set(rawSlots.map((s) => s.startTime))).sort()
 
-      // In fixed mode, discard any record whose startTime isn't in the configured list.
       const relevantSlots =
         config.slotMode === "fixed"
           ? rawSlots.filter((s) => timeSlots.includes(s.startTime))
           : rawSlots
 
+      // Fast O(N) bucketing of slots by `${date}_${startTime}` to eliminate quadratic searching
+      const slotBuckets = new Map<string, typeof relevantSlots>()
+      const userMap = new Map<string, UserEntry>()
+
+      for (const slot of relevantSlots) {
+        const isoDate = (slot.date as Date).toISOString().slice(0, 10)
+        const bucketKey = `${isoDate}_${slot.startTime}`
+        const bucket = slotBuckets.get(bucketKey)
+        if (bucket) {
+          bucket.push(slot)
+        } else {
+          slotBuckets.set(bucketKey, [slot])
+        }
+
+        const { user, startTime } = slot
+        if (user) {
+          const key = user.id
+          if (!userMap.has(key)) {
+            userMap.set(key, {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              nuId: user.nuId,
+              image: user.image,
+              committee: user.committee,
+              totalSlots: 0,
+              byDate: {},
+            })
+          }
+
+          const entry = userMap.get(key)!
+          entry.totalSlots++
+          if (!entry.byDate[isoDate]) entry.byDate[isoDate] = []
+          entry.byDate[isoDate].push(startTime)
+        }
+      }
+
       const slotMatrix: SlotEntry[] = dates.flatMap((date) =>
         allTimeSlots.map((startTime) => {
-          const matching = relevantSlots.filter(
-            (s: any) =>
-              s.date.toISOString().slice(0, 10) === date &&
-              s.startTime === startTime
-          )
+          const matching = slotBuckets.get(`${date}_${startTime}`) ?? []
           return {
             date,
             startTime,
             count: matching.length,
             users: matching
-              .filter((s: any) => s.user)
-              .map((s: any) => ({
+              .filter((s) => Boolean(s.user))
+              .map((s) => ({
                 name: s.user.name,
                 email: s.user.email,
                 image: s.user.image,
@@ -119,32 +171,6 @@ export default async function AdminPage() {
       )
 
       const maxCount = slotMatrix.reduce((m, s) => Math.max(m, s.count), 0)
-
-      const userMap = new Map<string, UserEntry>()
-      for (const slot of relevantSlots) {
-        const { user, date, startTime } = slot as any
-        if (!user) continue
-
-        const key = user.id
-        if (!userMap.has(key)) {
-          userMap.set(key, {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            nuId: user.nuId,
-            image: user.image,
-            committee: user.committee,
-            totalSlots: 0,
-            byDate: {},
-          })
-        }
-
-        const entry = userMap.get(key)!
-        const isoDate = (date as Date).toISOString().slice(0, 10)
-        entry.totalSlots++
-        if (!entry.byDate[isoDate]) entry.byDate[isoDate] = []
-        entry.byDate[isoDate].push(startTime)
-      }
 
       const users = Array.from(userMap.values()).sort(
         (a, b) => b.totalSlots - a.totalSlots
@@ -162,16 +188,19 @@ export default async function AdminPage() {
 
       const startLabel = new Date(
         config.startDate + "T00:00:00.000Z"
-      ).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
-      const endLabel = new Date(config.endDate + "T00:00:00.000Z").toLocaleDateString(
-        "en-US",
-        {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          timeZone: "UTC",
-        }
-      )
+      ).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      })
+      const endLabel = new Date(
+        config.endDate + "T00:00:00.000Z"
+      ).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      })
       dateRangeLabel = `${startLabel}–${endLabel} · Admin view`
     } catch (err) {
       console.error("Failed to load admin analytics data:", err)
@@ -184,6 +213,8 @@ export default async function AdminPage() {
       session={session}
       analytics={analytics}
       dateRangeLabel={dateRangeLabel}
+      initialConfig={config}
+      initialAdmins={[]}
     />
   )
 }

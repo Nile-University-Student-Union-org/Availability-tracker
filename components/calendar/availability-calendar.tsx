@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 import { AvailabilityDialog } from "@/components/calendar/availability-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -71,9 +70,15 @@ interface AvailabilityCalendarProps {
     committee?: string | null
     image?: string | null
   } | null
+  initialConfig?: ScheduleConfig | null
+  initialAvailability?: { date: string; startTime: string }[]
 }
 
-export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
+export function AvailabilityCalendar({
+  user,
+  initialConfig = null,
+  initialAvailability = [],
+}: AvailabilityCalendarProps = {}) {
   const { data: session } = authClient.useSession()
   const activeUser = session?.user ?? user
 
@@ -86,52 +91,100 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
     ((activeUser as Record<string, unknown>)?.committee as string) ?? ""
   )
   const [memberSaved, setMemberSaved] = useState(Boolean(activeUser?.email))
-  const [config, setConfig] = useState<ScheduleConfig | null>(null)
-  const [availability, setAvailability] = useState<AvailabilityMap>(new Map())
-  const [isLoading, setIsLoading] = useState(true)
+  const [config, setConfig] = useState<ScheduleConfig | null>(initialConfig)
+  const [availability, setAvailability] = useState<AvailabilityMap>(() => {
+    const map = new Map<string, Set<string>>()
+    if (initialConfig) {
+      for (const d of initialConfig.dates) map.set(d, new Set())
+    }
+    if (initialAvailability && initialAvailability.length > 0) {
+      for (const { date, startTime } of initialAvailability) {
+        if (map.has(date)) {
+          map.get(date)?.add(startTime)
+        } else {
+          map.set(date, new Set([startTime]))
+        }
+      }
+    }
+    return map
+  })
+  const [isConfigLoading, setIsConfigLoading] = useState(!initialConfig)
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false)
+  const [clearingDate, setClearingDate] = useState<string | null>(null)
   const [dialogDate, setDialogDate] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
+  const fetchAvailability = useCallback(
+    async (currentConfig?: ScheduleConfig) => {
+      const activeConfig = currentConfig ?? config
+      if (!memberSaved || !memberEmail || !activeConfig) {
+        setIsAvailabilityLoading(false)
+        return
+      }
+      try {
+        setIsAvailabilityLoading(true)
+        const availRes = await fetch(
+          `/api/availability?email=${encodeURIComponent(memberEmail)}&_t=${Date.now()}`,
+          {
+            cache: "no-store",
+            headers: {
+              Pragma: "no-cache",
+              "Cache-Control": "no-cache",
+            },
+          }
+        )
+        if (availRes.ok) {
+          const availData: { date: string; startTime: string }[] =
+            await availRes.json()
+          setAvailability((prev) => {
+            const map = new Map(prev)
+            // Reset only the dates that are in the config
+            for (const d of activeConfig.dates) map.set(d, new Set())
+            // Fill with new data
+            for (const { date, startTime } of availData) {
+              if (map.has(date)) {
+                map.get(date)?.add(startTime)
+              }
+            }
+            return map
+          })
+        }
+      } catch (err) {
+        console.error("Failed to fetch availability", err)
+      } finally {
+        setIsAvailabilityLoading(false)
+      }
+    },
+    [memberEmail, memberSaved, config]
+  )
+
   const fetchConfig = useCallback(async () => {
     try {
-      const configRes = await fetch("/api/schedule-config")
+      setIsConfigLoading(true)
+      const configRes = await fetch(`/api/schedule-config?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: {
+          Pragma: "no-cache",
+          "Cache-Control": "no-cache",
+        },
+      })
       if (configRes.ok) {
         const configData: ScheduleConfig = await configRes.json()
         setConfig(configData)
         // Initialize map with empty sets for all dates
         setAvailability(new Map(configData.dates.map((d) => [d, new Set()])))
+        if (memberEmail && memberSaved) {
+          await fetchAvailability(configData)
+        } else {
+          setIsAvailabilityLoading(false)
+        }
+      } else {
+        setIsAvailabilityLoading(false)
       }
     } finally {
-      setIsLoading(false)
+      setIsConfigLoading(false)
     }
-  }, [])
-
-  const fetchAvailability = useCallback(async () => {
-    if (!memberSaved || !memberEmail || !config) return
-    try {
-      const availRes = await fetch(
-        `/api/availability?email=${encodeURIComponent(memberEmail)}`
-      )
-      if (availRes.ok) {
-        const availData: { date: string; startTime: string }[] =
-          await availRes.json()
-        setAvailability((prev) => {
-          const map = new Map(prev)
-          // Reset only the dates that are in the config
-          for (const d of config.dates) map.set(d, new Set())
-          // Fill with new data
-          for (const { date, startTime } of availData) {
-            if (map.has(date)) {
-              map.get(date)?.add(startTime)
-            }
-          }
-          return map
-        })
-      }
-    } catch (err) {
-      console.error("Failed to fetch availability", err)
-    }
-  }, [memberEmail, memberSaved, config])
+  }, [memberEmail, memberSaved, fetchAvailability])
 
   useEffect(() => {
     if (activeUser) {
@@ -163,12 +216,17 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
   }, [activeUser])
 
   useEffect(() => {
-    fetchConfig()
-  }, [fetchConfig])
+    if (!initialConfig) {
+      void fetchConfig()
+    }
+  }, [fetchConfig, initialConfig])
 
   useEffect(() => {
-    fetchAvailability()
-  }, [fetchAvailability])
+    // Only fetch client-side if we didn't receive initial data
+    if ((!initialAvailability || initialAvailability.length === 0) && !initialConfig) {
+      void fetchAvailability()
+    }
+  }, [fetchAvailability, initialAvailability, initialConfig])
 
   function handleSaveMember() {
     const name = memberName.trim()
@@ -225,6 +283,7 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
   }
 
   async function handleClear(date: string) {
+    setClearingDate(date)
     try {
       const res = await fetch("/api/availability", {
         method: "POST",
@@ -252,6 +311,8 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
       const msg =
         err instanceof Error ? err.message : "Failed to clear availability"
       toast.error(msg)
+    } finally {
+      setClearingDate(null)
     }
   }
 
@@ -484,8 +545,13 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
         </div>
       )}
 
-      {isLoading ? (
-        <Skeleton className="h-[340px] w-full max-w-sm rounded-3xl" />
+      {isConfigLoading ? (
+        <div className="flex h-72 w-full max-w-sm flex-col items-center justify-center rounded-3xl border border-border/80 bg-card p-6 shadow-xs">
+          <div className="size-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="mt-3 text-xs font-medium text-muted-foreground">
+            Loading schedule calendar...
+          </p>
+        </div>
       ) : !memberSaved ? (
         <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
           <p className="text-sm text-muted-foreground">
@@ -523,7 +589,11 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
       )}
 
       {/* Availability summary */}
-      {!isLoading && config && datesWithSlotsISO.length > 0 && (
+      {isAvailabilityLoading && !config ? null : isAvailabilityLoading && datesWithSlotsISO.length === 0 ? (
+        <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
+          <p className="text-xs text-muted-foreground">Syncing availability...</p>
+        </div>
+      ) : config && datesWithSlotsISO.length > 0 ? (
         <div className="w-full max-w-sm overflow-hidden rounded-3xl border bg-card">
           <div className="flex items-center justify-between border-b px-4 py-3">
             <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
@@ -560,6 +630,7 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
                 "en-US",
                 { weekday: "long", month: "short", day: "numeric" }
               )
+              const isClearing = clearingDate === iso
               return (
                 <div key={iso} className="px-4 py-3">
                   <div className="mb-2 flex items-center justify-between">
@@ -567,10 +638,11 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
                     <Button
                       variant="ghost"
                       size="xs"
-                      className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                      disabled={isClearing}
+                      className="h-6 px-2 text-xs text-destructive hover:text-destructive cursor-pointer disabled:opacity-50"
                       onClick={() => handleClear(iso)}
                     >
-                      Clear
+                      {isClearing ? "Clearing..." : "Clear"}
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -589,17 +661,14 @@ export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
             })}
           </div>
         </div>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && config && datesWithSlotsISO.length === 0 && (
+      ) : config && datesWithSlotsISO.length === 0 ? (
         <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
           <p className="text-sm text-muted-foreground">
             No availability marked yet — click a highlighted day above to get
             started.
           </p>
         </div>
-      )}
+      ) : null}
 
       {dialogDate !== null && config && (
         <AvailabilityDialog

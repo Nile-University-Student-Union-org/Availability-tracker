@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import * as React from "react"
 import { useTheme } from "next-themes"
 import { cn } from "@/lib/utils"
 
@@ -29,7 +29,7 @@ export function triggerThemeBeam(
 
 /**
  * Universal, high-performance theme transition orchestrator.
- * Combines native GPU-composited View Transitions (where supported) with
+ * Combines native GPU-composited View Transitions (diagonal polygon wipe) with
  * an optical photon beam sweep at 60/120 FPS on both mobile and desktop.
  */
 export function executeThemeTransition(
@@ -49,7 +49,7 @@ export function executeThemeTransition(
     "startViewTransition" in document
 
   if (hasViewTransition) {
-    // 1. Launch beam simultaneously with the view transition wipe
+    // 1. Launch diagonal beam wavefront simultaneously with view transition wipe
     triggerThemeBeam(targetTheme, true)
 
     // 2. Execute GPU-composited view transition
@@ -72,13 +72,17 @@ export function executeThemeTransition(
 
 export function ThemeBeam() {
   const { setTheme } = useTheme()
-  const [active, setActive] = useState(false)
-  const [beamTheme, setBeamTheme] = useState<"light" | "dark">("dark")
+  const [active, setActive] = React.useState(false)
+  const [beamKey, setBeamKey] = React.useState(0)
+  const [beamTheme, setBeamTheme] = React.useState<"light" | "dark">("dark")
 
-  useEffect(() => {
-    let switchTimer: ReturnType<typeof setTimeout> | undefined
-    let cleanupTimer: ReturnType<typeof setTimeout> | undefined
+  const setThemeRef = React.useRef(setTheme)
+  setThemeRef.current = setTheme
 
+  const switchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cleanupTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  React.useEffect(() => {
     function handleBeamEvent(e: Event) {
       const customEvent = e as CustomEvent<ThemeBeamDetail>
       const targetTheme = customEvent.detail?.targetTheme ?? "dark"
@@ -86,39 +90,43 @@ export function ThemeBeam() {
 
       // Respect prefers-reduced-motion
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        if (!alreadySwitched) setTheme(targetTheme)
+        if (!alreadySwitched) setThemeRef.current(targetTheme)
         return
       }
 
+      // 1. Cancel existing timers from any rapid toggles
+      if (switchTimerRef.current) clearTimeout(switchTimerRef.current)
+      if (cleanupTimerRef.current) clearTimeout(cleanupTimerRef.current)
+
+      // 2. Increment beamKey so React creates a fresh DOM tree and reruns animation every time
       setBeamTheme(targetTheme)
+      setBeamKey((prev) => prev + 1)
       setActive(true)
 
       document.documentElement.classList.add("theme-transitioning")
 
-      // In fallback mode, swap the theme exactly as the beam filament passes the viewport center
+      // 3. In fallback mode without View Transitions, swap theme at exact midpoint
       if (!alreadySwitched) {
-        if (switchTimer) clearTimeout(switchTimer)
-        switchTimer = setTimeout(() => {
-          setTheme(targetTheme)
-        }, 180)
+        switchTimerRef.current = setTimeout(() => {
+          setThemeRef.current(targetTheme)
+        }, 200)
       }
 
-      // Automatically unmount overlay and clean up classes after beam exits
-      if (cleanupTimer) clearTimeout(cleanupTimer)
-      cleanupTimer = setTimeout(() => {
+      // 4. Automatically clean up classes and unmount overlay after beam exits
+      cleanupTimerRef.current = setTimeout(() => {
         setActive(false)
         document.documentElement.classList.remove("theme-transitioning")
-      }, 460)
+      }, 480)
     }
 
     window.addEventListener(THEME_BEAM_EVENT, handleBeamEvent)
     return () => {
       window.removeEventListener(THEME_BEAM_EVENT, handleBeamEvent)
-      if (switchTimer) clearTimeout(switchTimer)
-      if (cleanupTimer) clearTimeout(cleanupTimer)
+      if (switchTimerRef.current) clearTimeout(switchTimerRef.current)
+      if (cleanupTimerRef.current) clearTimeout(cleanupTimerRef.current)
       document.documentElement.classList.remove("theme-transitioning")
     }
-  }, [setTheme])
+  }, []) // Empty dependency array ensures listener is never torn down by theme changes
 
   if (!active) return null
 
@@ -126,11 +134,12 @@ export function ThemeBeam() {
 
   return (
     <div
+      key={`theme-beam-${beamKey}`}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[99999] overflow-hidden select-none"
+      className="pointer-events-none fixed inset-0 z-[999999] overflow-hidden select-none"
       style={{ contain: "strict" }}
     >
-      {/* Weightless ambient flash — pure opacity transition without backdrop filters */}
+      {/* 1. Weightless ambient flash — pure opacity transition without backdrop filters */}
       <div
         className={cn(
           "animate-beam-flash pointer-events-none absolute inset-0",
@@ -140,12 +149,15 @@ export function ThemeBeam() {
         )}
       />
 
-      {/* GPU-composited diagonal photon beam wavefront */}
+      {/* 2. GPU-composited diagonal photon beam wavefront */}
       <div
-        className="animate-beam-sweep pointer-events-none absolute -top-[30vh] -bottom-[30vh] flex w-[160px] items-center justify-center sm:w-[260px]"
-        style={{ transformOrigin: "center center", WebkitBackfaceVisibility: "hidden" }}
+        className="animate-beam-sweep pointer-events-none absolute left-0 -top-[30vh] -bottom-[30vh] flex w-[160px] items-center justify-center sm:w-[260px]"
+        style={{
+          transformOrigin: "center center",
+          WebkitBackfaceVisibility: "hidden",
+        }}
       >
-        {/* Soft atmospheric aura glow using pure linear gradient without heavy blurs */}
+        {/* Soft atmospheric aura glow */}
         <div
           className={cn(
             "absolute inset-0 rounded-full opacity-60",
