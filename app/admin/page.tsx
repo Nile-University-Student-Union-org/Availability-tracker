@@ -18,11 +18,19 @@ export const metadata: Metadata = {
     "Administrative dashboard for Availability Tracker schedule configuration and analytics.",
 }
 
+export const dynamic = "force-dynamic"
+
 export default async function AdminPage() {
   let session = null
   try {
     session = await auth.api.getSession({ headers: await headers() })
-  } catch (err) {
+  } catch (err: any) {
+    if (
+      err?.digest?.startsWith("NEXT_REDIRECT") ||
+      err?.digest === "DYNAMIC_SERVER_USAGE"
+    ) {
+      throw err
+    }
     console.error("Admin session lookup failed:", err)
     redirect("/auth?mode=signin&callbackUrl=/admin")
   }

@@ -10,11 +10,19 @@ export const metadata: Metadata = {
   description: "Mark your available meeting slots on the official schedule.",
 }
 
+export const dynamic = "force-dynamic"
+
 export default async function Page() {
   let session = null
   try {
     session = await auth.api.getSession({ headers: await headers() })
-  } catch (err) {
+  } catch (err: any) {
+    if (
+      err?.digest?.startsWith("NEXT_REDIRECT") ||
+      err?.digest === "DYNAMIC_SERVER_USAGE"
+    ) {
+      throw err
+    }
     console.error("Session lookup failed on /:", err)
     redirect("/auth?mode=signin&callbackUrl=/")
   }
