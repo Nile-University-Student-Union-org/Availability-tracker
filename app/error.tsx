@@ -19,8 +19,8 @@ export default function GlobalError({
   }, [error])
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center bg-background px-6 text-center">
-      <div className="relative flex w-full max-w-md flex-col items-center gap-6 rounded-3xl border bg-card/80 p-8 shadow-sm backdrop-blur-xs">
+    <div className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-8 text-center sm:px-6">
+      <div className="relative flex w-full max-w-md flex-col items-center gap-6 rounded-3xl border bg-card/80 p-6 shadow-sm backdrop-blur-xs sm:p-8">
         <NusuLogo size="default" />
 
         <div className="space-y-2">
@@ -33,22 +33,22 @@ export default function GlobalError({
           </p>
         </div>
 
-        <div className="flex w-full flex-col gap-2.5 sm:flex-row">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:gap-3">
           <Button
             onClick={() => reset()}
-            className="flex-1 rounded-xl"
+            className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold shadow-xs touch-manipulation active:scale-[0.98] sm:flex-1"
             variant="default"
           >
-            <HugeiconsIcon icon={RefreshIcon} className="mr-1.5 size-4" />
+            <HugeiconsIcon icon={RefreshIcon} className="mr-2 size-4.5 shrink-0" />
             Try again
           </Button>
 
           <Button
             render={<Link href="/" />}
             variant="outline"
-            className="flex-1 rounded-xl"
+            className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98] sm:flex-1"
           >
-            <HugeiconsIcon icon={Home01Icon} className="mr-1.5 size-4" />
+            <HugeiconsIcon icon={Home01Icon} className="mr-2 size-4.5 shrink-0" />
             Return Home
           </Button>
         </div>
