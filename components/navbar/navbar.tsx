@@ -227,6 +227,7 @@ export function Navbar() {
         <header
           className={cn(
             "pointer-events-auto relative mx-auto w-full max-w-[840px] rounded-3xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] sm:rounded-full",
+            "backdrop-blur-2xl backdrop-saturate-180",
             "liquid-glass-bar",
             isDark ? "liquid-glass-bar-dark" : "liquid-glass-bar-light",
             isScrolled && "liquid-glass-bar-scrolled scale-[0.99]",
