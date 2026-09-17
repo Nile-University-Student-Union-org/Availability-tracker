@@ -33,6 +33,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { SignOutDialog } from "@/components/auth/sign-out-dialog"
 import { authClient } from "@/lib/auth-client"
 import {
   AnalyticsDashboard,
@@ -86,10 +87,10 @@ export function AdminLayoutShell({
     window.history.replaceState({}, "", url.toString())
   }
 
-  async function handleSignOut() {
-    await authClient.signOut({
-      fetchOptions: { onSuccess: () => router.push("/auth") },
-    })
+  const [signOutOpen, setSignOutOpen] = React.useState(false)
+
+  function handleSignOut() {
+    setSignOutOpen(true)
   }
 
   const getInitials = (name?: string, email?: string) => {
@@ -386,6 +387,9 @@ export function AdminLayoutShell({
             </div>
           </main>
         </SidebarInset>
+
+        {/* Confirmation Popup for Sign Out */}
+        <SignOutDialog open={signOutOpen} onOpenChange={setSignOutOpen} />
       </div>
     </SidebarProvider>
   )

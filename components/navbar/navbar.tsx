@@ -15,6 +15,7 @@ import {
 import { Sun, Moon, Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { executeThemeTransition } from "@/components/theme-beam"
+import { SignOutDialog } from "@/components/auth/sign-out-dialog"
 
 export function Navbar() {
   const pathname = usePathname()
@@ -26,6 +27,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [isScrolled, setIsScrolled] = React.useState(false)
   const [isAdmin, setIsAdmin] = React.useState(false)
+  const [signOutOpen, setSignOutOpen] = React.useState(false)
 
   // Dynamic sliding hover pill indicator for desktop nav
   const [hoveredRect, setHoveredRect] = React.useState<{
@@ -197,10 +199,8 @@ export function Navbar() {
     executeThemeTransition(nextTheme, setTheme)
   }
 
-  async function handleSignOut() {
-    await authClient.signOut({
-      fetchOptions: { onSuccess: () => router.push("/auth?mode=signin") },
-    })
+  function handleSignOut() {
+    setSignOutOpen(true)
   }
 
   return (
@@ -510,6 +510,9 @@ export function Navbar() {
           )}
         </header>
       </div>
+
+      {/* Confirmation Popup for Sign Out (Responsive Drawer on Mobile, Alert Dialog on Desktop) */}
+      <SignOutDialog open={signOutOpen} onOpenChange={setSignOutOpen} />
     </>
   )
 }
