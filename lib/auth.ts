@@ -98,7 +98,26 @@ export const auth = betterAuth({
       },
     },
   },
+  rateLimit: {
+    enabled: process.env.RATE_LIMIT_ENABLED !== "false",
+    window: 60,
+    max: 1000,
+    storage: "memory",
+    customRules: {
+      "/sign-in/*": {
+        window: 60,
+        max: 30,
+      },
+      "/sign-up/*": {
+        window: 60,
+        max: 30,
+      },
+    },
+  },
   advanced: {
     useSecureCookies: process.env.NODE_ENV === "production",
+    ipAddress: {
+      ipAddressHeaders: ["x-forwarded-for", "x-real-ip", "cf-connecting-ip"],
+    },
   },
 })
