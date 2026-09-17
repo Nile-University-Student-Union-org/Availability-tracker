@@ -1,50 +1,50 @@
-"use client"
+"use client";
 
-import { useCallback, useEffect, useState } from "react"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Label } from "@/components/ui/label"
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Switch } from "@/components/ui/switch"
-import { TimePicker } from "@/components/ui/time-picker"
-import { cn } from "@/lib/utils"
-import { HugeiconsIcon } from "@hugeicons/react"
+} from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import { TimePicker } from "@/components/ui/time-picker";
+import { cn } from "@/lib/utils";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Calendar03Icon,
   Clock01Icon,
   Delete02Icon,
   PlusSignIcon,
   Tick01Icon,
-} from "@hugeicons/core-free-icons"
+} from "@hugeicons/core-free-icons";
 
 type ScheduleConfigData = {
-  startDate: string
-  endDate: string
-  slotMode: "fixed" | "free"
-  timeSlots: string[]
-}
+  startDate: string;
+  endDate: string;
+  slotMode: "fixed" | "free";
+  timeSlots: string[];
+};
 
 function formatTime(time: string): string {
-  const [h, m] = time.split(":").map(Number)
-  const suffix = h >= 12 ? "PM" : "AM"
-  const hour = h % 12 || 12
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`
+  const [h, m] = time.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
 function formatDateLabel(iso: string): string {
-  if (!iso) return "Pick a date"
-  const d = new Date(iso + "T00:00:00")
+  if (!iso) return "Pick a date";
+  const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
-  })
+  });
 }
 
 function toISO(date: Date): string {
@@ -52,20 +52,86 @@ function toISO(date: Date): string {
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
-  ].join("-")
+  ].join("-");
+}
+
+function getDaysInRange(startIso?: string, endIso?: string): string[] {
+  if (!startIso || !endIso || startIso > endIso) return [];
+  const days: string[] = [];
+  const current = new Date(startIso + "T00:00:00");
+  const end = new Date(endIso + "T00:00:00");
+  while (current <= end) {
+    days.push(toISO(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
+}
+
+function formatDayChip(iso: string): { weekday: string; date: string } {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return {
+    weekday: date.toLocaleDateString("en-US", { weekday: "short" }),
+    date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+  };
+}
+
+interface DatePickerProps {
+  label: string;
+  value: string;
+  startDate?: string;
+  endDate?: string;
+  isEndDate?: boolean;
+  onChange: (iso: string) => void;
 }
 
 function DatePicker({
   label,
   value,
+  startDate,
+  endDate,
+  isEndDate = false,
   onChange,
-}: {
-  label: string
-  value: string
-  onChange: (iso: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const selected = value ? new Date(value + "T00:00:00") : undefined
+}: DatePickerProps) {
+  const [open, setOpen] = useState(false);
+  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  const selected = value ? new Date(value + "T00:00:00") : undefined;
+
+  // Compute active range boundaries for calendar highlight
+  const effectiveStart = isEndDate ? startDate : value || startDate;
+  const effectiveEnd = isEndDate ? value || endDate : endDate;
+
+  const hasRange =
+    !!effectiveStart && !!effectiveEnd && effectiveStart <= effectiveEnd;
+
+  const isSingleDay = hasRange && effectiveStart === effectiveEnd;
+
+  const rangeModifiers = {
+    range_start: (date: Date) =>
+      hasRange && !isSingleDay && toISO(date) === effectiveStart,
+    range_middle: (date: Date) => {
+      if (!hasRange || isSingleDay) return false;
+      const iso = toISO(date);
+      return iso > effectiveStart && iso < effectiveEnd;
+    },
+    range_end: (date: Date) =>
+      hasRange && !isSingleDay && toISO(date) === effectiveEnd,
+  };
+
+  const defaultMonth =
+    selected ||
+    (isEndDate && startDate ? new Date(startDate + "T00:00:00") : undefined);
+
+  const activeDaysCount = hasRange
+    ? getDaysInRange(effectiveStart, effectiveEnd).length
+    : 0;
 
   return (
     <div className="flex-1 space-y-1.5">
@@ -78,14 +144,14 @@ function DatePicker({
           className={cn(
             "group relative flex min-h-[52px] sm:min-h-[48px] w-full items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/70 px-3.5 py-2.5 text-left text-sm font-medium shadow-2xs transition-all duration-200 outline-none hover:border-primary/50 hover:bg-accent/40 hover:shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
             open && "border-primary ring-3 ring-primary/20 bg-accent/40",
-            !value && "text-muted-foreground"
+            !value && "text-muted-foreground",
           )}
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div
               className={cn(
                 "flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/20",
-                !value && "bg-muted text-muted-foreground"
+                !value && "bg-muted text-muted-foreground",
               )}
             >
               <HugeiconsIcon
@@ -101,7 +167,7 @@ function DatePicker({
               <span
                 className={cn(
                   "truncate text-sm font-semibold text-foreground",
-                  !value && "font-normal text-muted-foreground"
+                  !value && "font-normal text-muted-foreground",
                 )}
               >
                 {formatDateLabel(value)}
@@ -114,23 +180,69 @@ function DatePicker({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-auto p-0 rounded-3xl overflow-hidden shadow-xl border-border/80"
+          className="w-auto p-0 rounded-3xl overflow-hidden shadow-2xl border-border/80"
         >
-          <Calendar
-            mode="single"
-            selected={selected}
-            onSelect={(day) => {
-              if (day) {
-                onChange(toISO(day))
-                setOpen(false)
+          <div className="p-3">
+            <Calendar
+              mode="single"
+              selected={selected}
+              defaultMonth={defaultMonth}
+              disabled={
+                isEndDate && startDate ? (d) => toISO(d) < startDate : undefined
               }
-            }}
-            className="rounded-3xl p-3"
-          />
+              modifiers={rangeModifiers}
+              onSelect={(day) => {
+                if (day) {
+                  const iso = toISO(day);
+                  onChange(iso);
+                  if (closeTimerRef.current)
+                    clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = setTimeout(() => {
+                    setOpen(false);
+                  }, 350);
+                }
+              }}
+              className="rounded-2xl"
+            />
+          </div>
+
+          {hasRange && (
+            <div className="flex items-center justify-between gap-3 border-t border-border/70 bg-muted/40 px-4 py-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="relative flex size-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                </span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] font-semibold text-foreground truncate">
+                    {activeDaysCount} active day
+                    {activeDaysCount !== 1 ? "s" : ""}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-mono truncate">
+                    {effectiveStart} → {effectiveEnd}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                  Last day included ✓
+                </span>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  className="h-6 px-2 text-[11px] rounded-lg text-muted-foreground hover:text-foreground"
+                  onClick={() => setOpen(false)}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     </div>
-  )
+  );
 }
 
 export function ScheduleConfigPanel() {
@@ -139,99 +251,90 @@ export function ScheduleConfigPanel() {
     endDate: "",
     slotMode: "fixed",
     timeSlots: [],
-  })
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [newSlotTime, setNewSlotTime] = useState("09:00")
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [newSlotTime, setNewSlotTime] = useState("09:00");
 
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch("/api/schedule-config")
+      const res = await fetch("/api/schedule-config");
       if (res.ok) {
-        const data = await res.json()
+        const data = await res.json();
         setConfig({
           startDate: data.startDate,
           endDate: data.endDate,
           slotMode: data.slotMode,
           timeSlots: data.timeSlots,
-        })
+        });
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    fetchConfig()
-  }, [fetchConfig])
+    fetchConfig();
+  }, [fetchConfig]);
 
   async function handleSave() {
-    setError(null)
-    setSaved(false)
+    setError(null);
+    setSaved(false);
 
     if (!config.startDate || !config.endDate) {
-      setError("Please set both start and end dates.")
-      return
+      setError("Please set both start and end dates.");
+      return;
     }
     if (config.startDate > config.endDate) {
-      setError("Start date must be before or equal to end date.")
-      return
+      setError("Start date must be before or equal to end date.");
+      return;
     }
     if (config.slotMode === "fixed" && config.timeSlots.length === 0) {
-      setError("Please add at least one time slot for fixed mode.")
-      return
+      setError("Please add at least one time slot for fixed mode.");
+      return;
     }
 
-    setIsSaving(true)
+    setIsSaving(true);
     try {
       const res = await fetch("/api/admin/schedule-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
-      })
-      if (!res.ok) throw new Error("Failed to save")
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
     } catch {
-      setError("Failed to save configuration. Please try again.")
+      setError("Failed to save configuration. Please try again.");
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
   }
 
   function addTimeSlot() {
-    if (!newSlotTime) return
+    if (!newSlotTime) return;
     const normalized =
-      newSlotTime.length === 5 ? newSlotTime : `0${newSlotTime}`
-    if (config.timeSlots.includes(normalized)) return
+      newSlotTime.length === 5 ? newSlotTime : `0${newSlotTime}`;
+    if (config.timeSlots.includes(normalized)) return;
 
     setConfig((prev) => ({
       ...prev,
       timeSlots: [...prev.timeSlots, normalized].sort(),
-    }))
+    }));
   }
 
   function removeTimeSlot(slot: string) {
     setConfig((prev) => ({
       ...prev,
       timeSlots: prev.timeSlots.filter((s) => s !== slot),
-    }))
+    }));
   }
 
-  // Compute date count for preview
-  const dateCount =
-    config.startDate && config.endDate
-      ? Math.max(
-          0,
-          Math.floor(
-            (new Date(config.endDate).getTime() -
-              new Date(config.startDate).getTime()) /
-              86400000
-          ) + 1
-        )
-      : 0
+  // Compute active days list and count for preview
+  const activeDays = getDaysInRange(config.startDate, config.endDate);
+  const dateCount = activeDays.length;
 
   if (isLoading) {
     return (
@@ -242,7 +345,7 @@ export function ScheduleConfigPanel() {
           <div className="h-10 animate-pulse rounded-2xl bg-muted" />
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -268,13 +371,24 @@ export function ScheduleConfigPanel() {
             <DatePicker
               label="Start Date"
               value={config.startDate}
+              startDate={config.startDate}
+              endDate={config.endDate}
               onChange={(iso) =>
-                setConfig((prev) => ({ ...prev, startDate: iso }))
+                setConfig((prev) => {
+                  const next: ScheduleConfigData = { ...prev, startDate: iso };
+                  if (prev.endDate && iso > prev.endDate) {
+                    next.endDate = iso;
+                  }
+                  return next;
+                })
               }
             />
             <DatePicker
               label="End Date"
               value={config.endDate}
+              startDate={config.startDate}
+              endDate={config.endDate}
+              isEndDate={true}
               onChange={(iso) =>
                 setConfig((prev) => ({ ...prev, endDate: iso }))
               }
@@ -282,16 +396,72 @@ export function ScheduleConfigPanel() {
           </div>
 
           {dateCount > 0 && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <Badge
-                variant="secondary"
-                className="rounded-full bg-primary/10 text-primary border border-primary/20 text-xs px-2.5 py-0.5 font-medium"
-              >
-                {dateCount} active day{dateCount !== 1 ? "s" : ""} selected
-              </Badge>
-              <span className="text-xs text-muted-foreground font-mono">
-                {config.startDate} → {config.endDate}
-              </span>
+            <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3.5 sm:p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant="secondary"
+                    className="rounded-full bg-primary/15 text-primary border border-primary/25 text-xs px-2.5 py-0.5 font-semibold"
+                  >
+                    {dateCount} active day{dateCount !== 1 ? "s" : ""} selected
+                  </Badge>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {config.startDate} → {config.endDate}
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full">
+                  <HugeiconsIcon
+                    icon={Tick01Icon}
+                    className="size-3.5 text-emerald-600 dark:text-emerald-400"
+                    strokeWidth={2.5}
+                  />
+                  <span>
+                    Last day ({formatDateLabel(config.endDate)}) is included
+                  </span>
+                </div>
+              </div>
+
+              {/* Active days preview */}
+              <div className="space-y-1.5 pt-1">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Active Schedule Days
+                </p>
+                <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto pr-1">
+                  {activeDays.map((dayIso, idx) => {
+                    const isStart = idx === 0;
+                    const isLast = idx === activeDays.length - 1;
+                    const chip = formatDayChip(dayIso);
+                    return (
+                      <div
+                        key={dayIso}
+                        className={cn(
+                          "flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs transition-all",
+                          isLast
+                            ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-950 dark:text-emerald-200 font-bold shadow-xs ring-1 ring-emerald-500/30"
+                            : isStart
+                              ? "border-primary/40 bg-primary/20 text-primary font-bold shadow-xs ring-1 ring-primary/30"
+                              : "border-border/60 bg-card text-foreground font-medium",
+                        )}
+                      >
+                        <span className="text-[10px] text-muted-foreground font-semibold">
+                          {chip.weekday}
+                        </span>
+                        <span>{chip.date}</span>
+                        {isStart && (
+                          <span className="ml-0.5 text-[9px] uppercase tracking-wider bg-primary/25 text-primary px-1.5 py-0.2 rounded font-bold">
+                            Start
+                          </span>
+                        )}
+                        {isLast && (
+                          <span className="ml-0.5 text-[9px] uppercase tracking-wider bg-emerald-600 text-white dark:bg-emerald-500 dark:text-black px-1.5 py-0.2 rounded-full font-bold inline-flex items-center gap-0.5">
+                            End ✓
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -434,7 +604,7 @@ export function ScheduleConfigPanel() {
           disabled={isSaving}
           className={cn(
             "rounded-2xl px-6",
-            saved && "bg-emerald-600 hover:bg-emerald-600"
+            saved && "bg-emerald-600 hover:bg-emerald-600",
           )}
         >
           {saved ? (
@@ -456,5 +626,5 @@ export function ScheduleConfigPanel() {
         )}
       </div>
     </div>
-  )
+  );
 }
