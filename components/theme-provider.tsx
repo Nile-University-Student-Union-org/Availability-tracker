@@ -12,7 +12,7 @@ function ThemeProvider({
       attribute="class"
       defaultTheme="light"
       enableSystem
-      disableTransitionOnChange
+      disableTransitionOnChange={false}
       {...props}
     >
       {children}

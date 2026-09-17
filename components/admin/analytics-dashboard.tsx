@@ -1,26 +1,26 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { useState } from "react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { COMMITTEES } from "@/lib/constants";
+} from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { COMMITTEES } from "@/lib/constants"
 import {
   BarChart,
   Bar,
@@ -29,81 +29,85 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-} from "recharts";
+} from "recharts"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type SlotEntry = {
-  date: string;
-  startTime: string;
-  count: number;
-  users: { name: string | null; email: string; image: string | null; committee: string | null }[];
-};
+  date: string
+  startTime: string
+  count: number
+  users: {
+    name: string | null
+    email: string
+    image: string | null
+    committee: string | null
+  }[]
+}
 
 export type UserEntry = {
-  id: string;
-  name: string | null;
-  email: string;
-  nuId: string | null;
-  image: string | null;
-  committee: string | null;
-  totalSlots: number;
-  byDate: Record<string, string[]>;
-};
+  id: string
+  name: string | null
+  email: string
+  nuId: string | null
+  image: string | null
+  committee: string | null
+  totalSlots: number
+  byDate: Record<string, string[]>
+}
 
 export type AnalyticsData = {
-  totalUsers: number;
-  totalSlots: number;
-  maxCount: number;
-  slotMatrix: SlotEntry[];
-  users: UserEntry[];
-  dates: string[];
-  timeSlots: string[];
-};
+  totalUsers: number
+  totalSlots: number
+  maxCount: number
+  slotMatrix: SlotEntry[]
+  users: UserEntry[]
+  dates: string[]
+  timeSlots: string[]
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatTime(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
+  const [h, m] = time.split(":").map(Number)
+  const suffix = h >= 12 ? "PM" : "AM"
+  const hour = h % 12 || 12
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`
 }
 
 function formatDayShort(date: string): string {
-  const d = new Date(date + "T00:00:00");
-  return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
+  const d = new Date(date + "T00:00:00")
+  return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric" })
 }
 
 function formatDayFull(date: string): string {
-  const d = new Date(date + "T00:00:00");
+  const d = new Date(date + "T00:00:00")
   return d.toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
-  });
+  })
 }
 
 function getInitials(name?: string | null, email?: string | null): string {
   if (name) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    const parts = name.trim().split(/\s+/)
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
   }
-  return email?.slice(0, 2).toUpperCase() ?? "?";
+  return email?.slice(0, 2).toUpperCase() ?? "?"
 }
 
 /** Returns Tailwind classes for a heatmap cell based on its fill ratio. */
 function cellStyle(count: number, max: number): string {
-  if (count === 0) return "bg-muted/50 text-muted-foreground/30";
-  const ratio = count / Math.max(max, 1);
+  if (count === 0) return "bg-muted/50 text-muted-foreground/30"
+  const ratio = count / Math.max(max, 1)
   if (ratio <= 0.25)
-    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400";
+    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400"
   if (ratio <= 0.5)
-    return "bg-emerald-500/40 text-emerald-800 dark:text-emerald-300";
-  if (ratio <= 0.75)
-    return "bg-emerald-500/65 text-emerald-900 dark:text-white";
-  return "bg-emerald-600 text-white";
+    return "bg-emerald-500/40 text-emerald-800 dark:text-emerald-300"
+  if (ratio <= 0.75) return "bg-emerald-500/65 text-emerald-900 dark:text-white"
+  return "bg-emerald-600 text-white"
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -114,32 +118,32 @@ function MetricCard({
   sub,
   accent = false,
 }: {
-  label: string;
-  value: string | number;
-  sub: string;
-  accent?: boolean;
+  label: string
+  value: string | number
+  sub: string
+  accent?: boolean
 }) {
   return (
     <div
       className={cn(
         "rounded-3xl border px-4 py-4",
-        accent ? "bg-primary/8 border-primary/25" : "bg-card",
+        accent ? "border-primary/25 bg-primary/8" : "bg-card"
       )}
     >
-      <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+      <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
         {label}
       </p>
       <p
         className={cn(
           "mt-1 font-heading text-3xl font-semibold",
-          accent && "text-primary",
+          accent && "text-primary"
         )}
       >
         {value}
       </p>
       <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>
     </div>
-  );
+  )
 }
 
 function UserAvatar({
@@ -148,10 +152,10 @@ function UserAvatar({
   image,
   size = "sm",
 }: {
-  name: string | null;
-  email: string;
-  image: string | null;
-  size?: "sm" | "xs";
+  name: string | null
+  email: string
+  image: string | null
+  size?: "sm" | "xs"
 }) {
   return (
     <Avatar className={size === "xs" ? "size-5" : "size-8"}>
@@ -160,95 +164,109 @@ function UserAvatar({
         {getInitials(name, email)}
       </AvatarFallback>
     </Avatar>
-  );
+  )
 }
 
 // ─── Main dashboard ───────────────────────────────────────────────────────────
 export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
-  const { totalUsers, totalSlots, maxCount, slotMatrix, users, dates, timeSlots } =
-    data;
+  const {
+    totalUsers,
+    totalSlots,
+    maxCount,
+    slotMatrix,
+    users,
+    dates,
+    timeSlots,
+  } = data
   const [activeCell, setActiveCell] = useState<{
-    date: string;
-    startTime: string;
-  } | null>(null);
-  const [viewingUser, setViewingUser] = useState<UserEntry | null>(null);
+    date: string
+    startTime: string
+  } | null>(null)
+  const [viewingUser, setViewingUser] = useState<UserEntry | null>(null)
 
-  const [selectedCommittee, setSelectedCommittee] = useState<string>("all");
+  const [selectedCommittee, setSelectedCommittee] = useState<string>("all")
 
   const filteredUsers =
     selectedCommittee === "all"
       ? users
-      : users.filter((u) => u.committee === selectedCommittee);
+      : users.filter((u) => u.committee === selectedCommittee)
 
-  const filteredUserIds = new Set(filteredUsers.map((u) => u.id));
+  const filteredUserIds = new Set(filteredUsers.map((u) => u.id))
 
   // Recalculate everything based on filtered users
   const filteredSlotMatrix = slotMatrix.map((slot) => {
     const matchingUsers = slot.users.filter((u) => {
       // Find the user object in the main users list to get their ID for filtering
-      const mainUser = users.find((mu) => mu.email === u.email);
-      return mainUser && filteredUserIds.has(mainUser.id);
-    });
+      const mainUser = users.find((mu) => mu.email === u.email)
+      return mainUser && filteredUserIds.has(mainUser.id)
+    })
     return {
       ...slot,
       count: matchingUsers.length,
       users: matchingUsers,
-    };
-  });
+    }
+  })
 
   const filteredTotalSlots = filteredUsers.reduce(
     (sum, u) => sum + u.totalSlots,
-    0,
-  );
+    0
+  )
   const filteredMaxCount = filteredSlotMatrix.reduce(
     (m, s) => Math.max(m, s.count),
-    0,
-  );
+    0
+  )
 
   const avgSlots =
     filteredUsers.length > 0
       ? (filteredTotalSlots / filteredUsers.length).toFixed(1)
-      : "—";
+      : "—"
 
   const peakEntry = filteredSlotMatrix.reduce<SlotEntry | null>(
     (best, entry) => (entry.count > (best?.count ?? 0) ? entry : best),
-    null,
-  );
+    null
+  )
 
   const activeCellData = activeCell
     ? (filteredSlotMatrix.find(
         (s) =>
-          s.date === activeCell.date && s.startTime === activeCell.startTime,
+          s.date === activeCell.date && s.startTime === activeCell.startTime
       ) ?? null)
-    : null;
+    : null
 
   // Top-5 busiest slots
   const topSlots = [...filteredSlotMatrix]
     .filter((s) => s.count > 0)
     .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+    .slice(0, 5)
 
   // Committee breakdown for insights
   const committeeStats = COMMITTEES.map((c) => {
-    const cUsers = users.filter((u) => u.committee === c);
-    const cSlots = cUsers.reduce((sum, u) => sum + u.totalSlots, 0);
-    return { name: c, users: cUsers.length, slots: cSlots };
-  }).sort((a, b) => b.slots - a.slots);
+    const cUsers = users.filter((u) => u.committee === c)
+    const cSlots = cUsers.reduce((sum, u) => sum + u.totalSlots, 0)
+    return { name: c, users: cUsers.length, slots: cSlots }
+  }).sort((a, b) => b.slots - a.slots)
 
-  const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null;
+  const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null
 
   // NEW: Best slot per committee
   const bestSlotPerCommittee = COMMITTEES.map((c) => {
     const cSlots = filteredSlotMatrix.map((slot) => {
-      const cUsers = slot.users.filter((u) => u.committee === c);
-      return { ...slot, cCount: cUsers.length };
-    });
-    const best = cSlots.reduce<{ date: string; startTime: string; cCount: number } | null>(
-      (acc, s) => (s.cCount > (acc?.cCount ?? 0) ? { date: s.date, startTime: s.startTime, cCount: s.cCount } : acc),
-      null,
-    );
-    return { committee: c, best };
-  }).filter((b) => b.best && b.best.cCount > 0);
+      const cUsers = slot.users.filter((u) => u.committee === c)
+      return { ...slot, cCount: cUsers.length }
+    })
+    const best = cSlots.reduce<{
+      date: string
+      startTime: string
+      cCount: number
+    } | null>(
+      (acc, s) =>
+        s.cCount > (acc?.cCount ?? 0)
+          ? { date: s.date, startTime: s.startTime, cCount: s.cCount }
+          : acc,
+      null
+    )
+    return { committee: c, best }
+  }).filter((b) => b.best && b.best.cCount > 0)
 
   // NEW: Committee x Date matrix
   const committeeDateMatrix = COMMITTEES.map((c) => {
@@ -256,23 +274,35 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       const uniqueUsers = new Set(
         filteredSlotMatrix
           .filter((s) => s.date === d)
-          .flatMap((s) => s.users.filter((u) => u.committee === c).map((u) => u.email)),
-      );
-      return { date: d, count: uniqueUsers.size };
-    });
-    return { committee: c, dates: datesData };
-  });
+          .flatMap((s) =>
+            s.users.filter((u) => u.committee === c).map((u) => u.email)
+          )
+      )
+      return { date: d, count: uniqueUsers.size }
+    })
+    return { committee: c, dates: datesData }
+  })
 
   return (
     <div className="space-y-5">
       {/* ── Committee Filter ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="committee-filter" className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Label
+            htmlFor="committee-filter"
+            className="text-xs font-semibold tracking-widest text-muted-foreground uppercase"
+          >
             Filter by Committee:
           </Label>
-          <Select value={selectedCommittee} onValueChange={(val) => setSelectedCommittee(val ?? "all")}>
-            <SelectTrigger id="committee-filter" className="h-8 w-40 rounded-xl text-xs">
+          <Select
+            value={selectedCommittee}
+            onValueChange={(val) => setSelectedCommittee(val ?? "all")}
+          >
+            <SelectTrigger
+              id="committee-filter"
+              size="sm"
+              className="w-full sm:w-48"
+            >
               <SelectValue placeholder="All Committees" />
             </SelectTrigger>
             <SelectContent>
@@ -286,7 +316,10 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           </Select>
         </div>
         {selectedCommittee !== "all" && (
-          <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">
+          <Badge
+            variant="outline"
+            className="w-fit border-primary/20 bg-primary/5 text-primary"
+          >
             Showing {filteredUsers.length} from {selectedCommittee}
           </Badge>
         )}
@@ -297,7 +330,11 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         <MetricCard
           label="Participants"
           value={filteredUsers.length}
-          sub={selectedCommittee === "all" ? "total users" : `members in ${selectedCommittee}`}
+          sub={
+            selectedCommittee === "all"
+              ? "total users"
+              : `members in ${selectedCommittee}`
+          }
           accent
         />
         <MetricCard
@@ -308,7 +345,9 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         <MetricCard
           label="Peak Committee"
           value={topCommittee?.name ?? "—"}
-          sub={topCommittee ? `${topCommittee.slots} slots marked` : "No data yet"}
+          sub={
+            topCommittee ? `${topCommittee.slots} slots marked` : "No data yet"
+          }
         />
         <MetricCard
           label="Avg / User"
@@ -356,7 +395,11 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                 {committeeStats.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={index % 2 === 0 ? "var(--color-primary)" : "var(--color-primary-foreground)"}
+                    fill={
+                      index % 2 === 0
+                        ? "var(--color-primary)"
+                        : "var(--color-primary-foreground)"
+                    }
                     className="fill-primary"
                   />
                 ))}
@@ -395,7 +438,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
               <table className="w-full min-w-90 text-xs">
                 <thead>
                   <tr>
-                    <th className="w-20 pb-2 pr-3 text-left text-[11px] font-medium text-muted-foreground" />
+                    <th className="w-20 pr-3 pb-2 text-left text-[11px] font-medium text-muted-foreground" />
                     {dates.map((date) => (
                       <th
                         key={date}
@@ -414,19 +457,19 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                       </td>
                       {dates.map((date) => {
                         const entry = filteredSlotMatrix.find(
-                          (s) => s.date === date && s.startTime === startTime,
-                        );
-                        const count = entry?.count ?? 0;
+                          (s) => s.date === date && s.startTime === startTime
+                        )
+                        const count = entry?.count ?? 0
                         const isActive =
                           activeCell?.date === date &&
-                          activeCell?.startTime === startTime;
+                          activeCell?.startTime === startTime
 
                         return (
                           <td key={date} className="px-1 py-0.5">
                             <button
                               onClick={() =>
                                 setActiveCell(
-                                  isActive ? null : { date, startTime },
+                                  isActive ? null : { date, startTime }
                                 )
                               }
                               disabled={count === 0}
@@ -436,13 +479,13 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                                 count > 0 && "cursor-pointer hover:opacity-75",
                                 count === 0 && "cursor-default",
                                 isActive &&
-                                  "ring-2 ring-primary ring-offset-1 ring-offset-card",
+                                  "ring-2 ring-primary ring-offset-1 ring-offset-card"
                               )}
                             >
                               {count > 0 ? count : "·"}
                             </button>
                           </td>
-                        );
+                        )
                       })}
                     </tr>
                   ))}
@@ -479,11 +522,13 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           </p>
           <div className="space-y-4">
             {COMMITTEES.map((c) => {
-              const cUsers = activeCellData.users.filter((u) => u.committee === c);
-              if (cUsers.length === 0) return null;
+              const cUsers = activeCellData.users.filter(
+                (u) => u.committee === c
+              )
+              if (cUsers.length === 0) return null
               return (
                 <div key={c}>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <p className="mb-2 text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
                     {c} ({cUsers.length})
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -505,7 +550,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     ))}
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
         </div>
@@ -585,17 +630,19 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           <div className="divide-y">
             {dates.map((date) => {
               const daySlots = filteredSlotMatrix.filter(
-                (s) => s.date === date && s.count > 0,
-              );
+                (s) => s.date === date && s.count > 0
+              )
               const uniqueUsers = new Set(
-                daySlots.flatMap((s) => s.users.map((u) => u.email)),
-              );
+                daySlots.flatMap((s) => s.users.map((u) => u.email))
+              )
               const totalDaySlots = daySlots.reduce(
                 (sum, s) => sum + s.count,
-                0,
-              );
+                0
+              )
               const fill =
-                filteredUsers.length > 0 ? uniqueUsers.size / filteredUsers.length : 0;
+                filteredUsers.length > 0
+                  ? uniqueUsers.size / filteredUsers.length
+                  : 0
 
               return (
                 <div key={date} className="px-5 py-3">
@@ -614,7 +661,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     />
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
         </div>
@@ -634,9 +681,14 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           <table className="w-full text-xs">
             <thead>
               <tr>
-                <th className="pb-2 text-left text-[11px] font-medium text-muted-foreground">Committee</th>
+                <th className="pb-2 text-left text-[11px] font-medium text-muted-foreground">
+                  Committee
+                </th>
                 {dates.map((d) => (
-                  <th key={d} className="pb-2 text-center text-[11px] font-medium text-muted-foreground">
+                  <th
+                    key={d}
+                    className="pb-2 text-center text-[11px] font-medium text-muted-foreground"
+                  >
                     {formatDayShort(d)}
                   </th>
                 ))}
@@ -645,13 +697,19 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             <tbody className="divide-y">
               {committeeDateMatrix.map((row) => (
                 <tr key={row.committee}>
-                  <td className="py-2 text-[11px] font-semibold">{row.committee}</td>
+                  <td className="py-2 text-[11px] font-semibold">
+                    {row.committee}
+                  </td>
                   {row.dates.map((d) => (
                     <td key={d.date} className="py-2 text-center">
-                      <span className={cn(
-                        "inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px]",
-                        d.count > 0 ? "bg-emerald-500/15 text-emerald-700 font-bold" : "text-muted-foreground/30"
-                      )}>
+                      <span
+                        className={cn(
+                          "inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px]",
+                          d.count > 0
+                            ? "bg-emerald-500/15 font-bold text-emerald-700"
+                            : "text-muted-foreground/30"
+                        )}
+                      >
                         {d.count > 0 ? d.count : "0"}
                       </span>
                     </td>
@@ -676,15 +734,19 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
           {bestSlotPerCommittee.map((b) => (
             <div key={b.committee} className="bg-card p-4">
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              <p className="mb-1 text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
                 {b.committee}
               </p>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium">{formatDayFull(b.best!.date)}</p>
-                  <p className="text-xs text-muted-foreground">{formatTime(b.best!.startTime)}</p>
+                  <p className="text-sm font-medium">
+                    {formatDayFull(b.best!.date)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatTime(b.best!.startTime)}
+                  </p>
                 </div>
-                <Badge className="bg-emerald-500/20 text-emerald-700 border-none">
+                <Badge className="border-none bg-emerald-500/20 text-emerald-700">
                   {b.best!.cCount} members
                 </Badge>
               </div>
@@ -696,9 +758,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       {/* ── Participants table ──────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-3xl border bg-card">
         <div className="border-b px-5 py-4">
-          <h2 className="font-heading text-base font-semibold">
-            Participants
-          </h2>
+          <h2 className="font-heading text-base font-semibold">Participants</h2>
           <p className="text-xs text-muted-foreground">
             {filteredUsers.length === 0
               ? "No members match the selected filter."
@@ -731,13 +791,14 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     </p>
                     <Badge
                       variant="secondary"
-                      className="shrink-0 bg-primary/10 text-primary text-xs"
+                      className="shrink-0 bg-primary/10 text-xs text-primary"
                     >
                       {user.totalSlots} slot{user.totalSlots !== 1 ? "s" : ""}
                     </Badge>
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
-                    {user.email} {user.nuId && `· ID: ${user.nuId}`} {user.committee && `· ${user.committee}`}
+                    {user.email} {user.nuId && `· ID: ${user.nuId}`}{" "}
+                    {user.committee && `· ${user.committee}`}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {Object.entries(user.byDate)
@@ -760,7 +821,10 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       </div>
 
       {/* ── Individual member schedule dialog ──────────────────────────── */}
-      <Dialog open={!!viewingUser} onOpenChange={(open) => !open && setViewingUser(null)}>
+      <Dialog
+        open={!!viewingUser}
+        onOpenChange={(open) => !open && setViewingUser(null)}
+      >
         <DialogContent className="max-w-md rounded-3xl">
           {viewingUser && (
             <>
@@ -777,7 +841,8 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                       {viewingUser.name ?? "Member Schedule"}
                     </DialogTitle>
                     <DialogDescription className="text-xs">
-                      {viewingUser.email} {viewingUser.nuId && `· ID: ${viewingUser.nuId}`}
+                      {viewingUser.email}{" "}
+                      {viewingUser.nuId && `· ID: ${viewingUser.nuId}`}
                     </DialogDescription>
                   </div>
                 </div>
@@ -789,7 +854,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     .sort(([a], [b]) => a.localeCompare(b))
                     .map(([date, slots]) => (
                       <div key={date}>
-                        <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                        <p className="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
                           {formatDayFull(date)}
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -817,5 +882,5 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         </DialogContent>
       </Dialog>
     </div>
-  );
+  )
 }

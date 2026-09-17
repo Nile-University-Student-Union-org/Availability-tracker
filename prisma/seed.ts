@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client"
 
 const prisma = new PrismaClient({
   datasources: {
@@ -6,17 +6,17 @@ const prisma = new PrismaClient({
       url: process.env.DIRECT_URL,
     },
   },
-});
+})
 
 async function main() {
   // Seed the default schedule config with the original hardcoded values
   const existing = await prisma.scheduleConfig.findUnique({
     where: { id: "default" },
-  });
+  })
 
   if (existing) {
-    console.log("Schedule config already exists, skipping seed.");
-    return;
+    console.log("Schedule config already exists, skipping seed.")
+    return
   }
 
   await prisma.scheduleConfig.create({
@@ -42,14 +42,14 @@ async function main() {
         },
       },
     },
-  });
+  })
 
-  console.log("Seeded default schedule config (Apr 19–23, 10 fixed slots).");
+  console.log("Seeded default schedule config (Apr 19–23, 10 fixed slots).")
 }
 
 main()
   .catch((e) => {
-    console.error(e);
-    process.exit(1);
+    console.error(e)
+    process.exit(1)
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => prisma.$disconnect())

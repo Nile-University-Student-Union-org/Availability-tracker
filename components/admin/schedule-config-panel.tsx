@@ -1,50 +1,50 @@
-"use client";
+"use client"
 
-import { useCallback, useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useCallback, useEffect, useState } from "react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Label } from "@/components/ui/label"
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
-import { HugeiconsIcon } from "@hugeicons/react";
+} from "@/components/ui/popover"
+import { Switch } from "@/components/ui/switch"
+import { TimePicker } from "@/components/ui/time-picker"
+import { cn } from "@/lib/utils"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Calendar03Icon,
   Clock01Icon,
   Delete02Icon,
   PlusSignIcon,
   Tick01Icon,
-} from "@hugeicons/core-free-icons";
+} from "@hugeicons/core-free-icons"
 
 type ScheduleConfigData = {
-  startDate: string;
-  endDate: string;
-  slotMode: "fixed" | "free";
-  timeSlots: string[];
-};
+  startDate: string
+  endDate: string
+  slotMode: "fixed" | "free"
+  timeSlots: string[]
+}
 
 function formatTime(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
+  const [h, m] = time.split(":").map(Number)
+  const suffix = h >= 12 ? "PM" : "AM"
+  const hour = h % 12 || 12
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`
 }
 
 function formatDateLabel(iso: string): string {
-  if (!iso) return "Pick a date";
-  const d = new Date(iso + "T00:00:00");
+  if (!iso) return "Pick a date"
+  const d = new Date(iso + "T00:00:00")
   return d.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
-  });
+  })
 }
 
 function toISO(date: Date): string {
@@ -52,7 +52,7 @@ function toISO(date: Date): string {
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
-  ].join("-");
+  ].join("-")
 }
 
 function DatePicker({
@@ -60,12 +60,12 @@ function DatePicker({
   value,
   onChange,
 }: {
-  label: string;
-  value: string;
-  onChange: (iso: string) => void;
+  label: string
+  value: string
+  onChange: (iso: string) => void
 }) {
-  const [open, setOpen] = useState(false);
-  const selected = value ? new Date(value + "T00:00:00") : undefined;
+  const [open, setOpen] = useState(false)
+  const selected = value ? new Date(value + "T00:00:00") : undefined
 
   return (
     <div className="space-y-2">
@@ -74,7 +74,7 @@ function DatePicker({
         <PopoverTrigger
           className={cn(
             "flex h-9 w-full items-center gap-2 rounded-3xl border border-transparent bg-input/50 px-3 text-sm transition-[color,box-shadow,background-color] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30",
-            !value && "text-muted-foreground",
+            !value && "text-muted-foreground"
           )}
         >
           <HugeiconsIcon
@@ -90,8 +90,8 @@ function DatePicker({
             selected={selected}
             onSelect={(day) => {
               if (day) {
-                onChange(toISO(day));
-                setOpen(false);
+                onChange(toISO(day))
+                setOpen(false)
               }
             }}
             className="rounded-3xl"
@@ -99,7 +99,7 @@ function DatePicker({
         </PopoverContent>
       </Popover>
     </div>
-  );
+  )
 }
 
 export function ScheduleConfigPanel() {
@@ -108,85 +108,85 @@ export function ScheduleConfigPanel() {
     endDate: "",
     slotMode: "fixed",
     timeSlots: [],
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [newSlotTime, setNewSlotTime] = useState("09:00");
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [newSlotTime, setNewSlotTime] = useState("09:00")
 
   const fetchConfig = useCallback(async () => {
     try {
-      const res = await fetch("/api/schedule-config");
+      const res = await fetch("/api/schedule-config")
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json()
         setConfig({
           startDate: data.startDate,
           endDate: data.endDate,
           slotMode: data.slotMode,
           timeSlots: data.timeSlots,
-        });
+        })
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, []);
+  }, [])
 
   useEffect(() => {
-    fetchConfig();
-  }, [fetchConfig]);
+    fetchConfig()
+  }, [fetchConfig])
 
   async function handleSave() {
-    setError(null);
-    setSaved(false);
+    setError(null)
+    setSaved(false)
 
     if (!config.startDate || !config.endDate) {
-      setError("Please set both start and end dates.");
-      return;
+      setError("Please set both start and end dates.")
+      return
     }
     if (config.startDate > config.endDate) {
-      setError("Start date must be before or equal to end date.");
-      return;
+      setError("Start date must be before or equal to end date.")
+      return
     }
     if (config.slotMode === "fixed" && config.timeSlots.length === 0) {
-      setError("Please add at least one time slot for fixed mode.");
-      return;
+      setError("Please add at least one time slot for fixed mode.")
+      return
     }
 
-    setIsSaving(true);
+    setIsSaving(true)
     try {
       const res = await fetch("/api/admin/schedule-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(config),
-      });
-      if (!res.ok) throw new Error("Failed to save");
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      })
+      if (!res.ok) throw new Error("Failed to save")
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
     } catch {
-      setError("Failed to save configuration. Please try again.");
+      setError("Failed to save configuration. Please try again.")
     } finally {
-      setIsSaving(false);
+      setIsSaving(false)
     }
   }
 
   function addTimeSlot() {
-    if (!newSlotTime) return;
+    if (!newSlotTime) return
     const normalized =
-      newSlotTime.length === 5 ? newSlotTime : `0${newSlotTime}`;
-    if (config.timeSlots.includes(normalized)) return;
+      newSlotTime.length === 5 ? newSlotTime : `0${newSlotTime}`
+    if (config.timeSlots.includes(normalized)) return
 
     setConfig((prev) => ({
       ...prev,
       timeSlots: [...prev.timeSlots, normalized].sort(),
-    }));
+    }))
   }
 
   function removeTimeSlot(slot: string) {
     setConfig((prev) => ({
       ...prev,
       timeSlots: prev.timeSlots.filter((s) => s !== slot),
-    }));
+    }))
   }
 
   // Compute date count for preview
@@ -197,10 +197,10 @@ export function ScheduleConfigPanel() {
           Math.floor(
             (new Date(config.endDate).getTime() -
               new Date(config.startDate).getTime()) /
-              86400000,
-          ) + 1,
+              86400000
+          ) + 1
         )
-      : 0;
+      : 0
 
   if (isLoading) {
     return (
@@ -211,7 +211,7 @@ export function ScheduleConfigPanel() {
           <div className="h-10 animate-pulse rounded-2xl bg-muted" />
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -225,9 +225,7 @@ export function ScheduleConfigPanel() {
             strokeWidth={1.5}
           />
           <div>
-            <h2 className="font-heading text-base font-semibold">
-              Date Range
-            </h2>
+            <h2 className="font-heading text-base font-semibold">Date Range</h2>
             <p className="text-xs text-muted-foreground">
               Set the active days users can mark availability for
             </p>
@@ -304,7 +302,7 @@ export function ScheduleConfigPanel() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <div className="h-px flex-1 bg-border" />
-                <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+                <span className="text-[11px] font-medium tracking-widest text-muted-foreground uppercase">
                   Time Slots
                 </span>
                 <div className="h-px flex-1 bg-border" />
@@ -314,14 +312,12 @@ export function ScheduleConfigPanel() {
               <div className="flex items-end gap-2">
                 <div className="flex-1 space-y-2">
                   <Label htmlFor="new-slot">Add Time Slot</Label>
-                  <Input
+                  <TimePicker
                     id="new-slot"
-                    type="time"
                     value={newSlotTime}
-                    onChange={(e) => setNewSlotTime(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") addTimeSlot();
-                    }}
+                    onChange={setNewSlotTime}
+                    placeholder="Pick a time slot..."
+                    className="rounded-3xl"
                   />
                 </div>
                 <Button
@@ -399,7 +395,7 @@ export function ScheduleConfigPanel() {
           disabled={isSaving}
           className={cn(
             "rounded-2xl px-6",
-            saved && "bg-emerald-600 hover:bg-emerald-600",
+            saved && "bg-emerald-600 hover:bg-emerald-600"
           )}
         >
           {saved ? (
@@ -421,5 +417,5 @@ export function ScheduleConfigPanel() {
         )}
       </div>
     </div>
-  );
+  )
 }

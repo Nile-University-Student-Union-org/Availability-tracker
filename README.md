@@ -23,6 +23,50 @@ A focused web app that lets students and staff mark their availability across a 
 
 ---
 
+## 🎨 Brand & Color Palettes (Light & Dark Mode)
+
+The design system is grounded in Nile University Student Union (NUSU) brand colors, pairing deep Nile Navy tones with high-visibility Availability Emerald and vibrant Nile Cyan accents. Both palettes use high-fidelity OKLCH color spaces for perceptual uniformity and WCAG AAA compliance.
+
+### ☀️ Light Mode Palette
+
+| Token | OKLCH Value | Approx. Hex | Role & Usage |
+| --- | --- | --- | --- |
+| `--background` | `oklch(0.985 0.005 240)` | `#F8FAFC` | Page background canvas (soft Nile porcelain) |
+| `--foreground` | `oklch(0.145 0.03 250)` | `#0F172A` | Primary text and headings (deep navy slate) |
+| `--card` | `oklch(1 0 0)` | `#FFFFFF` | Surface cards, dialogs, and popover menus |
+| `--card-foreground` | `oklch(0.145 0.03 250)` | `#0F172A` | Card body copy and titles |
+| `--primary` | `oklch(0.50 0.16 200)` | `#0284C7` | Primary buttons, interactive links, active focus rings |
+| `--primary-foreground` | `oklch(0.99 0.002 240)` | `#FFFFFF` | Text on primary buttons (crisp white) |
+| `--secondary` | `oklch(0.95 0.01 240)` | `#F1F5F9` | Secondary buttons, subtle pills, tags |
+| `--secondary-foreground` | `oklch(0.20 0.03 250)` | `#1E293B` | Text on secondary elements |
+| `--muted` | `oklch(0.95 0.01 240)` | `#F1F5F9` | Disabled states, hover fills, track backgrounds |
+| `--muted-foreground` | `oklch(0.50 0.025 240)` | `#64748B` | Subtitles, placeholders, helper text |
+| `--border` / `--input` | `oklch(0.90 0.008 240)` | `#E2E8F0` | Card borders, table dividers, input borders |
+| `--ring` | `oklch(0.50 0.16 200)` | `#0284C7` | Focus ring highlights |
+| **Availability Emerald** | `oklch(0.65 0.16 160)` | `#10B981` | Active slot cards, checkmarks, heatmap peak density |
+
+---
+
+### 🌙 Dark Mode Palette
+
+| Token | OKLCH Value | Approx. Hex | Role & Usage |
+| --- | --- | --- | --- |
+| `--background` | `oklch(0.14 0.025 250)` | `#0D1424` | Deep Nile Midnight Navy background |
+| `--foreground` | `oklch(0.97 0.008 240)` | `#F1F5F9` | High-contrast body text and headings |
+| `--card` | `oklch(0.185 0.028 250)` | `#151F38` | Elevated Nile Slate cards, modals, popovers |
+| `--card-foreground` | `oklch(0.97 0.008 240)` | `#F1F5F9` | Text inside cards and popovers |
+| `--primary` | `oklch(0.70 0.15 198)` | `#38BDF8` | Luminous Nile Cyan interactive buttons & highlights |
+| `--primary-foreground` | `oklch(0.12 0.03 250)` | `#090E1A` | Deep contrast text on primary buttons |
+| `--secondary` | `oklch(0.23 0.025 250)` | `#1C2744` | Secondary button surfaces, subtle chips |
+| `--secondary-foreground` | `oklch(0.92 0.01 240)` | `#E2E8F0` | Text on secondary elements |
+| `--muted` | `oklch(0.22 0.022 250)` | `#1A243F` | Muted backgrounds, unselected slot cells |
+| `--muted-foreground` | `oklch(0.70 0.02 245)` | `#94A3B8` | Clear, readable secondary text and IDs |
+| `--border` / `--input` | `oklch(0.28 0.025 250)` | `#233256` | Card dividers, input outlines, crisp boundaries |
+| `--ring` | `oklch(0.70 0.15 198)` | `#38BDF8` | Glowing focus outlines and active halos |
+| **Availability Emerald** | `oklch(0.75 0.16 160)` | `#34D399` | Luminous emerald slots, checkmarks, heatmap peak |
+
+---
+
 ## Getting Started
 
 ### Prerequisites

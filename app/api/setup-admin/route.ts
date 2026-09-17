@@ -1,7 +1,7 @@
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { headers } from "next/headers"
+import { NextResponse } from "next/server"
 
 export async function GET() {
   /*
@@ -13,8 +13,8 @@ export async function GET() {
   try {
     // Force reset: delete existing user if they exist to ensure new password is applied
     await prisma.user.deleteMany({
-      where: { email: "admin@nu.edu.eg" }
-    });
+      where: { email: "admin@nu.edu.eg" },
+    })
 
     await auth.api.signUpEmail({
       body: {
@@ -23,10 +23,16 @@ export async function GET() {
         name: "Admin",
       },
       headers: await headers(),
-    });
+    })
 
-    return NextResponse.json({ message: "Admin user created/reset successfully", email: "admin@nu.edu.eg" });
+    return NextResponse.json({
+      message: "Admin user created/reset successfully",
+      email: "admin@nu.edu.eg",
+    })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to setup admin" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to setup admin" },
+      { status: 500 }
+    )
   }
 }

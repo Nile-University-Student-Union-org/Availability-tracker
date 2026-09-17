@@ -16,7 +16,7 @@ function NativeSelect({
   return (
     <div
       className={cn(
-        "group/native-select relative w-fit has-[select:disabled]:opacity-50",
+        "group/native-select relative w-full has-[select:disabled]:opacity-50",
         className
       )}
       data-slot="native-select-wrapper"
@@ -25,10 +25,16 @@ function NativeSelect({
       <select
         data-slot="native-select"
         data-size={size}
-        className="h-9 w-full min-w-0 appearance-none rounded-3xl border border-transparent bg-input/50 py-1 pr-8 pl-3 text-sm transition-[color,box-shadow,background-color] outline-none select-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-[size=sm]:h-8 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
+        className="flex w-full min-w-0 appearance-none rounded-xl border border-input bg-card/60 py-2 pr-9 pl-3.5 text-sm font-medium shadow-2xs transition-all outline-none select-none hover:border-primary/40 hover:bg-card/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 data-[size=default]:min-h-[44px] data-[size=sm]:h-9 data-[size=sm]:min-h-[36px] data-[size=sm]:px-2.5 data-[size=sm]:text-xs dark:bg-card/40 dark:hover:bg-card/60"
         {...props}
       />
-      <HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={2} className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground select-none" aria-hidden="true" data-slot="native-select-icon" />
+      <HugeiconsIcon
+        icon={UnfoldMoreIcon}
+        strokeWidth={2}
+        className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground select-none"
+        aria-hidden="true"
+        data-slot="native-select-icon"
+      />
     </div>
   )
 }

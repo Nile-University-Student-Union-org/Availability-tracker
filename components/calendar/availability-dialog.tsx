@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogClose,
@@ -10,32 +10,63 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { Delete02Icon, PlusSignIcon } from "@hugeicons/core-free-icons";
+} from "@/components/ui/dialog"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer"
+import { Badge } from "@/components/ui/badge"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import { Check, ChevronLeft, ChevronRight, CalendarCheck2 } from "lucide-react"
 
 function formatTime(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
+  const [h, m] = time.split(":").map(Number)
+  const suffix = h >= 12 ? "PM" : "AM"
+  const hour = h % 12 || 12
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`
 }
 
+function getSlotEndTime(startTime: string): string {
+  const [h, m] = startTime.split(":").map(Number)
+  const endH = (h + 1) % 24
+  return `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+
+const DEFAULT_HOURS = [
+  "08:30",
+  "09:30",
+  "10:30",
+  "11:30",
+  "12:30",
+  "13:30",
+  "14:30",
+  "15:30",
+  "16:30",
+  "17:30",
+]
+
 interface AvailabilityDialogProps {
-  date: string;
-  initialSlots: string[];
-  memberName: string;
-  memberEmail: string;
-  memberId: string;
-  memberCommittee: string;
-  slotMode: "fixed" | "free";
-  timeSlots: string[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSaved: (date: string, slots: string[]) => void;
+  date: string
+  initialSlots: string[]
+  memberName: string
+  memberEmail: string
+  memberId: string
+  memberCommittee: string
+  slotMode: "fixed" | "free"
+  timeSlots: string[]
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSaved: (date: string, slots: string[]) => void
+  allDates?: string[]
+  onNavigateDate?: (date: string) => void
+  availabilityMap?: Map<string, Set<string>>
 }
 
 export function AvailabilityDialog({
@@ -45,193 +76,442 @@ export function AvailabilityDialog({
   memberEmail,
   memberId,
   memberCommittee,
-  slotMode,
   timeSlots,
   open,
   onOpenChange,
   onSaved,
+  allDates = [],
+  onNavigateDate,
+  availabilityMap,
 }: AvailabilityDialogProps) {
-  const [selectedSlots, setSelectedSlots] = useState<Set<string>>(
-    new Set(initialSlots),
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [freeTimeInput, setFreeTimeInput] = useState("");
+  const isMobile = useIsMobile()
+  const [mounted, setMounted] = useState(false)
 
-  // Reset to the persisted state each time the dialog opens (or for a different date)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const [selectedSlots, setSelectedSlots] = useState<Set<string>>(
+    new Set(initialSlots)
+  )
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Drag-to-select tracking
+  const [isDragging, setIsDragging] = useState(false)
+  const dragModeRef = useRef<"add" | "remove">("add")
+  const isDirtyRef = useRef(false)
+
+  // Sync selected slots whenever date or open state changes
   useEffect(() => {
     if (open) {
-      setSelectedSlots(new Set(initialSlots));
-      setError(null);
-      setFreeTimeInput("");
+      const currentInitial = availabilityMap?.has(date)
+        ? Array.from(availabilityMap.get(date) ?? [])
+        : initialSlots
+      setSelectedSlots(new Set(currentInitial))
+      setError(null)
+      isDirtyRef.current = false
     }
-    // initialSlots intentionally omitted — snapshot at open time
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, date]);
+  }, [open, date, initialSlots, availabilityMap])
 
-  function toggleSlot(slot: string) {
-    setError(null);
+  // Global listener to terminate drag operations
+  useEffect(() => {
+    const handleGlobalPointerUp = () => {
+      setIsDragging(false)
+    }
+    window.addEventListener("pointerup", handleGlobalPointerUp)
+    return () => window.removeEventListener("pointerup", handleGlobalPointerUp)
+  }, [])
+
+  // Compute active available slots in unified chronological order
+  const effectiveSlots = useMemo(() => {
+    const base = timeSlots.length > 0 ? timeSlots : DEFAULT_HOURS
+    return Array.from(new Set(base)).sort()
+  }, [timeSlots])
+
+  function handleSlotPointerDown(slot: string, e: React.PointerEvent) {
+    if (e.button !== 0) return
+    setError(null)
+    isDirtyRef.current = true
+    setIsDragging(true)
+
     setSelectedSlots((prev) => {
-      const next = new Set(prev);
-      if (next.has(slot)) next.delete(slot);
-      else next.add(slot);
-      return next;
-    });
+      const next = new Set(prev)
+      if (next.has(slot)) {
+        next.delete(slot)
+        dragModeRef.current = "remove"
+      } else {
+        next.add(slot)
+        dragModeRef.current = "add"
+      }
+      return next
+    })
   }
 
-  function addFreeSlot() {
-    if (!freeTimeInput) return;
-    const normalized =
-      freeTimeInput.length === 5 ? freeTimeInput : `0${freeTimeInput}`;
-    if (!/^\d{2}:\d{2}$/.test(normalized)) return;
-    setError(null);
-    setSelectedSlots((prev) => new Set(prev).add(normalized));
-    setFreeTimeInput("");
-  }
+  function handleSlotPointerEnter(slot: string) {
+    if (!isDragging) return
+    setError(null)
+    isDirtyRef.current = true
 
-  function removeFreeSlot(slot: string) {
     setSelectedSlots((prev) => {
-      const next = new Set(prev);
-      next.delete(slot);
-      return next;
-    });
+      const next = new Set(prev)
+      if (dragModeRef.current === "add") {
+        next.add(slot)
+      } else {
+        next.delete(slot)
+      }
+      return next
+    })
   }
 
-  async function handleSave() {
-    if (selectedSlots.size === 0) {
-      setError("Please select at least one time slot.");
-      return;
+  // Save logic
+  const saveSlots = useCallback(
+    async (targetDate: string, slotsToSave: string[], closeAfter = true) => {
+      setIsSaving(true)
+      setError(null)
+      try {
+        const res = await fetch("/api/availability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: targetDate,
+            slots: slotsToSave,
+            memberName,
+            memberEmail,
+            memberId,
+            memberCommittee,
+          }),
+        })
+        if (!res.ok) throw new Error("Failed to save")
+        onSaved(targetDate, slotsToSave)
+        isDirtyRef.current = false
+        toast.success(
+          `Saved ${new Date(targetDate + "T00:00:00").toLocaleDateString(
+            "en-US",
+            {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            }
+          )}`,
+          {
+            id: "availability-save",
+            duration: 2000,
+          }
+        )
+        if (closeAfter) {
+          onOpenChange(false)
+        }
+        return true
+      } catch {
+        setError("Failed to save. Please try again.")
+        return false
+      } finally {
+        setIsSaving(false)
+      }
+    },
+    [memberName, memberEmail, memberId, memberCommittee, onSaved, onOpenChange]
+  )
+
+  async function handleSaveClick() {
+    await saveSlots(date, Array.from(selectedSlots), true)
+  }
+
+  // Navigation between days
+  const currentIndex = allDates.indexOf(date)
+  const prevDate = currentIndex > 0 ? allDates[currentIndex - 1] : null
+  const nextDate =
+    currentIndex >= 0 && currentIndex < allDates.length - 1
+      ? allDates[currentIndex + 1]
+      : null
+
+  async function handleNavigate(newDate: string) {
+    if (newDate === date) return
+
+    if (isDirtyRef.current) {
+      await saveSlots(date, Array.from(selectedSlots), false)
     }
-    setIsSaving(true);
-    try {
-      const res = await fetch("/api/availability", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date,
-          slots: Array.from(selectedSlots),
-          memberName,
-          memberEmail,
-          memberId,
-          memberCommittee,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
-      onSaved(date, Array.from(selectedSlots));
-      onOpenChange(false);
-    } catch {
-      setError("Failed to save. Please try again.");
-    } finally {
-      setIsSaving(false);
+
+    if (onNavigateDate) {
+      onNavigateDate(newDate)
     }
   }
+
+  async function handleSaveAndNext() {
+    const success = await saveSlots(date, Array.from(selectedSlots), false)
+    if (success && nextDate && onNavigateDate) {
+      onNavigateDate(nextDate)
+    }
+  }
+
+  const totalPossible = effectiveSlots.length || 1
+  const percentSelected = Math.round((selectedSlots.size / totalPossible) * 100)
 
   const formattedDate = new Date(date + "T00:00:00").toLocaleDateString(
     "en-US",
-    { weekday: "long", month: "long", day: "numeric" },
-  );
+    { weekday: "long", month: "long", day: "numeric" }
+  )
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="font-heading text-lg">
-            {formattedDate}
-          </DialogTitle>
-          <DialogDescription>
-            {slotMode === "fixed"
-              ? "Select the time slots when you are free."
-              : "Add the times when you are available."}
-          </DialogDescription>
-        </DialogHeader>
+  // Header Content (Title, Days strip, Counter, Progress Bar)
+  const HeaderComponent = (
+    <div className="border-b bg-muted/20 px-4 pt-3 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
+      {allDates.length > 1 && (
+        <div className="mb-2.5 flex items-center justify-between gap-1 sm:mb-3 sm:gap-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => prevDate && handleNavigate(prevDate)}
+            disabled={!prevDate || isSaving}
+            className="size-8 touch-manipulation rounded-full"
+            title="Previous Day"
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
 
-        {slotMode === "fixed" ? (
-          <div className="grid grid-cols-2 gap-2">
-            {timeSlots.map((slot) => (
-              <button
-                key={slot}
-                onClick={() => toggleSlot(slot)}
-                className={cn(
-                  "rounded-2xl border px-4 py-3 text-sm font-medium transition-all duration-150",
-                  selectedSlots.has(slot)
-                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                    : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/8 hover:text-primary",
-                )}
-              >
-                {formatTime(slot)}
-              </button>
-            ))}
+          {/* Day selection pills */}
+          <div className="scrollbar-none flex flex-1 items-center justify-center gap-1.5 overflow-x-auto py-1">
+            {allDates.map((d) => {
+              const dObj = new Date(d + "T00:00:00")
+              const dayName = dObj.toLocaleDateString("en-US", {
+                weekday: "short",
+              })
+              const dayNum = dObj.getDate()
+              const isCurrent = d === date
+              const hasSlots =
+                (availabilityMap?.get(d)?.size ?? 0) > 0 ||
+                (isCurrent && selectedSlots.size > 0)
+
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => handleNavigate(d)}
+                  className={cn(
+                    "relative flex min-w-10 touch-manipulation flex-col items-center rounded-xl px-2 py-1.5 text-xs font-medium transition-all active:scale-95",
+                    isCurrent
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <span className="text-[10px] font-semibold uppercase">
+                    {dayName}
+                  </span>
+                  <span className="text-sm font-bold">{dayNum}</span>
+                  {hasSlots && (
+                    <span
+                      className={cn(
+                        "absolute top-1 right-1 size-1.5 rounded-full ring-1 ring-background",
+                        isCurrent ? "bg-white" : "bg-emerald-500"
+                      )}
+                    />
+                  )}
+                </button>
+              )
+            })}
           </div>
-        ) : (
-          <div className="space-y-3">
-            {/* Free mode: add times manually */}
-            <div className="flex items-end gap-2">
-              <div className="flex-1 space-y-2">
-                <Label htmlFor="free-time">Add a Time</Label>
-                <Input
-                  id="free-time"
-                  type="time"
-                  value={freeTimeInput}
-                  onChange={(e) => setFreeTimeInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addFreeSlot();
-                  }}
-                />
-              </div>
-              <Button
-                onClick={addFreeSlot}
-                size="sm"
-                disabled={!freeTimeInput}
-                className="rounded-2xl"
-              >
-                <HugeiconsIcon icon={PlusSignIcon} className="size-4" />
-                Add
-              </Button>
-            </div>
 
-            {selectedSlots.size > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {Array.from(selectedSlots)
-                  .sort()
-                  .map((slot) => (
-                    <div
-                      key={slot}
-                      className="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 py-1.5 pr-1.5 pl-3 text-sm font-medium text-primary"
-                    >
-                      {formatTime(slot)}
-                      <button
-                        onClick={() => removeFreeSlot(slot)}
-                        className="rounded-lg p-0.5 opacity-60 transition-opacity hover:bg-destructive/10 hover:text-destructive hover:opacity-100"
-                      >
-                        <HugeiconsIcon
-                          icon={Delete02Icon}
-                          className="size-3.5"
-                          strokeWidth={2}
-                        />
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed px-4 py-4 text-center">
-                <p className="text-sm text-muted-foreground">
-                  No times added yet. Use the field above to add your available
-                  times.
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => nextDate && handleNavigate(nextDate)}
+            disabled={!nextDate || isSaving}
+            className="size-8 touch-manipulation rounded-full"
+            title="Next Day"
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-heading text-lg font-bold tracking-tight sm:text-xl">
+            {formattedDate}
+          </h2>
+          <Badge
+            variant="secondary"
+            className={cn(
+              "shrink-0 gap-1 text-xs font-semibold transition-colors",
+              selectedSlots.size > 0
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                : "text-muted-foreground"
+            )}
+          >
+            <CalendarCheck2 className="size-3.5" />
+            {selectedSlots.size} {selectedSlots.size === 1 ? "slot" : "slots"} (
+            {selectedSlots.size}h)
+          </Badge>
+        </div>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Tap slots to mark your availability. Swipe down or use buttons to
+          save.
+        </p>
+      </div>
+
+      {/* Progress / Density bar */}
+      <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full bg-emerald-500 transition-all duration-300"
+          style={{ width: `${percentSelected}%` }}
+        />
+      </div>
+    </div>
+  )
+
+  // Common Slots Grid Body (Clean, unified chronological grid)
+  const BodyComponent = (
+    <div className="space-y-4 px-4 py-4 select-none sm:space-y-5 sm:px-6">
+      {/* Single Unified Grid of All Slots */}
+      <div className="grid grid-cols-2 gap-2">
+        {effectiveSlots.map((slot) => {
+          const isSelected = selectedSlots.has(slot)
+          const endTime = getSlotEndTime(slot)
+
+          return (
+            <div
+              key={slot}
+              onPointerDown={(e) => handleSlotPointerDown(slot, e)}
+              onPointerEnter={() => handleSlotPointerEnter(slot)}
+              className={cn(
+                "group relative flex min-h-[56px] cursor-pointer touch-manipulation items-center justify-between rounded-2xl border p-3 transition-all duration-150 active:scale-[0.97]",
+                isSelected
+                  ? "border-emerald-500/70 bg-emerald-500/15 shadow-sm ring-1 ring-emerald-500/30 dark:bg-emerald-500/20"
+                  : "border-border/80 bg-card hover:border-primary/40 hover:bg-muted/30"
+              )}
+            >
+              <div className="space-y-0.5">
+                <p
+                  className={cn(
+                    "text-sm font-semibold tracking-tight",
+                    isSelected
+                      ? "font-bold text-emerald-800 dark:text-emerald-300"
+                      : "text-foreground"
+                  )}
+                >
+                  {formatTime(slot)}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  to {formatTime(endTime)}
                 </p>
               </div>
-            )}
-          </div>
+
+              <div
+                className={cn(
+                  "flex size-6 shrink-0 items-center justify-center rounded-full transition-all",
+                  isSelected
+                    ? "bg-emerald-500 text-white shadow-xs"
+                    : "border border-border/80 text-transparent group-hover:border-primary/40"
+                )}
+              >
+                <Check className="size-3.5 stroke-[3]" />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {error && (
+        <p className="rounded-xl bg-destructive/10 p-2.5 text-center text-xs font-medium text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
+  )
+
+  // Common Action Buttons
+  const ActionButtons = (
+    <div className="flex w-full items-center justify-between gap-2">
+      {isMobile ? (
+        <DrawerClose asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="touch-manipulation rounded-xl"
+          >
+            Close
+          </Button>
+        </DrawerClose>
+      ) : (
+        <DialogClose
+          render={<Button variant="ghost" size="sm" className="rounded-xl" />}
+        >
+          Cancel
+        </DialogClose>
+      )}
+
+      <div className="flex items-center gap-2">
+        {nextDate && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSaveAndNext}
+            disabled={isSaving}
+            className="touch-manipulation rounded-xl text-xs sm:text-sm"
+          >
+            Save & Next →
+          </Button>
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button
+          onClick={handleSaveClick}
+          disabled={isSaving}
+          size="sm"
+          className="touch-manipulation rounded-xl text-xs shadow-sm sm:text-sm"
+        >
+          {isSaving ? "Saving..." : "Save Availability"}
+        </Button>
+      </div>
+    </div>
+  )
 
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save"}
-          </Button>
+  if (!mounted) {
+    return null
+  }
+
+  // Mobile Native Experience: Bottom Sheet Drawer
+  if (isMobile) {
+    return (
+      <Drawer open={open} onOpenChange={onOpenChange}>
+        <DrawerContent className="flex max-h-[88vh] flex-col rounded-t-3xl border-t bg-card p-0 shadow-2xl">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>{formattedDate}</DrawerTitle>
+            <DrawerDescription>Choose your free time slots</DrawerDescription>
+          </DrawerHeader>
+
+          {HeaderComponent}
+
+          {/* Scrollable body */}
+          <div className="flex-1 overflow-y-auto overscroll-contain">
+            {BodyComponent}
+          </div>
+
+          {/* Sticky thumb-accessible bottom footer */}
+          <DrawerFooter className="pb-safe border-t bg-card/95 px-4 py-3 backdrop-blur">
+            {ActionButtons}
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+    )
+  }
+
+  // Desktop Experience: Centered Dialog
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[92vh] w-full max-w-xl overflow-hidden p-0 sm:max-w-xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>{formattedDate}</DialogTitle>
+          <DialogDescription>Choose your free time slots</DialogDescription>
+        </DialogHeader>
+
+        {HeaderComponent}
+
+        <div className="max-h-[50vh] overflow-y-auto">{BodyComponent}</div>
+
+        <DialogFooter className="border-t bg-muted/20 px-6 py-3">
+          {ActionButtons}
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

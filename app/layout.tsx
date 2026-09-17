@@ -3,12 +3,13 @@ import { Poppins } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeBeam } from "@/components/theme-beam"
 import { Toaster } from "@/components/ui/sonner"
 import { cn } from "@/lib/utils"
 
 // Poppins — brand body font (Poppins in the SU brand guidelines)
 const poppins = Poppins({
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800", "900"],
   subsets: ["latin"],
   variable: "--font-sans",
 })
@@ -39,6 +40,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           {children}
+          <ThemeBeam />
           <Toaster />
         </ThemeProvider>
       </body>

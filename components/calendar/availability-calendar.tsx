@@ -1,264 +1,377 @@
-"use client";
+"use client"
 
-import { isSameDay } from "date-fns";
-import { useCallback, useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { AvailabilityDialog } from "@/components/calendar/availability-dialog";
+import { isSameDay } from "date-fns"
+import { useCallback, useEffect, useState } from "react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
+import { AvailabilityDialog } from "@/components/calendar/availability-dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { authClient } from "@/lib/auth-client"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { COMMITTEES } from "@/lib/constants";
+} from "@/components/ui/select"
+import { COMMITTEES } from "@/lib/constants"
 
 type ScheduleConfig = {
-  startDate: string;
-  endDate: string;
-  slotMode: "fixed" | "free";
-  timeSlots: string[];
-  dates: string[];
-};
+  startDate: string
+  endDate: string
+  slotMode: "fixed" | "free"
+  timeSlots: string[]
+  dates: string[]
+}
 
-type AvailabilityMap = Map<string, Set<string>>;
+type AvailabilityMap = Map<string, Set<string>>
 
 function toISO(date: Date): string {
   return [
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
-  ].join("-");
+  ].join("-")
 }
 
 function formatTime(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
+  const [h, m] = time.split(":").map(Number)
+  const suffix = h >= 12 ? "PM" : "AM"
+  const hour = h % 12 || 12
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`
 }
 
-export function AvailabilityCalendar() {
-  const [memberName, setMemberName] = useState("");
-  const [memberEmail, setMemberEmail] = useState("");
-  const [memberId, setMemberId] = useState("");
-  const [memberCommittee, setMemberCommittee] = useState("");
-  const [memberSaved, setMemberSaved] = useState(false);
-  const [config, setConfig] = useState<ScheduleConfig | null>(null);
-  const [availability, setAvailability] = useState<AvailabilityMap>(new Map());
-  const [isLoading, setIsLoading] = useState(true);
-  const [dialogDate, setDialogDate] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+function getInitials(name?: string | null, email?: string | null): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
+  return email?.slice(0, 2).toUpperCase() ?? "?"
+}
+
+interface AvailabilityCalendarProps {
+  user?: {
+    id?: string
+    name?: string | null
+    email?: string | null
+    nuId?: string | null
+    committee?: string | null
+    image?: string | null
+  } | null
+}
+
+export function AvailabilityCalendar({ user }: AvailabilityCalendarProps = {}) {
+  const { data: session } = authClient.useSession()
+  const activeUser = session?.user ?? user
+
+  const [memberName, setMemberName] = useState(activeUser?.name ?? "")
+  const [memberEmail, setMemberEmail] = useState(activeUser?.email ?? "")
+  const [memberId, setMemberId] = useState(
+    ((activeUser as Record<string, unknown>)?.nuId as string) ?? ""
+  )
+  const [memberCommittee, setMemberCommittee] = useState(
+    ((activeUser as Record<string, unknown>)?.committee as string) ?? ""
+  )
+  const [memberSaved, setMemberSaved] = useState(Boolean(activeUser?.email))
+  const [config, setConfig] = useState<ScheduleConfig | null>(null)
+  const [availability, setAvailability] = useState<AvailabilityMap>(new Map())
+  const [isLoading, setIsLoading] = useState(true)
+  const [dialogDate, setDialogDate] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   const fetchConfig = useCallback(async () => {
     try {
-      const configRes = await fetch("/api/schedule-config");
+      const configRes = await fetch("/api/schedule-config")
       if (configRes.ok) {
-        const configData: ScheduleConfig = await configRes.json();
-        setConfig(configData);
+        const configData: ScheduleConfig = await configRes.json()
+        setConfig(configData)
         // Initialize map with empty sets for all dates
-        setAvailability(new Map(configData.dates.map((d) => [d, new Set()])));
+        setAvailability(new Map(configData.dates.map((d) => [d, new Set()])))
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, []);
+  }, [])
 
   const fetchAvailability = useCallback(async () => {
-    if (!memberSaved || !memberEmail || !config) return;
+    if (!memberSaved || !memberEmail || !config) return
     try {
       const availRes = await fetch(
-        `/api/availability?email=${encodeURIComponent(memberEmail)}`,
-      );
+        `/api/availability?email=${encodeURIComponent(memberEmail)}`
+      )
       if (availRes.ok) {
         const availData: { date: string; startTime: string }[] =
-          await availRes.json();
+          await availRes.json()
         setAvailability((prev) => {
-          const map = new Map(prev);
+          const map = new Map(prev)
           // Reset only the dates that are in the config
-          for (const d of config.dates) map.set(d, new Set());
+          for (const d of config.dates) map.set(d, new Set())
           // Fill with new data
           for (const { date, startTime } of availData) {
             if (map.has(date)) {
-              map.get(date)?.add(startTime);
+              map.get(date)?.add(startTime)
             }
           }
-          return map;
-        });
+          return map
+        })
       }
     } catch (err) {
-      console.error("Failed to fetch availability", err);
+      console.error("Failed to fetch availability", err)
     }
-  }, [memberEmail, memberSaved, config]);
+  }, [memberEmail, memberSaved, config])
 
   useEffect(() => {
-    const savedName = localStorage.getItem("memberName") ?? "";
-    const savedEmail = localStorage.getItem("memberEmail") ?? "";
-    const savedId = localStorage.getItem("memberId") ?? "";
-    const savedCommittee = localStorage.getItem("memberCommittee") ?? "";
-    if (savedName && savedEmail && savedId && savedCommittee) {
-      setMemberName(savedName);
-      setMemberEmail(savedEmail);
-      setMemberId(savedId);
-      setMemberCommittee(savedCommittee);
-      setMemberSaved(true);
+    if (activeUser) {
+      if (activeUser.name) setMemberName(activeUser.name)
+      if (activeUser.email) setMemberEmail(activeUser.email)
+      const userRecord = activeUser as Record<string, unknown>
+      if (userRecord.nuId) setMemberId(userRecord.nuId as string)
+      if (userRecord.committee)
+        setMemberCommittee(userRecord.committee as string)
+      if (activeUser.email) setMemberSaved(true)
+    } else {
+      const savedName = localStorage.getItem("memberName") ?? ""
+      const savedEmail = localStorage.getItem("memberEmail") ?? ""
+      const savedId = localStorage.getItem("memberId") ?? ""
+      const savedCommittee = localStorage.getItem("memberCommittee") ?? ""
+      if (savedName && savedEmail && savedId && savedCommittee) {
+        setMemberName(savedName)
+        setMemberEmail(savedEmail)
+        setMemberId(savedId)
+        setMemberCommittee(savedCommittee)
+        setMemberSaved(true)
+      }
     }
-  }, []);
+  }, [activeUser])
 
   useEffect(() => {
-    fetchConfig();
-  }, [fetchConfig]);
+    fetchConfig()
+  }, [fetchConfig])
 
   useEffect(() => {
-    fetchAvailability();
-  }, [fetchAvailability]);
+    fetchAvailability()
+  }, [fetchAvailability])
 
   function handleSaveMember() {
-    const name = memberName.trim();
-    const email = memberEmail.trim().toLowerCase();
-    const id = memberId.trim();
-    const committee = memberCommittee;
+    const name = memberName.trim()
+    const email = memberEmail.trim().toLowerCase()
+    const id = memberId.trim()
+    const committee = memberCommittee
 
     if (!name) {
-      toast.error("Please enter your name");
-      return;
+      toast.error("Please enter your name")
+      return
     }
 
     if (!email.endsWith("@nu.edu.eg")) {
-      toast.error("Please use your NU email (@nu.edu.eg)");
-      return;
+      toast.error("Please use your NU email (@nu.edu.eg)")
+      return
     }
 
     if (!/^\d{9}$/.test(id)) {
-      toast.error("NU ID must be exactly 9 digits");
-      return;
+      toast.error("NU ID must be exactly 9 digits")
+      return
     }
 
     if (!committee) {
-      toast.error("Please select your committee");
-      return;
+      toast.error("Please select your committee")
+      return
     }
 
-    localStorage.setItem("memberName", name);
-    localStorage.setItem("memberEmail", email);
-    localStorage.setItem("memberId", id);
-    localStorage.setItem("memberCommittee", committee);
-    setMemberName(name);
-    setMemberEmail(email);
-    setMemberId(id);
-    setMemberCommittee(committee);
-    setMemberSaved(true);
-    toast.success("Details saved!");
+    localStorage.setItem("memberName", name)
+    localStorage.setItem("memberEmail", email)
+    localStorage.setItem("memberId", id)
+    localStorage.setItem("memberCommittee", committee)
+    setMemberName(name)
+    setMemberEmail(email)
+    setMemberId(id)
+    setMemberCommittee(committee)
+    setMemberSaved(true)
+    toast.success("Details saved!")
   }
 
   function openDialog(iso: string) {
-    setDialogDate(iso);
-    setDialogOpen(true);
+    setDialogDate(iso)
+    setDialogOpen(true)
   }
 
-  function handleSaved() {
-    void fetchAvailability();
+  function handleSaved(savedDate?: string, savedSlots?: string[]) {
+    if (savedDate && savedSlots) {
+      setAvailability((prev) => {
+        const next = new Map(prev)
+        next.set(savedDate, new Set(savedSlots))
+        return next
+      })
+    }
+    void fetchAvailability()
   }
 
   async function handleClear(date: string) {
-    await fetch("/api/availability", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, slots: [], memberName, memberEmail }),
-    });
-    setAvailability((prev) => {
-      const next = new Map(prev);
-      next.set(date, new Set());
-      return next;
-    });
+    try {
+      const res = await fetch("/api/availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date,
+          slots: [],
+          memberName,
+          memberEmail,
+          memberId,
+          memberCommittee,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to clear availability")
+      }
+      setAvailability((prev) => {
+        const next = new Map(prev)
+        next.set(date, new Set())
+        return next
+      })
+      toast.success("Availability cleared")
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to clear availability"
+      toast.error(msg)
+    }
   }
 
   // Derived values from config
   const activeDates = config
     ? config.dates.map((d) => new Date(d + "T00:00:00"))
-    : [];
-  const weekDates = config?.dates ?? [];
+    : []
+  const weekDates = config?.dates ?? []
 
   const datesWithSlots = activeDates.filter(
-    (d) => (availability.get(toISO(d))?.size ?? 0) > 0,
-  );
+    (d) => (availability.get(toISO(d))?.size ?? 0) > 0
+  )
 
   const datesWithSlotsISO = weekDates.filter(
-    (d) => (availability.get(d)?.size ?? 0) > 0,
-  );
+    (d) => (availability.get(d)?.size ?? 0) > 0
+  )
 
   // Determine which month to show based on config
   const calendarMonth = config
     ? new Date(config.startDate + "T00:00:00")
-    : new Date();
+    : new Date()
   const displayMonth = new Date(
     calendarMonth.getFullYear(),
     calendarMonth.getMonth(),
-    1,
-  );
+    1
+  )
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
-      <div className="w-full max-w-sm rounded-3xl border bg-card p-4">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Member Details
-        </p>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="member-name">Name</Label>
-            <Input
-              id="member-name"
-              value={memberName}
-              onChange={(e) => setMemberName(e.target.value)}
-              placeholder="Your full name"
-            />
+      {/* Authenticated Member Summary Card */}
+      {activeUser ? (
+        <div className="w-full max-w-sm rounded-2xl border border-border/80 bg-card p-4 shadow-xs transition-colors">
+          <div className="flex items-center gap-3.5">
+            <Avatar className="size-11 shrink-0 rounded-full ring-2 ring-emerald-500/20 ring-offset-2 ring-offset-background">
+              <AvatarImage
+                src={activeUser.image ?? undefined}
+                alt={memberName || "Member avatar"}
+              />
+              <AvatarFallback className="bg-emerald-500/10 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                {getInitials(memberName, memberEmail)}
+              </AvatarFallback>
+            </Avatar>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-heading text-sm font-bold tracking-tight text-foreground">
+                {memberName || "Union Member"}
+              </p>
+              <p
+                className="truncate text-xs text-muted-foreground"
+                title={memberEmail}
+              >
+                {memberEmail}
+              </p>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="member-email">NU Email</Label>
-            <Input
-              id="member-email"
-              type="email"
-              value={memberEmail}
-              onChange={(e) => setMemberEmail(e.target.value)}
-              placeholder="username@nu.edu.eg"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="member-id">NU ID</Label>
-            <Input
-              id="member-id"
-              value={memberId}
-              onChange={(e) => setMemberId(e.target.value)}
-              placeholder="9 digits (e.g. 211100000)"
-              maxLength={9}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="member-committee">Committee</Label>
-            <Select value={memberCommittee} onValueChange={(val) => setMemberCommittee(val ?? "")}>
-              <SelectTrigger id="member-committee">
-                <SelectValue placeholder="Select your committee" />
-              </SelectTrigger>
-              <SelectContent>
-                {COMMITTEES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button className="w-full" onClick={handleSaveMember}>
-            Save Details
-          </Button>
+
+          {(memberCommittee || memberId) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2.5">
+              {memberCommittee && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  {memberCommittee}
+                </span>
+              )}
+              {memberId && (
+                <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/60 px-2.5 py-0.5 font-mono text-[11px] font-medium text-muted-foreground">
+                  ID: {memberId}
+                </span>
+              )}
+            </div>
+          )}
         </div>
-      </div>
+      ) : (
+        /* Fallback unauthenticated details form */
+        <div className="w-full max-w-sm rounded-3xl border bg-card p-4">
+          <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+            Member Details
+          </p>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="member-name">Name</Label>
+              <Input
+                id="member-name"
+                value={memberName}
+                onChange={(e) => setMemberName(e.target.value)}
+                placeholder="Your full name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="member-email">NU Email</Label>
+              <Input
+                id="member-email"
+                type="email"
+                value={memberEmail}
+                onChange={(e) => setMemberEmail(e.target.value)}
+                placeholder="username@nu.edu.eg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="member-id">NU ID</Label>
+              <Input
+                id="member-id"
+                value={memberId}
+                onChange={(e) => setMemberId(e.target.value)}
+                placeholder="9 digits (e.g. 211100000)"
+                maxLength={9}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="member-committee">Committee</Label>
+              <Select
+                value={memberCommittee}
+                onValueChange={(val) => setMemberCommittee(val ?? "")}
+              >
+                <SelectTrigger id="member-committee">
+                  <SelectValue placeholder="Select your committee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMMITTEES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" onClick={handleSaveMember}>
+              Save Details
+            </Button>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <Skeleton className="h-[340px] w-full max-w-sm rounded-3xl" />
@@ -281,8 +394,8 @@ export function AvailabilityCalendar() {
           onMonthChange={() => undefined}
           selected={undefined}
           onDayClick={(day) => {
-            const iso = toISO(day);
-            if (weekDates.includes(iso)) openDialog(iso);
+            const iso = toISO(day)
+            if (weekDates.includes(iso)) openDialog(iso)
           }}
           disabled={(day) => !activeDates.some((d) => isSameDay(d, day))}
           modifiers={{
@@ -302,18 +415,18 @@ export function AvailabilityCalendar() {
       {!isLoading && config && datesWithSlotsISO.length > 0 && (
         <div className="w-full max-w-sm overflow-hidden rounded-3xl border bg-card">
           <div className="border-b px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
               Your Availability
             </p>
           </div>
 
           <div className="divide-y">
             {datesWithSlotsISO.map((iso) => {
-              const slots = Array.from(availability.get(iso) ?? []).sort();
+              const slots = Array.from(availability.get(iso) ?? []).sort()
               const label = new Date(iso + "T00:00:00").toLocaleDateString(
                 "en-US",
-                { weekday: "long", month: "short", day: "numeric" },
-              );
+                { weekday: "long", month: "short", day: "numeric" }
+              )
               return (
                 <div key={iso} className="px-4 py-3">
                   <div className="mb-2 flex items-center justify-between">
@@ -339,7 +452,7 @@ export function AvailabilityCalendar() {
                     ))}
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
         </div>
@@ -367,9 +480,12 @@ export function AvailabilityCalendar() {
           timeSlots={config.timeSlots}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
-          onSaved={() => handleSaved()}
+          onSaved={handleSaved}
+          allDates={config.dates}
+          onNavigateDate={(newDate) => setDialogDate(newDate)}
+          availabilityMap={availability}
         />
       )}
     </div>
-  );
+  )
 }

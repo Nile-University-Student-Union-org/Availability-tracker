@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
-import Image from "next/image"
 import Link from "next/link"
+import { NusuLogo } from "@/components/nusu-logo"
 
 export const metadata: Metadata = {
   title: "404 — Page Not Found",
@@ -10,13 +10,10 @@ export default function NotFound() {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-6 text-center">
       <div className="flex max-w-sm flex-col items-center gap-6">
-        <Image
-          src="/logo.svg"
-          alt="SU Logo"
-          width={48}
-          height={62}
-          priority
-          className="opacity-40"
+        <NusuLogo
+          size="default"
+          href="/"
+          className="opacity-75 transition-opacity hover:opacity-100"
         />
 
         <div className="space-y-2">
