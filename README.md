@@ -300,4 +300,5 @@ Availability-tracker/
 ## 👥 Nile University Student Union
 
 Developed with pride for the students and committees of Nile University.  
-For technical support or feature requests, contact the **NUSU IT Committee**.
+For technical support or feature requests, contact the **NUSU IT Committee** (Academic Year 2025–2026).
+
