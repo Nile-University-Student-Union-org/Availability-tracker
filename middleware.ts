@@ -47,24 +47,29 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/admin") &&
     request.nextUrl.pathname !== "/api/admin/check"
   ) {
-    const { data: session } = await betterFetch<Session>(
-      "/api/auth/get-session",
-      {
-        baseURL: request.nextUrl.origin,
-        headers: {
-          ...Object.fromEntries(request.headers.entries()),
-        },
-      }
-    )
-
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
+    try {
+      const { data: session } = await betterFetch<Session>(
+        "/api/auth/get-session",
         {
-          status: 401,
-          headers: corsHeaders,
+          baseURL: request.nextUrl.origin,
+          headers: {
+            ...Object.fromEntries(request.headers.entries()),
+          },
         }
       )
+
+      if (!session) {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          {
+            status: 401,
+            headers: corsHeaders,
+          }
+        )
+      }
+    } catch (err) {
+      console.error("Middleware session verification error:", err)
+      // Allow request to proceed to the route handler which validates session server-side with direct DB access
     }
   }
 

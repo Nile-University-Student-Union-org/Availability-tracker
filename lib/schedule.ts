@@ -23,13 +23,13 @@ export async function getScheduleConfig(): Promise<ScheduleConfig | null> {
   const start = config.startDate.toISOString().slice(0, 10)
   const end = config.endDate.toISOString().slice(0, 10)
 
-  // Build array of all dates between start and end (inclusive)
+  // Build array of all dates between start and end (inclusive) using UTC to prevent timezone shifts
   const dates: string[] = []
-  const current = new Date(start + "T00:00:00")
-  const endDate = new Date(end + "T00:00:00")
+  const current = new Date(start + "T00:00:00.000Z")
+  const endDate = new Date(end + "T00:00:00.000Z")
   while (current <= endDate) {
     dates.push(current.toISOString().slice(0, 10))
-    current.setDate(current.getDate() + 1)
+    current.setUTCDate(current.getUTCDate() + 1)
   }
 
   return {
