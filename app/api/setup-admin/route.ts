@@ -3,17 +3,32 @@ import { prisma } from "@/lib/prisma"
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
 
-export async function GET() {
-  /*
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Not allowed in production" }, { status: 403 });
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const secret = searchParams.get("secret")
+  const expectedSecret =
+    process.env.ADMIN_SETUP_SECRET || process.env.BETTER_AUTH_SECRET
+
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@nu.edu.eg"
+  const adminPassword = process.env.ADMIN_PASSWORD || "***REMOVED***"
+
+  // In production, prevent random external users from wiping the existing admin account
+  if (process.env.NODE_ENV === "production" && secret !== expectedSecret) {
+    const existing = await prisma.user.findUnique({
+      where: { email: adminEmail },
+    })
+    if (existing) {
+      return NextResponse.json(
+        {
+          error:
+            "Admin is already initialized. Provide ?secret=<BETTER_AUTH_SECRET> to reset in production.",
+        },
+        { status: 403 }
+      )
+    }
   }
-  */
 
   try {
-    const adminEmail = process.env.ADMIN_EMAIL || "admin@nu.edu.eg"
-    const adminPassword = process.env.ADMIN_PASSWORD || "***REMOVED***"
-
     // Force reset: delete existing user if they exist to ensure new password is applied
     await prisma.user.deleteMany({
       where: { email: adminEmail },

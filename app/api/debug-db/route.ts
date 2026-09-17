@@ -2,6 +2,12 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 export async function GET() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Debug endpoint disabled in production" },
+      { status: 404 }
+    )
+  }
   try {
     const dbInfo =
       await prisma.$queryRaw`SELECT current_database(), current_schema();`
