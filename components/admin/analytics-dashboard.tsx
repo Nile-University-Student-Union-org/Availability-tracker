@@ -1,10 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { RefreshIcon, Tick01Icon } from "@hugeicons/core-free-icons"
 import {
   Select,
   SelectContent,
@@ -196,6 +201,41 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
   const [viewingUser, setViewingUser] = useState<UserEntry | null>(null)
 
   const [selectedCommittee, setSelectedCommittee] = useState<string>("all")
+
+  // Matrix live-refresh state with tactile animation
+  const router = useRouter()
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [justRefreshed, setJustRefreshed] = useState(false)
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date())
+
+  const handleRefresh = useCallback(() => {
+    if (isRefreshing) return
+    setIsRefreshing(true)
+    setJustRefreshed(false)
+
+    const start = Date.now()
+    router.refresh()
+
+    const elapsed = Date.now() - start
+    const minDelay = Math.max(750 - elapsed, 0)
+
+    setTimeout(() => {
+      setIsRefreshing(false)
+      setJustRefreshed(true)
+      setLastRefreshedAt(new Date())
+      toast.success("Availability table refreshed", {
+        description: "Latest member bookings and slot counts synchronized.",
+      })
+      setTimeout(() => {
+        setJustRefreshed(false)
+      }, 2000)
+    }, minDelay)
+  }, [isRefreshing, router])
+
+  const lastUpdatedTime = lastRefreshedAt.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
 
   const filteredUsers =
     selectedCommittee === "all"
@@ -585,28 +625,81 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         </div>
       </div>
 
-      {/* ── Availability matrix ─────────────────────────────────────────── */}
+      {/* ── Availability table ─────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-3xl border bg-card">
-        <div className="border-b px-5 py-4">
-          <h2 className="font-heading text-base font-semibold">
-            Availability Matrix
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {dates.length === 0
-              ? "Configure a schedule to see availability data."
-              : timeSlots.length === 0
-                ? "No bookings yet — users will appear here once they submit availability."
-                : selectedCommittee === "all"
-                  ? "How many users are free per slot. Click any cell for details."
-                  : `Group availability for ${selectedCommittee} members.`}
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 border-b px-5 py-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-heading text-base font-semibold">
+              Availability Table
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {dates.length === 0
+                ? "Configure a schedule to see availability data."
+                : timeSlots.length === 0
+                  ? "No bookings yet — users will appear here once they submit availability."
+                  : selectedCommittee === "all"
+                    ? "How many users are free per slot. Click any cell for details."
+                    : `Group availability for ${selectedCommittee} members.`}
+            </p>
+          </div>
+
+          {/* Minimalist animated refresh action */}
+          <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0">
+            <span className="hidden md:inline-block text-[11px] font-medium text-muted-foreground/70">
+              Synced {lastUpdatedTime}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className={cn(
+                "group relative h-9 overflow-hidden rounded-xl border border-border/80 bg-background/80 px-3 text-xs font-semibold shadow-2xs transition-all duration-300 hover:border-primary/50 hover:bg-accent/40 active:scale-95 cursor-pointer touch-manipulation",
+                isRefreshing && "border-primary/60 bg-primary/5 text-primary shadow-xs",
+                justRefreshed && "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              )}
+              title="Refresh availability table data"
+            >
+              {justRefreshed ? (
+                <HugeiconsIcon
+                  icon={Tick01Icon}
+                  className="size-3.5 text-emerald-500 animate-in zoom-in-50 duration-200"
+                  strokeWidth={2}
+                />
+              ) : (
+                <HugeiconsIcon
+                  icon={RefreshIcon}
+                  className={cn(
+                    "size-3.5 transition-transform duration-500 ease-out",
+                    isRefreshing
+                      ? "animate-spin text-primary"
+                      : "group-hover:rotate-180 text-muted-foreground group-hover:text-foreground"
+                  )}
+                  strokeWidth={2}
+                />
+              )}
+              <span>
+                {isRefreshing
+                  ? "Refreshing..."
+                  : justRefreshed
+                    ? "Updated!"
+                    : "Refresh Table"}
+              </span>
+
+              {/* Minimalist animated glint beam while refreshing */}
+              {isRefreshing && (
+                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-primary/20 to-transparent animate-shimmer" />
+              )}
+            </Button>
+          </div>
         </div>
 
         {dates.length === 0 || timeSlots.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-muted-foreground">
             {dates.length === 0
               ? "Set up a schedule below to start collecting availability."
-              : "Waiting for the first booking — the matrix will appear here."}
+              : "Waiting for the first booking — the table will appear here."}
           </div>
         ) : (
           <>

@@ -68,23 +68,54 @@ function DatePicker({
   const selected = value ? new Date(value + "T00:00:00") : undefined
 
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
+    <div className="flex-1 space-y-1.5">
+      <Label className="text-xs font-semibold tracking-wide text-foreground/80">
+        {label}
+      </Label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
+          type="button"
           className={cn(
-            "flex h-9 w-full items-center gap-2 rounded-3xl border border-transparent bg-input/50 px-3 text-sm transition-[color,box-shadow,background-color] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30",
+            "group relative flex min-h-[52px] sm:min-h-[48px] w-full items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/70 px-3.5 py-2.5 text-left text-sm font-medium shadow-2xs transition-all duration-200 outline-none hover:border-primary/50 hover:bg-accent/40 hover:shadow-xs focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
+            open && "border-primary ring-3 ring-primary/20 bg-accent/40",
             !value && "text-muted-foreground"
           )}
         >
-          <HugeiconsIcon
-            icon={Calendar03Icon}
-            className="size-4 text-muted-foreground"
-            strokeWidth={1.5}
-          />
-          {formatDateLabel(value)}
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div
+              className={cn(
+                "flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/20",
+                !value && "bg-muted text-muted-foreground"
+              )}
+            >
+              <HugeiconsIcon
+                icon={Calendar03Icon}
+                className="size-4.5"
+                strokeWidth={1.75}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                {value ? label : "Select date"}
+              </span>
+              <span
+                className={cn(
+                  "truncate text-sm font-semibold text-foreground",
+                  !value && "font-normal text-muted-foreground"
+                )}
+              >
+                {formatDateLabel(value)}
+              </span>
+            </div>
+          </div>
+          <span className="text-xs text-muted-foreground/60 transition-transform group-hover:translate-x-0.5">
+            ›
+          </span>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-auto p-0">
+        <PopoverContent
+          align="start"
+          className="w-auto p-0 rounded-3xl overflow-hidden shadow-xl border-border/80"
+        >
           <Calendar
             mode="single"
             selected={selected}
@@ -94,7 +125,7 @@ function DatePicker({
                 setOpen(false)
               }
             }}
-            className="rounded-3xl"
+            className="rounded-3xl p-3"
           />
         </PopoverContent>
       </Popover>
@@ -233,7 +264,7 @@ export function ScheduleConfigPanel() {
         </div>
 
         <div className="space-y-4 p-5">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
             <DatePicker
               label="Start Date"
               value={config.startDate}
@@ -251,9 +282,17 @@ export function ScheduleConfigPanel() {
           </div>
 
           {dateCount > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {dateCount} day{dateCount !== 1 ? "s" : ""} selected
-            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Badge
+                variant="secondary"
+                className="rounded-full bg-primary/10 text-primary border border-primary/20 text-xs px-2.5 py-0.5 font-medium"
+              >
+                {dateCount} active day{dateCount !== 1 ? "s" : ""} selected
+              </Badge>
+              <span className="text-xs text-muted-foreground font-mono">
+                {config.startDate} → {config.endDate}
+              </span>
+            </div>
           )}
         </div>
       </div>
