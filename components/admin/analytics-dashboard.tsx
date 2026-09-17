@@ -12,6 +12,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
+import { Download, ExternalLink, FileSpreadsheet } from "lucide-react"
+import { toast } from "sonner"
+import {
+  slotToDateRange,
+  downloadIcsFile,
+  buildGoogleCalendarUrl,
+  escapeCsvCell,
+  downloadCsvFile,
+  type CalendarEvent,
+} from "@/lib/calendar-export"
 import {
   Dialog,
   DialogContent,
@@ -248,6 +259,149 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
 
   const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null
 
+  function handleExportSlotIcs(slot: SlotEntry) {
+    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime)
+    const attendeeList = slot.users
+      .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
+      .join("\n")
+    const event: CalendarEvent = {
+      id: `nusu-meeting-${slot.date}-${slot.startTime}`,
+      title: `NUSU Meeting (${formatTime(slot.startTime)})`,
+      description: `Nile University Student Union Meeting\n\nAttending Members (${slot.count}):\n${attendeeList}`,
+      location: "Nile University Campus",
+      startDate,
+      endDate,
+    }
+    downloadIcsFile(
+      `nusu-meeting-${slot.date}-${slot.startTime.replace(":", "")}.ics`,
+      [event]
+    )
+    toast.success("Meeting calendar file (.ics) downloaded")
+  }
+
+  function handleOpenSlotGoogleCalendar(slot: SlotEntry) {
+    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime)
+    const attendeeList = slot.users
+      .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
+      .join(", ")
+    const url = buildGoogleCalendarUrl({
+      title: `NUSU Meeting (${formatTime(slot.startTime)})`,
+      description: `Nile University Student Union Meeting\n\nAvailable Members (${slot.count}):\n${attendeeList}`,
+      location: "Nile University Campus",
+      startDate,
+      endDate,
+    })
+    window.open(url, "_blank", "noopener,noreferrer")
+  }
+
+  function handleExportScheduleCsv() {
+    const validSlots = filteredSlotMatrix
+      .filter((s) => s.count > 0)
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date)
+        return a.startTime.localeCompare(b.startTime)
+      })
+
+    if (validSlots.length === 0) {
+      toast.error("No schedule data available to export.")
+      return
+    }
+
+    const csvHeaders = [
+      "Date",
+      "Start Time",
+      "End Time",
+      "Duration",
+      "Committee",
+      "Attendee Count",
+      "Attendees (Names)",
+      "Attendees (Emails)",
+    ]
+
+    const rows: string[] = [csvHeaders.join(",")]
+
+    for (const slot of validSlots) {
+      const { endDate } = slotToDateRange(slot.date, slot.startTime)
+      const endH = String(endDate.getHours()).padStart(2, "0")
+      const endM = String(endDate.getMinutes()).padStart(2, "0")
+      const endTimeStr = formatTime(`${endH}:${endM}`)
+      const attendeeNames = slot.users.map((u) => u.name || u.email).join("; ")
+      const attendeeEmails = slot.users.map((u) => u.email).join("; ")
+
+      rows.push(
+        [
+          escapeCsvCell(slot.date),
+          escapeCsvCell(formatTime(slot.startTime)),
+          escapeCsvCell(endTimeStr),
+          escapeCsvCell("60 mins"),
+          escapeCsvCell(
+            selectedCommittee === "all" ? "All Committees" : selectedCommittee
+          ),
+          escapeCsvCell(slot.count),
+          escapeCsvCell(attendeeNames),
+          escapeCsvCell(attendeeEmails),
+        ].join(",")
+      )
+    }
+
+    const label =
+      selectedCommittee === "all"
+        ? "all-committees"
+        : selectedCommittee.toLowerCase().replace(/\s+/g, "-")
+    downloadCsvFile(`nusu-schedule-${label}.csv`, rows.join("\r\n"))
+    toast.success("Schedule CSV downloaded")
+  }
+
+  function handleExportMatrixCsv() {
+    if (filteredUsers.length === 0) {
+      toast.error("No member data available to export.")
+      return
+    }
+
+    const slotHeaders: string[] = []
+    for (const d of dates) {
+      for (const t of timeSlots) {
+        slotHeaders.push(`${d} ${t}`)
+      }
+    }
+
+    const csvHeaders = [
+      "Member Name",
+      "NU ID",
+      "Email",
+      "Committee",
+      "Total Available Slots",
+      ...slotHeaders,
+    ]
+
+    const rows: string[] = [csvHeaders.map(escapeCsvCell).join(",")]
+
+    for (const u of filteredUsers) {
+      const row = [
+        escapeCsvCell(u.name || ""),
+        escapeCsvCell(u.nuId || ""),
+        escapeCsvCell(u.email),
+        escapeCsvCell(u.committee || ""),
+        escapeCsvCell(u.totalSlots),
+      ]
+
+      for (const d of dates) {
+        const userSlotsOnDate = new Set(u.byDate[d] || [])
+        for (const t of timeSlots) {
+          row.push(escapeCsvCell(userSlotsOnDate.has(t) ? "YES" : "NO"))
+        }
+      }
+      rows.push(row.join(","))
+    }
+
+    const label =
+      selectedCommittee === "all"
+        ? "all-committees"
+        : selectedCommittee.toLowerCase().replace(/\s+/g, "-")
+    downloadCsvFile(`nusu-availability-matrix-${label}.csv`, rows.join("\r\n"))
+    toast.success("Availability matrix CSV downloaded")
+  }
+
   // NEW: Best slot per committee
   const bestSlotPerCommittee = COMMITTEES.map((c) => {
     const cSlots = filteredSlotMatrix.map((slot) => {
@@ -315,14 +469,36 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             </SelectContent>
           </Select>
         </div>
-        {selectedCommittee !== "all" && (
-          <Badge
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedCommittee !== "all" && (
+            <Badge
+              variant="outline"
+              className="w-fit border-primary/20 bg-primary/5 text-primary"
+            >
+              Showing {filteredUsers.length} from {selectedCommittee}
+            </Badge>
+          )}
+          <Button
             variant="outline"
-            className="w-fit border-primary/20 bg-primary/5 text-primary"
+            size="sm"
+            className="h-8 gap-1.5 rounded-xl text-xs"
+            onClick={handleExportScheduleCsv}
+            title="Export finalized meetings schedule as CSV"
           >
-            Showing {filteredUsers.length} from {selectedCommittee}
-          </Badge>
-        )}
+            <FileSpreadsheet className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>Schedule CSV</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 rounded-xl text-xs"
+            onClick={handleExportMatrixCsv}
+            title="Export full member availability matrix as CSV"
+          >
+            <Download className="size-3.5" />
+            <span>Matrix CSV</span>
+          </Button>
+        </div>
       </div>
 
       {/* ── Metric cards ───────────────────────────────────────────────── */}
@@ -511,15 +687,39 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       {/* ── Active cell detail panel ─────────────────────────────────────── */}
       {activeCellData && activeCellData.count > 0 && (
         <div className="rounded-3xl border bg-card p-5">
-          <p className="mb-3 text-sm font-medium">
-            {formatDayFull(activeCellData.date)}
-            {" · "}
-            {formatTime(activeCellData.startTime)}
-            <span className="ml-2 text-muted-foreground">
-              — {activeCellData.count}{" "}
-              {activeCellData.count === 1 ? "user" : "users"} available
-            </span>
-          </p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+            <p className="text-sm font-medium">
+              {formatDayFull(activeCellData.date)}
+              {" · "}
+              {formatTime(activeCellData.startTime)}
+              <span className="ml-2 text-muted-foreground">
+                — {activeCellData.count}{" "}
+                {activeCellData.count === 1 ? "user" : "users"} available
+              </span>
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="xs"
+                className="h-7 gap-1 px-2.5 text-[11px]"
+                onClick={() => handleExportSlotIcs(activeCellData)}
+                title="Export this meeting slot as an .ics file"
+              >
+                <Download className="size-3" />
+                <span>.ics</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="xs"
+                className="h-7 gap-1 px-2.5 text-[11px] text-emerald-600 dark:text-emerald-400"
+                onClick={() => handleOpenSlotGoogleCalendar(activeCellData)}
+                title="Schedule this meeting slot in Google Calendar"
+              >
+                <ExternalLink className="size-3" />
+                <span>Google Cal</span>
+              </Button>
+            </div>
+          </div>
           <div className="space-y-4">
             {COMMITTEES.map((c) => {
               const cUsers = activeCellData.users.filter(
