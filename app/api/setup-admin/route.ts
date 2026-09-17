@@ -11,15 +11,18 @@ export async function GET() {
   */
 
   try {
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@nu.edu.eg"
+    const adminPassword = process.env.ADMIN_PASSWORD || "***REMOVED***"
+
     // Force reset: delete existing user if they exist to ensure new password is applied
     await prisma.user.deleteMany({
-      where: { email: "admin@nu.edu.eg" },
+      where: { email: adminEmail },
     })
 
     await auth.api.signUpEmail({
       body: {
-        email: "admin@nu.edu.eg",
-        password: "***REMOVED***",
+        email: adminEmail,
+        password: adminPassword,
         name: "Admin",
       },
       headers: await headers(),
@@ -27,7 +30,7 @@ export async function GET() {
 
     return NextResponse.json({
       message: "Admin user created/reset successfully",
-      email: "admin@nu.edu.eg",
+      email: adminEmail,
     })
   } catch (error: any) {
     return NextResponse.json(
