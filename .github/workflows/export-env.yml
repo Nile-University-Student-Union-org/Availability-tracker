@@ -28,4 +28,5 @@ jobs:
         with:
           name: env-bundle
           path: .env
+          include-hidden-files: true
           retention-days: ${{ fromJSON(github.event.inputs.retention_days || '1') }}
