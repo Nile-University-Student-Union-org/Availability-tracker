@@ -14,9 +14,23 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const isRedirect = error?.digest?.startsWith("NEXT_REDIRECT")
+
   React.useEffect(() => {
+    if (isRedirect && error?.digest) {
+      const parts = error.digest.split(";")
+      const targetUrl = parts[2]
+      if (targetUrl) {
+        window.location.replace(targetUrl)
+        return
+      }
+    }
     console.error("Application error:", error)
-  }, [error])
+  }, [error, isRedirect])
+
+  if (isRedirect) {
+    return null
+  }
 
   return (
     <div className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-8 text-center sm:px-6">
