@@ -1,14 +1,18 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getCachedSession } from "@/lib/session";
 import { getScheduleConfig } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
 export default async function RootDispatcherPage() {
   let session = null;
+  let config = null;
+
   try {
-    session = await auth.api.getSession({ headers: await headers() });
+    [session, config] = await Promise.all([
+      getCachedSession(),
+      getScheduleConfig(),
+    ]);
   } catch (err: unknown) {
     const error = err as { digest?: string };
     if (
@@ -29,8 +33,6 @@ export default async function RootDispatcherPage() {
   if (session.user.email === "admin@nu.edu.eg") {
     redirect("/admin");
   }
-
-  const config = await getScheduleConfig();
   const isDateActive = config?.dateScheduleActive ?? true;
   const isWeeklyActive = config?.weeklyScheduleActive ?? true;
 

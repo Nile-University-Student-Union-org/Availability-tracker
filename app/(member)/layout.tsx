@@ -1,5 +1,4 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { getCachedSession } from "@/lib/session";
 import { isAdminEmail } from "@/lib/admin";
 import { getScheduleConfig } from "@/lib/schedule";
 import { Navbar } from "@/components/navbar/navbar";
@@ -9,18 +8,19 @@ export default async function MemberLayout({
 }: {
   children: React.ReactNode;
 }) {
-  let session = null;
-  let isAdmin = false;
-  try {
-    session = await auth.api.getSession({ headers: await headers() });
-    if (session?.user?.email) {
-      isAdmin = await isAdminEmail(session.user.email);
-    }
-  } catch {
-    // ignore
-  }
+  const [session, config] = await Promise.all([
+    getCachedSession().catch(() => null),
+    getScheduleConfig().catch(() => null),
+  ]);
 
-  const config = await getScheduleConfig();
+  let isAdmin = false;
+  if (session?.user?.email) {
+    try {
+      isAdmin = await isAdminEmail(session.user.email);
+    } catch {
+      // ignore
+    }
+  }
 
   return (
     <div className="min-h-svh bg-background">

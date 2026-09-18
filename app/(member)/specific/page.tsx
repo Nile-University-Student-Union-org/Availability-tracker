@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCachedSession } from "@/lib/session";
 import { getScheduleConfig } from "@/lib/schedule";
 import { AvailabilityCalendar } from "@/components/calendar/availability-calendar";
 import { ScheduleInactiveNotice } from "@/components/schedule-inactive-notice";
@@ -21,8 +20,13 @@ export const dynamic = "force-dynamic";
 
 export default async function SpecificDatePage() {
   let session = null;
+  let config = null;
+
   try {
-    session = await auth.api.getSession({ headers: await headers() });
+    [session, config] = await Promise.all([
+      getCachedSession(),
+      getScheduleConfig(),
+    ]);
   } catch (err: unknown) {
     const error = err as { digest?: string };
     if (
@@ -44,7 +48,6 @@ export default async function SpecificDatePage() {
     redirect("/admin");
   }
 
-  const config = await getScheduleConfig();
   const isDateActive = config?.dateScheduleActive ?? true;
   const isWeeklyActive = config?.weeklyScheduleActive ?? true;
   const formTitle = config?.dateScheduleTitle || "Specific Date Availability";
@@ -67,27 +70,34 @@ export default async function SpecificDatePage() {
 
   if (session.user.email && config) {
     try {
-      dbUser = await prisma.user.findUnique({
-        where: { email: session.user.email.toLowerCase() },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          nuId: true,
-          committee: true,
-        },
-      });
+      const email = session.user.email.toLowerCase();
       const targetDates = config.dates.map(
         (d) => new Date(d + "T00:00:00.000Z"),
       );
-      const records = await prisma.availability.findMany({
-        where: {
-          user: { email: session.user.email.toLowerCase() },
-          date: { in: targetDates },
-        },
-        select: { date: true, startTime: true },
-      });
+
+      // Fetch user profile and specific date availability concurrently in 1 parallel round trip
+      const [fetchedUser, records] = await Promise.all([
+        prisma.user.findUnique({
+          where: { email },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            nuId: true,
+            committee: true,
+          },
+        }),
+        prisma.availability.findMany({
+          where: {
+            user: { email },
+            date: { in: targetDates },
+          },
+          select: { date: true, startTime: true },
+        }),
+      ]);
+
+      dbUser = fetchedUser;
       initialAvailability = records.map((r) => ({
         date: r.date.toISOString().slice(0, 10),
         startTime: r.startTime,

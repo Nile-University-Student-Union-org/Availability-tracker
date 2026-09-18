@@ -24,6 +24,7 @@ import {
   Calendar03Icon,
   Clock01Icon,
   Shield01Icon,
+  UserGroupIcon,
   Home01Icon,
   Logout02Icon,
   ArrowRight01Icon,
@@ -84,12 +85,27 @@ const AdminUsersPanel = dynamic(
   },
 );
 
+const AdminMembersPanel = dynamic(
+  () =>
+    import("@/components/admin/admin-members-panel").then(
+      (m) => m.AdminMembersPanel,
+    ),
+  {
+    loading: () => (
+      <div className="flex h-40 items-center justify-center">
+        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    ),
+  },
+);
+
 export type AdminTab =
   | "specific-analytics"
   | "semester-analytics"
   | "analytics"
   | "schedule"
-  | "admins";
+  | "admins"
+  | "members";
 
 interface AdminLayoutShellProps {
   session: {
@@ -134,6 +150,7 @@ export function AdminLayoutShell({
         "analytics",
         "schedule",
         "admins",
+        "members",
       ].includes(qTab)
     ) {
       setActiveTab(qTab);
@@ -265,9 +282,25 @@ export function AdminLayoutShell({
             </SidebarGroup>
 
             <SidebarGroup>
-              <SidebarGroupLabel>Access & Permissions</SidebarGroupLabel>
+              <SidebarGroupLabel>Members & Access</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      tooltip="Registered Union Members"
+                      isActive={activeTab === "members"}
+                      onClick={() => setTab("members")}
+                      className="cursor-pointer font-medium"
+                    >
+                      <HugeiconsIcon
+                        icon={UserGroupIcon}
+                        size={16}
+                        strokeWidth={2}
+                      />
+                      <span>Members Directory</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       tooltip="Admin Access & Roles"
@@ -318,48 +351,45 @@ export function AdminLayoutShell({
           {/* Sidebar Footer with User Details */}
           <SidebarFooter>
             <SidebarSeparator />
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card/60 p-2">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <Avatar className="size-8 shrink-0 ring-1 ring-primary/20">
-                      <AvatarImage src={session.user.image ?? undefined} />
-                      <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
-                        {getInitials(session.user.name, session.user.email)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate text-xs leading-tight font-semibold">
-                        {session.user.name}
-                      </span>
-                      <span className="text-[10px] font-semibold tracking-wider text-primary uppercase">
-                        Administrator
-                      </span>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleSignOut}
-                    className="size-7 rounded-lg p-0 text-destructive hover:bg-destructive/10"
-                    title="Sign out"
-                  >
-                    <HugeiconsIcon icon={Logout02Icon} size={14} />
-                  </Button>
-                </div>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            <div className="flex items-center gap-3 px-2 py-2">
+              <Avatar className="size-9 ring-1 ring-border">
+                {session.user.image && (
+                  <AvatarImage
+                    src={session.user.image}
+                    alt={session.user.name}
+                  />
+                )}
+                <AvatarFallback className="bg-primary/10 font-heading text-xs font-bold text-primary">
+                  {getInitials(session.user.name, session.user.email)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold leading-none">
+                  {session.user.name}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {session.user.email}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                className="size-8 cursor-pointer rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                title="Sign out of Admin Console"
+              >
+                <HugeiconsIcon icon={Logout02Icon} size={15} />
+              </Button>
+            </div>
           </SidebarFooter>
         </Sidebar>
 
-        {/* Sidebar Inset: Header Bar + Dynamic Page Content */}
-        <SidebarInset>
-          {/* Top Bar Header */}
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
+        {/* Inset Main Layout Container */}
+        <SidebarInset className="flex min-w-0 flex-1 flex-col bg-background/50">
+          {/* Top Navbar */}
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
             <div className="flex items-center gap-3">
-              <SidebarTrigger />
-              <div className="h-4 w-px bg-border" />
+              <SidebarTrigger className="cursor-pointer" />
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">
                   Admin Console
@@ -369,6 +399,7 @@ export function AdminLayoutShell({
                   {activeTab === "analytics" && "Availability Analytics"}
                   {activeTab === "schedule" && "Schedule Configuration"}
                   {activeTab === "admins" && "Admin Access & Roles"}
+                  {activeTab === "members" && "Members Directory"}
                 </span>
               </div>
             </div>
@@ -401,6 +432,7 @@ export function AdminLayoutShell({
                     "Semester Availability Analytics"}
                   {activeTab === "schedule" && "Schedule Configuration"}
                   {activeTab === "admins" && "Administrator Management"}
+                  {activeTab === "members" && "Union Members Directory"}
                 </h1>
                 <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   {(activeTab === "specific-analytics" ||
@@ -412,6 +444,8 @@ export function AdminLayoutShell({
                     "Configure availability mode toggles, active date boundaries, and slot intervals."}
                   {activeTab === "admins" &&
                     "Authorize university emails with administrative privileges to manage the Union Tracker."}
+                  {activeTab === "members" &&
+                    "Directory of all registered Union members. Copy student IDs, reset member passwords, or delete accounts."}
                 </p>
               </div>
             </div>
@@ -434,6 +468,12 @@ export function AdminLayoutShell({
                 <div className="max-w-3xl">
                   <AdminUsersPanel initialAdmins={initialAdmins} />
                 </div>
+              )}
+              {activeTab === "members" && (
+                <AdminMembersPanel
+                  currentUserId={session.user.id}
+                  currentUserEmail={session.user.email}
+                />
               )}
             </div>
           </main>

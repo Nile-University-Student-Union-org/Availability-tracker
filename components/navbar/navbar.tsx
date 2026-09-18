@@ -20,6 +20,7 @@ import {
   THEME_BEAM_EVENT,
 } from "@/components/theme-beam";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
+import { toast } from "sonner";
 
 export interface NavbarProps {
   dateScheduleTitle?: string;
@@ -111,6 +112,18 @@ export function Navbar({
 
   React.useEffect(() => {
     setMounted(true);
+    if (typeof window !== "undefined") {
+      const resetSuccess = sessionStorage.getItem(
+        "nusu_password_reset_success",
+      );
+      if (resetSuccess) {
+        sessionStorage.removeItem("nusu_password_reset_success");
+        toast.success("Password has been reset successfully!", {
+          description: "Your new password is now active for future logins.",
+          duration: 6000,
+        });
+      }
+    }
   }, []);
 
   // Admin access check for active session

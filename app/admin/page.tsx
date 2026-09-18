@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getCachedSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { isAdminEmail, getEnvAdminEmails } from "@/lib/admin";
 import { getScheduleConfig } from "@/lib/schedule";
@@ -37,7 +36,7 @@ export default async function AdminPage() {
 
   try {
     const [fetchedSession, fetchedConfig, fetchedSemester] = await Promise.all([
-      auth.api.getSession({ headers: await headers() }),
+      getCachedSession(),
       getScheduleConfig(),
       getSemesterAnalytics(),
     ]);

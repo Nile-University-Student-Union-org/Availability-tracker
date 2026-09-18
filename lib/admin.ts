@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -15,36 +16,46 @@ export function getEnvAdminEmails(): string[] {
 
 /**
  * Checks if the given email belongs to an admin.
- * Checks both environment variables and the database.
+ * Uses React cache() to deduplicate checks within the same render cycle.
+ * Checks environment variables first (0ms), then runs DB queries concurrently.
  */
-export async function isAdminEmail(email?: string | null): Promise<boolean> {
-  if (!email) return false;
-  const normalized = email.trim().toLowerCase();
+export const isAdminEmail = cache(
+  async (email?: string | null): Promise<boolean> => {
+    if (!email) return false;
+    const normalized = email.trim().toLowerCase();
 
-  // 1. Check environment variables
-  if (getEnvAdminEmails().includes(normalized)) {
-    return true;
-  }
+    // 1. Check environment variables (instant, zero DB queries)
+    if (getEnvAdminEmails().includes(normalized)) {
+      return true;
+    }
 
-  try {
-    // 2. Check AdminEmail table
-    const inAdminEmail = await prisma.adminEmail.findUnique({
-      where: { email: normalized },
-    });
-    if (inAdminEmail) return true;
+    try {
+      // 2. Check AdminEmail table and User table concurrently in a single parallel round trip
+      const [inAdminEmail, user] = await Promise.all([
+        prisma.adminEmail.findUnique({
+          where: { email: normalized },
+          select: { id: true },
+        }),
+        prisma.user.findUnique({
+          where: { email: normalized },
+          select: { role: true },
+        }),
+      ]);
 
-    // 3. Check User table role
-    const user = await prisma.user.findUnique({
-      where: { email: normalized },
-      select: { role: true },
-    });
-    if (user?.role === "admin" || user?.role === "super-admin") return true;
-  } catch (error) {
-    console.error("Error checking admin email in DB:", error);
-  }
+      if (
+        inAdminEmail ||
+        user?.role === "admin" ||
+        user?.role === "super-admin"
+      ) {
+        return true;
+      }
+    } catch (error) {
+      console.error("Error checking admin email in DB:", error);
+    }
 
-  return false;
-}
+    return false;
+  },
+);
 
 export type AdminUserInfo = {
   email: string;

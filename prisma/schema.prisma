@@ -19,8 +19,9 @@ model User {
   role          String         @default("user") // "admin" | "user"
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  committee     String?
-  sessions      Session[]
+  committee         String?
+  mustResetPassword Boolean        @default(false)
+  sessions          Session[]
   accounts      Account[]
   availabilities          Availability[]
   recurringAvailabilities RecurringAvailability[]

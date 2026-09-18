@@ -25,6 +25,8 @@ import {
   IdentificationIcon,
   ArrowRight01Icon,
   Login01Icon,
+  Shield01Icon,
+  CheckmarkCircle02Icon,
 } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +65,15 @@ export function AuthForm({ initialMode, callbackUrl }: AuthFormProps) {
   const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
+
+  // Reset Password Intercept State
+  const [resetMode, setResetMode] = useState(false);
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirmPassword, setResetConfirmPassword] = useState("");
+  const [showResetNewPassword, setShowResetNewPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] =
+    useState(false);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
 
   // Signup Validation & Submission
   async function handleSignUp(e: React.FormEvent) {
@@ -153,6 +164,26 @@ export function AuthForm({ initialMode, callbackUrl }: AuthFormProps) {
 
     try {
       setLoginLoading(true);
+
+      // Check if this member is flagged for a mandatory administrative password reset
+      try {
+        const checkRes = await fetch(
+          `/api/auth/reset-first-login?email=${encodeURIComponent(trimmedEmail)}`,
+        );
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (checkData.mustResetPassword) {
+            setResetMode(true);
+            toast.info(
+              "An administrator has reset your password. Please choose a new password below.",
+            );
+            return;
+          }
+        }
+      } catch {
+        // Fallback to standard sign in if check endpoint is unreachable
+      }
+
       const { error } = await authClient.signIn.email({
         email: trimmedEmail,
         password: loginPassword,
@@ -160,6 +191,25 @@ export function AuthForm({ initialMode, callbackUrl }: AuthFormProps) {
       });
 
       if (error) {
+        // Also check if invalid credentials was due to a pending reset
+        try {
+          const checkRes = await fetch(
+            `/api/auth/reset-first-login?email=${encodeURIComponent(trimmedEmail)}`,
+          );
+          if (checkRes.ok) {
+            const checkData = await checkRes.json();
+            if (checkData.mustResetPassword) {
+              setResetMode(true);
+              toast.info(
+                "An administrator has reset your password. Please set a new password below.",
+              );
+              return;
+            }
+          }
+        } catch {
+          // Ignore
+        }
+
         toast.error(error.message || "Invalid credentials. Please try again.");
         return;
       }
@@ -176,6 +226,81 @@ export function AuthForm({ initialMode, callbackUrl }: AuthFormProps) {
       toast.error(`Error: ${msg}`);
     } finally {
       setLoginLoading(false);
+    }
+  }
+
+  // Handle Forced Password Reset Submission
+  async function handleResetSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedEmail = loginEmail.trim().toLowerCase();
+
+    if (!trimmedEmail) {
+      toast.error("Please enter your university email.");
+      setResetMode(false);
+      return;
+    }
+
+    if (!resetNewPassword || resetNewPassword.length < 8) {
+      toast.error("New password must be at least 8 characters long.");
+      return;
+    }
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setResetSubmitting(true);
+
+      const res = await fetch("/api/auth/reset-first-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          newPassword: resetNewPassword,
+          confirmPassword: resetConfirmPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to reset password.");
+      }
+
+      // Automatically sign in with the new password
+      const { error: signInError } = await authClient.signIn.email({
+        email: trimmedEmail,
+        password: resetNewPassword,
+        callbackURL: resolvedCallback,
+      });
+
+      if (signInError) {
+        toast.success(
+          "Password updated! Please sign in with your new password.",
+        );
+        setResetMode(false);
+        setLoginPassword(resetNewPassword);
+        return;
+      }
+
+      // Set session storage flag to trigger confirmation banner on dashboard
+      sessionStorage.setItem("nusu_password_reset_success", "true");
+      toast.success(
+        "Password has been reset successfully! Welcome back to NUSU.",
+      );
+
+      if (trimmedEmail === "admin@nu.edu.eg") {
+        window.location.href = "/admin";
+      } else {
+        window.location.href = resolvedCallback;
+      }
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to reset password.";
+      toast.error(msg);
+    } finally {
+      setResetSubmitting(false);
     }
   }
 
@@ -407,6 +532,180 @@ export function AuthForm({ initialMode, callbackUrl }: AuthFormProps) {
               Sign In here
             </button>
           </p>
+        </form>
+      ) : resetMode ? (
+        /* RESET PASSWORD FORM (Admin Triggered) */
+        <form onSubmit={handleResetSubmit} className="space-y-4">
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-left backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/30">
+                <HugeiconsIcon icon={Shield01Icon} className="size-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Password Reset Required
+                </h3>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  An administrator has reset your password for{" "}
+                  <span className="font-semibold text-foreground">
+                    {loginEmail}
+                  </span>
+                  . The previous password is no longer valid. Please choose a
+                  new password to continue.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* New Password */}
+          <div className="space-y-1.5">
+            <Label htmlFor="reset-new-password" className="text-xs font-medium">
+              New Password
+            </Label>
+            <div className="relative">
+              <HugeiconsIcon
+                icon={LockPasswordIcon}
+                className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                id="reset-new-password"
+                type={showResetNewPassword ? "text" : "password"}
+                placeholder="Enter at least 8 characters"
+                value={resetNewPassword}
+                onChange={(e) => setResetNewPassword(e.target.value)}
+                required
+                className="min-h-[44px] rounded-xl pr-10 pl-9"
+              />
+              <button
+                type="button"
+                onClick={() => setShowResetNewPassword(!showResetNewPassword)}
+                className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer touch-manipulation text-muted-foreground hover:text-foreground"
+              >
+                <HugeiconsIcon
+                  icon={showResetNewPassword ? ViewOffIcon : ViewIcon}
+                  className="size-4"
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm New Password */}
+          <div className="space-y-1.5">
+            <Label
+              htmlFor="reset-confirm-password"
+              className="text-xs font-medium"
+            >
+              Confirm New Password
+            </Label>
+            <div className="relative">
+              <HugeiconsIcon
+                icon={LockPasswordIcon}
+                className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                id="reset-confirm-password"
+                type={showResetConfirmPassword ? "text" : "password"}
+                placeholder="Re-enter your new password"
+                value={resetConfirmPassword}
+                onChange={(e) => setResetConfirmPassword(e.target.value)}
+                required
+                className="min-h-[44px] rounded-xl pr-10 pl-9"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setShowResetConfirmPassword(!showResetConfirmPassword)
+                }
+                className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer touch-manipulation text-muted-foreground hover:text-foreground"
+              >
+                <HugeiconsIcon
+                  icon={showResetConfirmPassword ? ViewOffIcon : ViewIcon}
+                  className="size-4"
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Password Validation Requirements Indicator */}
+          <div className="rounded-xl bg-muted/40 p-3 text-xs space-y-1.5 border border-border/50">
+            <p className="font-medium text-foreground/80">
+              Password requirements:
+            </p>
+            <div className="flex items-center gap-2">
+              <HugeiconsIcon
+                icon={CheckmarkCircle02Icon}
+                className={cn(
+                  "size-3.5 transition-colors",
+                  resetNewPassword.length >= 8
+                    ? "text-emerald-500"
+                    : "text-muted-foreground/40",
+                )}
+              />
+              <span
+                className={
+                  resetNewPassword.length >= 8
+                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                    : "text-muted-foreground"
+                }
+              >
+                Minimum 8 characters
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <HugeiconsIcon
+                icon={CheckmarkCircle02Icon}
+                className={cn(
+                  "size-3.5 transition-colors",
+                  resetNewPassword.length >= 8 &&
+                    resetNewPassword === resetConfirmPassword
+                    ? "text-emerald-500"
+                    : "text-muted-foreground/40",
+                )}
+              />
+              <span
+                className={
+                  resetNewPassword.length >= 8 &&
+                  resetNewPassword === resetConfirmPassword
+                    ? "text-emerald-600 dark:text-emerald-400 font-medium"
+                    : "text-muted-foreground"
+                }
+              >
+                Passwords match
+              </span>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="min-h-[46px] w-full cursor-pointer touch-manipulation rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm active:scale-[0.98]"
+            size="lg"
+            disabled={
+              resetSubmitting ||
+              resetNewPassword.length < 8 ||
+              resetNewPassword !== resetConfirmPassword
+            }
+          >
+            {resetSubmitting ? (
+              "Updating & Signing In..."
+            ) : (
+              <span className="flex items-center gap-2">
+                Set New Password & Sign In
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+              </span>
+            )}
+          </Button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setResetMode(false);
+              setResetNewPassword("");
+              setResetConfirmPassword("");
+            }}
+            className="w-full text-center text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline cursor-pointer py-1"
+          >
+            Cancel and return to standard sign in
+          </button>
         </form>
       ) : (
         /* SIGN IN FORM */
