@@ -16,3 +16,4 @@ metadata:
 2. **Mobile Viewport Adaptation**:
    - When filter options contain long strings (e.g., committee names > 30 chars), format options with text truncation or fluid 2-line wraps with pill tags.
    - Position search bars sticky at the top of the dropdown container.
+

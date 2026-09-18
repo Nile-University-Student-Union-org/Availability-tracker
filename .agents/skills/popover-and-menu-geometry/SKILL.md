@@ -18,3 +18,4 @@ metadata:
 
 3. **Width Clamping**:
    - Set popup `min-w-[var(--anchor-width,10rem)]` and `w-max` bounded by `max-w-[min(var(--available-width,90vw),28rem)]` to ensure long text never leaks outside popup borders.
+

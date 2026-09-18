@@ -23,3 +23,4 @@ metadata:
 
 4. **Layering & Portaling**:
    - Always mount dropdown popups into a Portal with `z-50` and backdrop blur to prevent clipping inside parent cards with `overflow-hidden`.
+

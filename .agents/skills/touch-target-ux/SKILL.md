@@ -18,3 +18,4 @@ metadata:
 
 3. **Active Physics**:
    - Add `touch-manipulation active:scale-[0.98]` and smooth cubic-bezier transitions for tactile haptic-like responsiveness on touch.
+

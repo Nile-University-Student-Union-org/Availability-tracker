@@ -18,3 +18,4 @@ metadata:
 
 3. **Status Indicators & Checkmarks**:
    - Use high-contrast indicators, micro-animations for selection checks, and distinct badge count bubbles.
+
