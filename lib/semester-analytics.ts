@@ -73,7 +73,11 @@ export async function getSemesterAnalytics(
       user: {
         email: { not: "admin@nu.edu.eg" },
         ...(committeeFilter && committeeFilter !== "all"
-          ? { committee: committeeFilter }
+          ? {
+              committee: committeeFilter.includes(",")
+                ? { in: committeeFilter.split(",").map((s) => s.trim()) }
+                : committeeFilter,
+            }
           : {}),
       },
     },
@@ -99,7 +103,11 @@ export async function getSemesterAnalytics(
     where: {
       email: { not: "admin@nu.edu.eg" },
       ...(committeeFilter && committeeFilter !== "all"
-        ? { committee: committeeFilter }
+        ? {
+            committee: committeeFilter.includes(",")
+              ? { in: committeeFilter.split(",").map((s) => s.trim()) }
+              : committeeFilter,
+          }
         : {}),
     },
     select: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,23 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { RefreshIcon, Tick01Icon } from "@hugeicons/core-free-icons";
+
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Download, ExternalLink, FileSpreadsheet } from "lucide-react";
+  Download,
+  ExternalLink,
+  FileSpreadsheet,
+  Check,
+  ChevronsUpDown,
+  Filter,
+  Search,
+  X,
+} from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import {
   slotToDateRange,
   downloadIcsFile,
@@ -191,7 +200,71 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
   } | null>(null);
   const [viewingUser, setViewingUser] = useState<UserEntry | null>(null);
 
-  const [selectedCommittee, setSelectedCommittee] = useState<string>("all");
+  const [selectedCommittees, setSelectedCommittees] = useState<string[]>([]);
+  const [availableCommittees, setAvailableCommittees] =
+    useState<string[]>(COMMITTEES);
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [committeeSearch, setCommitteeSearch] = useState("");
+
+  useEffect(() => {
+    fetch("/api/committees")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data?.committees) && data.committees.length > 0) {
+          setAvailableCommittees(data.committees);
+        }
+      })
+      .catch(() => {
+        // Fallback to static COMMITTEES
+      });
+  }, []);
+
+  // Merge static/dynamic committees with any committee present in user records
+  const allKnownCommittees = useMemo(() => {
+    const set = new Set<string>(availableCommittees);
+    for (const u of users) {
+      if (u.committee) set.add(u.committee);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [availableCommittees, users]);
+
+  // Precompute count of users per committee
+  const committeeMemberCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const u of users) {
+      if (u.committee) {
+        counts.set(u.committee, (counts.get(u.committee) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [users]);
+
+  // Filtered committees matching the search query inside the popover
+  const filteredAvailableCommittees = useMemo(() => {
+    if (!committeeSearch.trim()) return allKnownCommittees;
+    const q = committeeSearch.toLowerCase();
+    return allKnownCommittees.filter((c) => c.toLowerCase().includes(q));
+  }, [allKnownCommittees, committeeSearch]);
+
+  const toggleCommittee = (c: string) => {
+    setSelectedCommittees((prev) => {
+      if (prev.length === 0) {
+        return [c];
+      }
+      if (prev.includes(c)) {
+        return prev.filter((item) => item !== c);
+      }
+      return [...prev, c];
+    });
+  };
+
+  const handleSelectAllCommittees = () => {
+    setSelectedCommittees([...allKnownCommittees]);
+  };
+
+  const handleClearCommittees = () => {
+    setSelectedCommittees([]);
+  };
 
   // Matrix live-refresh state with tactile animation
   const router = useRouter();
@@ -224,34 +297,40 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     minute: "2-digit",
   });
 
-  const filteredUsers =
-    selectedCommittee === "all"
-      ? users
-      : users.filter((u) => u.committee === selectedCommittee);
+  const filteredUsers = useMemo(() => {
+    if (selectedCommittees.length === 0) return users;
+    const selectedSet = new Set(selectedCommittees);
+    return users.filter((u) => u.committee && selectedSet.has(u.committee));
+  }, [users, selectedCommittees]);
 
-  const filteredUserIds = new Set(filteredUsers.map((u) => u.id));
+  const filteredUserIds = useMemo(
+    () => new Set(filteredUsers.map((u) => u.id)),
+    [filteredUsers],
+  );
 
   // Recalculate everything based on filtered users
-  const filteredSlotMatrix = slotMatrix.map((slot) => {
-    const matchingUsers = slot.users.filter((u) => {
-      // Find the user object in the main users list to get their ID for filtering
-      const mainUser = users.find((mu) => mu.email === u.email);
-      return mainUser && filteredUserIds.has(mainUser.id);
+  const filteredSlotMatrix = useMemo(() => {
+    return slotMatrix.map((slot) => {
+      const matchingUsers = slot.users.filter((u) => {
+        // Find the user object in the main users list to get their ID for filtering
+        const mainUser = users.find((mu) => mu.email === u.email);
+        return mainUser && filteredUserIds.has(mainUser.id);
+      });
+      return {
+        ...slot,
+        count: matchingUsers.length,
+        users: matchingUsers,
+      };
     });
-    return {
-      ...slot,
-      count: matchingUsers.length,
-      users: matchingUsers,
-    };
-  });
+  }, [slotMatrix, users, filteredUserIds]);
 
-  const filteredTotalSlots = filteredUsers.reduce(
-    (sum, u) => sum + u.totalSlots,
-    0,
+  const filteredTotalSlots = useMemo(
+    () => filteredUsers.reduce((sum, u) => sum + u.totalSlots, 0),
+    [filteredUsers],
   );
-  const filteredMaxCount = filteredSlotMatrix.reduce(
-    (m, s) => Math.max(m, s.count),
-    0,
+  const filteredMaxCount = useMemo(
+    () => filteredSlotMatrix.reduce((m, s) => Math.max(m, s.count), 0),
+    [filteredSlotMatrix],
   );
 
   const avgSlots =
@@ -267,17 +346,28 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     : null;
 
   // Top-5 busiest slots
-  const topSlots = [...filteredSlotMatrix]
-    .filter((s) => s.count > 0)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+  const topSlots = useMemo(() => {
+    return [...filteredSlotMatrix]
+      .filter((s) => s.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [filteredSlotMatrix]);
 
   // Committee breakdown for insights
-  const committeeStats = COMMITTEES.map((c) => {
-    const cUsers = users.filter((u) => u.committee === c);
-    const cSlots = cUsers.reduce((sum, u) => sum + u.totalSlots, 0);
-    return { name: c, users: cUsers.length, slots: cSlots };
-  }).sort((a, b) => b.slots - a.slots);
+  const committeeStats = useMemo(() => {
+    const targetCommittees =
+      selectedCommittees.length > 0
+        ? allKnownCommittees.filter((c) => selectedCommittees.includes(c))
+        : allKnownCommittees;
+
+    return targetCommittees
+      .map((c) => {
+        const cUsers = users.filter((u) => u.committee === c);
+        const cSlots = cUsers.reduce((sum, u) => sum + u.totalSlots, 0);
+        return { name: c, users: cUsers.length, slots: cSlots };
+      })
+      .sort((a, b) => b.slots - a.slots);
+  }, [allKnownCommittees, selectedCommittees, users]);
 
   const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null;
 
@@ -357,7 +447,9 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           escapeCsvCell(endTimeStr),
           escapeCsvCell("60 mins"),
           escapeCsvCell(
-            selectedCommittee === "all" ? "All Committees" : selectedCommittee,
+            selectedCommittees.length === 0
+              ? "All Committees"
+              : selectedCommittees.join(" + "),
           ),
           escapeCsvCell(slot.count),
           escapeCsvCell(attendeeNames),
@@ -367,9 +459,11 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     }
 
     const label =
-      selectedCommittee === "all"
+      selectedCommittees.length === 0
         ? "all-committees"
-        : selectedCommittee.toLowerCase().replace(/\s+/g, "-");
+        : selectedCommittees
+            .map((c) => c.toLowerCase().replace(/\s+/g, "-"))
+            .join("-plus-");
     downloadCsvFile(`nusu-schedule-${label}.csv`, rows.join("\r\n"));
     toast.success("Schedule CSV downloaded");
   }
@@ -417,93 +511,324 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     }
 
     const label =
-      selectedCommittee === "all"
+      selectedCommittees.length === 0
         ? "all-committees"
-        : selectedCommittee.toLowerCase().replace(/\s+/g, "-");
+        : selectedCommittees
+            .map((c) => c.toLowerCase().replace(/\s+/g, "-"))
+            .join("-plus-");
     downloadCsvFile(`nusu-availability-matrix-${label}.csv`, rows.join("\r\n"));
     toast.success("Availability matrix CSV downloaded");
   }
 
-  // NEW: Best slot per committee
-  const bestSlotPerCommittee = COMMITTEES.map((c) => {
-    const cSlots = filteredSlotMatrix.map((slot) => {
-      const cUsers = slot.users.filter((u) => u.committee === c);
-      return { ...slot, cCount: cUsers.length };
-    });
-    const best = cSlots.reduce<{
-      date: string;
-      startTime: string;
-      cCount: number;
-    } | null>(
-      (acc, s) =>
-        s.cCount > (acc?.cCount ?? 0)
-          ? { date: s.date, startTime: s.startTime, cCount: s.cCount }
-          : acc,
-      null,
-    );
-    return { committee: c, best };
-  }).filter((b) => b.best && b.best.cCount > 0);
+  // Best slot per committee (scoped to selected committees if filtered)
+  const bestSlotPerCommittee = useMemo(() => {
+    const targetCommittees =
+      selectedCommittees.length > 0
+        ? allKnownCommittees.filter((c) => selectedCommittees.includes(c))
+        : allKnownCommittees;
 
-  // NEW: Committee x Date matrix
-  const committeeDateMatrix = COMMITTEES.map((c) => {
-    const datesData = dates.map((d) => {
-      const uniqueUsers = new Set(
-        filteredSlotMatrix
-          .filter((s) => s.date === d)
-          .flatMap((s) =>
-            s.users.filter((u) => u.committee === c).map((u) => u.email),
-          ),
-      );
-      return { date: d, count: uniqueUsers.size };
+    return targetCommittees
+      .map((c) => {
+        const cSlots = filteredSlotMatrix.map((slot) => {
+          const cUsers = slot.users.filter((u) => u.committee === c);
+          return { ...slot, cCount: cUsers.length };
+        });
+        const best = cSlots.reduce<{
+          date: string;
+          startTime: string;
+          cCount: number;
+        } | null>(
+          (acc, s) =>
+            s.cCount > (acc?.cCount ?? 0)
+              ? { date: s.date, startTime: s.startTime, cCount: s.cCount }
+              : acc,
+          null,
+        );
+        return { committee: c, best };
+      })
+      .filter((b) => b.best && b.best.cCount > 0);
+  }, [allKnownCommittees, selectedCommittees, filteredSlotMatrix]);
+
+  // Committee x Date matrix (scoped to selected committees if filtered)
+  const committeeDateMatrix = useMemo(() => {
+    const targetCommittees =
+      selectedCommittees.length > 0
+        ? allKnownCommittees.filter((c) => selectedCommittees.includes(c))
+        : allKnownCommittees;
+
+    return targetCommittees.map((c) => {
+      const datesData = dates.map((d) => {
+        const uniqueUsers = new Set(
+          filteredSlotMatrix
+            .filter((s) => s.date === d)
+            .flatMap((s) =>
+              s.users.filter((u) => u.committee === c).map((u) => u.email),
+            ),
+        );
+        return { date: d, count: uniqueUsers.size };
+      });
+      return { committee: c, dates: datesData };
     });
-    return { committee: c, dates: datesData };
-  });
+  }, [allKnownCommittees, selectedCommittees, dates, filteredSlotMatrix]);
 
   return (
     <div className="space-y-5">
-      {/* ── Committee Filter ─────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Label
-            htmlFor="committee-filter"
-            className="text-xs font-semibold tracking-widest text-muted-foreground uppercase"
-          >
-            Filter by Committee:
-          </Label>
-          <Select
-            value={selectedCommittee}
-            onValueChange={(val) => setSelectedCommittee(val ?? "all")}
-          >
-            <SelectTrigger
-              id="committee-filter"
-              size="sm"
-              className="w-full sm:w-48"
+      {/* ── Multi-Committee Filter Bar ───────────────────────────────── */}
+      <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2.5 min-w-0">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Label
+              htmlFor="committee-filter-btn"
+              className="text-xs font-semibold tracking-widest text-muted-foreground uppercase shrink-0"
             >
-              <SelectValue placeholder="All Committees" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Committees</SelectItem>
-              {COMMITTEES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
+              Filter by Committee:
+            </Label>
+
+            {/* Apple-grade Interactive Multi-Select Popover */}
+            <Popover
+              open={filterPopoverOpen}
+              onOpenChange={setFilterPopoverOpen}
+            >
+              <PopoverTrigger
+                id="committee-filter-btn"
+                type="button"
+                className={cn(
+                  "group relative flex min-h-[38px] min-w-[210px] items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-left text-xs font-semibold shadow-2xs transition-all hover:border-primary/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
+                  selectedCommittees.length > 0 &&
+                    "border-primary/40 bg-primary/5 text-primary ring-1 ring-primary/20",
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Filter className="size-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <span className="truncate text-foreground font-medium">
+                    {selectedCommittees.length === 0
+                      ? "All Committees"
+                      : selectedCommittees.length === 1
+                        ? selectedCommittees[0]
+                        : selectedCommittees.length === 2
+                          ? `${selectedCommittees[0]}, ${selectedCommittees[1]}`
+                          : `${selectedCommittees.length} Committees`}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {selectedCommittees.length > 0 && (
+                    <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-2xs">
+                      {selectedCommittees.length}
+                    </span>
+                  )}
+                  <ChevronsUpDown className="size-3.5 text-muted-foreground/60" />
+                </div>
+              </PopoverTrigger>
+
+              <PopoverContent
+                align="start"
+                className="w-72 sm:w-80 rounded-2xl border border-border/80 bg-popover/98 p-3 shadow-xl backdrop-blur-md space-y-2.5"
+              >
+                {/* Popover Header */}
+                <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Filter className="size-3.5 text-primary" />
+                    <span className="text-xs font-bold text-foreground">
+                      Select Committees
+                    </span>
+                  </div>
+                  {selectedCommittees.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={handleClearCommittees}
+                      className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      Reset to All
+                    </Button>
+                  )}
+                </div>
+
+                {/* Quick Action Toggle Buttons */}
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant={
+                      selectedCommittees.length === 0 ? "secondary" : "outline"
+                    }
+                    size="xs"
+                    onClick={handleClearCommittees}
+                    className={cn(
+                      "h-7 flex-1 text-[11px] rounded-lg cursor-pointer font-medium",
+                      selectedCommittees.length === 0 &&
+                        "bg-primary/15 text-primary border-primary/30 font-semibold",
+                    )}
+                  >
+                    All Committees
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      selectedCommittees.length === allKnownCommittees.length &&
+                      allKnownCommittees.length > 0
+                        ? "secondary"
+                        : "outline"
+                    }
+                    size="xs"
+                    onClick={handleSelectAllCommittees}
+                    className={cn(
+                      "h-7 flex-1 text-[11px] rounded-lg cursor-pointer font-medium",
+                      selectedCommittees.length === allKnownCommittees.length &&
+                        allKnownCommittees.length > 0 &&
+                        "bg-primary/15 text-primary border-primary/30 font-semibold",
+                    )}
+                  >
+                    Select All
+                  </Button>
+                </div>
+
+                {/* Search Input */}
+                {allKnownCommittees.length > 5 && (
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 size-3 text-muted-foreground pointer-events-none" />
+                    <Input
+                      placeholder="Search committees..."
+                      value={committeeSearch}
+                      onChange={(e) => setCommitteeSearch(e.target.value)}
+                      className="h-8 pl-8 pr-7 text-xs bg-muted/40 rounded-xl"
+                    />
+                    {committeeSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setCommitteeSearch("")}
+                        className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Committees Checkbox List */}
+                <ScrollArea className="max-h-52 pr-1">
+                  <div className="space-y-0.5">
+                    {filteredAvailableCommittees.map((c) => {
+                      const isSelected = selectedCommittees.includes(c);
+                      const memberCount = committeeMemberCounts.get(c) ?? 0;
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => toggleCommittee(c)}
+                          className={cn(
+                            "group flex w-full min-h-[36px] items-center justify-between rounded-xl px-2.5 py-1.5 text-xs transition-colors cursor-pointer select-none",
+                            isSelected
+                              ? "bg-primary/10 text-primary font-semibold"
+                              : "text-foreground hover:bg-muted/60",
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1 truncate mr-2">
+                            <div
+                              className={cn(
+                                "flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors",
+                                isSelected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-muted-foreground/40 bg-background group-hover:border-primary/50",
+                              )}
+                            >
+                              {isSelected && (
+                                <Check className="size-3 stroke-[2.5]" />
+                              )}
+                            </div>
+                            <span className="truncate text-left">{c}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground/80 font-mono shrink-0">
+                            {memberCount}{" "}
+                            {memberCount === 1 ? "member" : "members"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {filteredAvailableCommittees.length === 0 && (
+                      <p className="py-4 text-center text-xs text-muted-foreground">
+                        No committees match &quot;{committeeSearch}&quot;
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
+
+                {/* Popover Footer */}
+                <div className="flex items-center justify-between border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+                  <span>
+                    {selectedCommittees.length === 0
+                      ? `All members (${filteredUsers.length})`
+                      : `${selectedCommittees.length} selected · ${filteredUsers.length} members`}
+                  </span>
+                  <Button
+                    type="button"
+                    size="xs"
+                    onClick={() => setFilterPopoverOpen(false)}
+                    className="h-6 px-2.5 text-[11px] font-semibold rounded-lg cursor-pointer"
+                  >
+                    Done
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Interactive Selected Committee Pills / Badges */}
+          {selectedCommittees.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <span className="text-[11px] font-semibold text-muted-foreground">
+                Active:
+              </span>
+              {selectedCommittees.map((c) => (
+                <Badge
+                  key={c}
+                  variant="outline"
+                  className="h-6 gap-1 rounded-lg border-primary/30 bg-primary/10 text-primary text-[11px] font-medium pr-1 pl-2 transition-all hover:bg-primary/15"
+                >
+                  <span>{c}</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleCommittee(c)}
+                    className="rounded-full p-0.5 hover:bg-primary/20 text-primary/70 hover:text-primary transition-colors cursor-pointer"
+                    title={`Remove ${c} from filter`}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </Badge>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {selectedCommittee !== "all" && (
-            <Badge
-              variant="outline"
-              className="w-fit border-primary/20 bg-primary/5 text-primary"
-            >
-              Showing {filteredUsers.length} from {selectedCommittee}
-            </Badge>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleClearCommittees}
+                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground font-medium cursor-pointer"
+              >
+                Clear all
+              </Button>
+            </div>
           )}
+        </div>
+
+        {/* Export & Summary Badges */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Badge
+            variant="outline"
+            className={cn(
+              "w-fit text-xs font-semibold py-1 px-2.5 rounded-xl transition-colors",
+              selectedCommittees.length > 0
+                ? "border-primary/30 bg-primary/5 text-primary"
+                : "border-border/70 text-muted-foreground",
+            )}
+          >
+            {selectedCommittees.length === 0
+              ? `All Committees (${filteredUsers.length} members)`
+              : `Showing ${filteredUsers.length} member${filteredUsers.length === 1 ? "" : "s"} across ${selectedCommittees.length} committee${selectedCommittees.length === 1 ? "" : "s"}`}
+          </Badge>
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 rounded-xl text-xs"
+            className="h-8 gap-1.5 rounded-xl text-xs cursor-pointer active:scale-95"
             onClick={handleExportScheduleCsv}
             title="Export finalized meetings schedule as CSV"
           >
@@ -513,7 +838,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 rounded-xl text-xs"
+            className="h-8 gap-1.5 rounded-xl text-xs cursor-pointer active:scale-95"
             onClick={handleExportMatrixCsv}
             title="Export full member availability matrix as CSV"
           >
@@ -529,9 +854,11 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           label="Participants"
           value={filteredUsers.length}
           sub={
-            selectedCommittee === "all"
+            selectedCommittees.length === 0
               ? "total users"
-              : `members in ${selectedCommittee}`
+              : selectedCommittees.length === 1
+                ? `members in ${selectedCommittees[0]}`
+                : `members in ${selectedCommittees.length} committees`
           }
           accent
         />
@@ -624,9 +951,13 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                 ? "Configure a schedule to see availability data."
                 : timeSlots.length === 0
                   ? "No bookings yet — users will appear here once they submit availability."
-                  : selectedCommittee === "all"
+                  : selectedCommittees.length === 0
                     ? "How many users are free per slot. Click any cell for details."
-                    : `Group availability for ${selectedCommittee} members.`}
+                    : `Group availability for ${
+                        selectedCommittees.length === 1
+                          ? selectedCommittees[0]
+                          : `${selectedCommittees.length} selected committees`
+                      } members.`}
             </p>
           </div>
 
@@ -808,7 +1139,13 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             </div>
           </div>
           <div className="space-y-4">
-            {COMMITTEES.map((c) => {
+            {allKnownCommittees.map((c) => {
+              if (
+                selectedCommittees.length > 0 &&
+                !selectedCommittees.includes(c)
+              ) {
+                return null;
+              }
               const cUsers = activeCellData.users.filter(
                 (u) => u.committee === c,
               );

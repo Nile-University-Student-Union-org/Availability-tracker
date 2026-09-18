@@ -536,11 +536,7 @@ export function AvailabilityCalendar({
           modifiers={{
             hasSlots: datesWithSlots,
           }}
-          modifiersClassNames={{
-            hasSlots:
-              "!bg-emerald-500/20 !text-emerald-700 dark:!text-emerald-400 font-semibold",
-          }}
-          className="w-full max-w-sm rounded-3xl border"
+          className="w-full max-w-sm rounded-3xl border border-border/80 bg-card p-3.5 shadow-xs"
         />
       )}
 
