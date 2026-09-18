@@ -11,13 +11,7 @@ import { toast } from "sonner";
 import { AvailabilityDialog } from "@/components/calendar/availability-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { authClient } from "@/lib/auth-client";
-import { Download, ExternalLink, AlertCircle } from "lucide-react";
-import {
-  slotToDateRange,
-  downloadIcsFile,
-  buildGoogleCalendarUrl,
-  type CalendarEvent,
-} from "@/lib/calendar-export";
+import { AlertCircle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -319,50 +313,6 @@ export function AvailabilityCalendar({
     }
   }
 
-  function handleExportIcs() {
-    const events: CalendarEvent[] = [];
-    for (const iso of datesWithSlotsISO) {
-      const slots = Array.from(availability.get(iso) ?? []).sort();
-      for (const slot of slots) {
-        const { startDate, endDate } = slotToDateRange(iso, slot);
-        events.push({
-          id: `nusu-${memberEmail}-${iso}-${slot}`,
-          title: `NUSU Availability (${formatTime(slot)})`,
-          description: `Marked availability for ${memberName || memberEmail} (${memberCommittee || "Member"}).`,
-          location: "Nile University Campus",
-          startDate,
-          endDate,
-        });
-      }
-    }
-    if (events.length === 0) {
-      toast.error("No availability slots to export.");
-      return;
-    }
-    downloadIcsFile(`nusu-availability-${memberEmail || "member"}.ics`, events);
-    toast.success("Calendar file (.ics) downloaded");
-  }
-
-  function handleOpenGoogleCalendar() {
-    for (const iso of datesWithSlotsISO) {
-      const slots = Array.from(availability.get(iso) ?? []).sort();
-      if (slots.length > 0) {
-        const slot = slots[0];
-        const { startDate, endDate } = slotToDateRange(iso, slot);
-        const url = buildGoogleCalendarUrl({
-          title: `NUSU Availability (${formatTime(slot)})`,
-          description: `Marked availability for ${memberName || memberEmail} (${memberCommittee || "Member"}).`,
-          location: "Nile University Campus",
-          startDate,
-          endDate,
-        });
-        window.open(url, "_blank", "noopener,noreferrer");
-        return;
-      }
-    }
-    toast.error("No availability slots to export.");
-  }
-
   // Derived values from config
   const activeDates = config
     ? config.dates.map((d) => new Date(d + "T00:00:00"))
@@ -604,32 +554,10 @@ export function AvailabilityCalendar({
         </div>
       ) : config && datesWithSlotsISO.length > 0 ? (
         <div className="w-full max-w-sm overflow-hidden rounded-3xl border bg-card">
-          <div className="flex items-center justify-between border-b px-4 py-3">
+          <div className="border-b px-4 py-3">
             <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
               Your Availability
             </p>
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="outline"
-                size="xs"
-                className="h-7 gap-1 px-2 text-[11px]"
-                onClick={handleExportIcs}
-                title="Download .ics for Apple Calendar, Outlook, or Google Calendar"
-              >
-                <Download className="size-3" />
-                <span>.ics</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                className="h-7 gap-1 px-2 text-[11px] text-emerald-600 dark:text-emerald-400"
-                onClick={handleOpenGoogleCalendar}
-                title="Add first slot to Google Calendar"
-              >
-                <ExternalLink className="size-3" />
-                <span>Google Cal</span>
-              </Button>
-            </div>
           </div>
 
           <div className="divide-y">
