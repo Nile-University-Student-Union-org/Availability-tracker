@@ -103,8 +103,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as {
-      date: string;
+      date?: string;
       slots?: string[];
+      updates?: Array<{ date: string; slots?: string[] }>;
       memberName?: string;
       memberEmail?: string;
       memberId?: string;
@@ -162,22 +163,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!config.dates.includes(body.date)) {
-      return NextResponse.json({ error: "Invalid date" }, { status: 400 });
+    const rawUpdates =
+      Array.isArray(body.updates) && body.updates.length > 0
+        ? body.updates
+        : body.date
+          ? [{ date: body.date, slots: body.slots ?? [] }]
+          : [];
+
+    if (rawUpdates.length === 0) {
+      return NextResponse.json(
+        { error: "No date updates provided" },
+        { status: 400 },
+      );
     }
 
-    // In fixed mode, validate slots against configured time slots.
-    // In free mode, accept any HH:mm format.
-    const slots = Array.isArray(body.slots) ? body.slots : [];
-    let validSlots: string[];
-    if (config.slotMode === "fixed") {
-      validSlots = slots.filter((s) => config.timeSlots.includes(s));
-    } else {
-      const timeRegex = /^\d{2}:\d{2}$/;
-      validSlots = slots.filter((s) => timeRegex.test(s));
+    // Validate dates and sanitize slots
+    const validatedUpdates: Array<{ date: Date; validSlots: string[] }> = [];
+    const timeRegex = /^\d{2}:\d{2}$/;
+
+    for (const update of rawUpdates) {
+      if (!config.dates.includes(update.date)) {
+        return NextResponse.json(
+          { error: `Invalid date: ${update.date}` },
+          { status: 400 },
+        );
+      }
+
+      const slots = Array.isArray(update.slots) ? update.slots : [];
+      let validSlots: string[];
+      if (config.slotMode === "fixed") {
+        validSlots = slots.filter((s) => config.timeSlots.includes(s));
+      } else {
+        validSlots = slots.filter((s) => timeRegex.test(s));
+      }
+
+      validatedUpdates.push({
+        date: new Date(update.date + "T00:00:00.000Z"),
+        validSlots,
+      });
     }
 
-    const date = new Date(body.date + "T00:00:00.000Z");
     const user = await prisma.user.upsert({
       where: { email: memberEmail },
       update: {
@@ -196,18 +221,27 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    await prisma.$transaction([
-      prisma.availability.deleteMany({
-        where: { userId: user.id, date },
-      }),
-      prisma.availability.createMany({
-        data: validSlots.map((startTime) => ({
-          userId: user.id,
-          date,
-          startTime,
-        })),
-      }),
-    ]);
+    const transactionOps = [];
+    for (const item of validatedUpdates) {
+      transactionOps.push(
+        prisma.availability.deleteMany({
+          where: { userId: user.id, date: item.date },
+        }),
+      );
+      if (item.validSlots.length > 0) {
+        transactionOps.push(
+          prisma.availability.createMany({
+            data: item.validSlots.map((startTime) => ({
+              userId: user.id,
+              date: item.date,
+              startTime,
+            })),
+          }),
+        );
+      }
+    }
+
+    await prisma.$transaction(transactionOps);
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

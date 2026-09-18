@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -97,6 +97,14 @@ export function AvailabilityDialog({
     setMounted(true);
   }, []);
 
+  const [draftMap, setDraftMap] = useState<Map<string, Set<string>>>(
+    () => new Map(),
+  );
+  const draftMapRef = useRef(draftMap);
+  draftMapRef.current = draftMap;
+
+  const dirtyDatesRef = useRef<Set<string>>(new Set());
+
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(
     new Set(initialSlots),
   );
@@ -106,19 +114,40 @@ export function AvailabilityDialog({
   // Drag-to-select tracking
   const [isDragging, setIsDragging] = useState(false);
   const dragModeRef = useRef<"add" | "remove">("add");
-  const isDirtyRef = useRef(false);
 
-  // Sync selected slots whenever date or open state changes
+  // Sync draftMap whenever dialog is opened
   useEffect(() => {
     if (open) {
-      const currentInitial = availabilityMap?.has(date)
-        ? Array.from(availabilityMap.get(date) ?? [])
-        : initialSlots;
-      setSelectedSlots(new Set(currentInitial));
+      const initialMap = new Map<string, Set<string>>();
+      if (allDates.length > 0) {
+        for (const d of allDates) {
+          const s = availabilityMap?.get(d);
+          initialMap.set(d, new Set(s ? Array.from(s) : []));
+        }
+      }
+      if (!initialMap.has(date) || initialMap.get(date)!.size === 0) {
+        if (initialSlots.length > 0) {
+          initialMap.set(date, new Set(initialSlots));
+        }
+      }
+      setDraftMap(initialMap);
+      dirtyDatesRef.current = new Set();
+      setSelectedSlots(new Set(initialMap.get(date) ?? initialSlots));
       setError(null);
-      isDirtyRef.current = false;
     }
-  }, [open, date, initialSlots, availabilityMap]);
+  }, [open, date, allDates, availabilityMap, initialSlots]);
+
+  // When date changes while open, load slots from draftMap
+  useEffect(() => {
+    if (open) {
+      setSelectedSlots(
+        new Set(
+          draftMapRef.current.get(date) ?? availabilityMap?.get(date) ?? [],
+        ),
+      );
+      setError(null);
+    }
+  }, [date, open, availabilityMap]);
 
   // Global listener to terminate drag operations
   useEffect(() => {
@@ -138,7 +167,7 @@ export function AvailabilityDialog({
   function handleSlotPointerDown(slot: string, e: React.PointerEvent) {
     if (e.button !== 0) return;
     setError(null);
-    isDirtyRef.current = true;
+    dirtyDatesRef.current.add(date);
     setIsDragging(true);
 
     setSelectedSlots((prev) => {
@@ -150,6 +179,11 @@ export function AvailabilityDialog({
         next.add(slot);
         dragModeRef.current = "add";
       }
+      setDraftMap((dm) => {
+        const copy = new Map(dm);
+        copy.set(date, new Set(next));
+        return copy;
+      });
       return next;
     });
   }
@@ -157,7 +191,7 @@ export function AvailabilityDialog({
   function handleSlotPointerEnter(slot: string) {
     if (!isDragging) return;
     setError(null);
-    isDirtyRef.current = true;
+    dirtyDatesRef.current.add(date);
 
     setSelectedSlots((prev) => {
       const next = new Set(prev);
@@ -166,87 +200,16 @@ export function AvailabilityDialog({
       } else {
         next.delete(slot);
       }
+      setDraftMap((dm) => {
+        const copy = new Map(dm);
+        copy.set(date, new Set(next));
+        return copy;
+      });
       return next;
     });
   }
 
-  // Save logic
-  const saveSlots = useCallback(
-    async (targetDate: string, slotsToSave: string[], closeAfter = true) => {
-      if (memberEmail === "admin@nu.edu.eg") {
-        setError(
-          "Admin accounts cannot mark availability. Please use the Admin Portal.",
-        );
-        return false;
-      }
-      if (!memberId?.trim() || !memberCommittee?.trim()) {
-        setError(
-          "Please complete your profile (NU ID & Committee) before saving availability.",
-        );
-        return false;
-      }
-      setIsSaving(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/availability", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date: targetDate,
-            slots: slotsToSave,
-            memberName,
-            memberEmail,
-            memberId,
-            memberCommittee,
-          }),
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => null);
-          throw new Error(
-            errData?.error || `Failed to save (Status ${res.status})`,
-          );
-        }
-
-        onSaved(targetDate, slotsToSave);
-        isDirtyRef.current = false;
-        toast.success(
-          `Saved ${new Date(targetDate + "T00:00:00").toLocaleDateString(
-            "en-US",
-            {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            },
-          )}`,
-          {
-            id: "availability-save",
-            duration: 2000,
-          },
-        );
-        if (closeAfter) {
-          onOpenChange(false);
-        }
-        return true;
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Failed to save. Please try again.";
-        setError(message);
-        return false;
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [memberName, memberEmail, memberId, memberCommittee, onSaved, onOpenChange],
-  );
-
-  async function handleSaveClick() {
-    await saveSlots(date, Array.from(selectedSlots), true);
-  }
-
-  // Navigation between days
+  // Navigation between days (instant, in-memory, no DB saving until Save is clicked)
   const currentIndex = allDates.indexOf(date);
   const prevDate = currentIndex > 0 ? allDates[currentIndex - 1] : null;
   const nextDate =
@@ -254,22 +217,108 @@ export function AvailabilityDialog({
       ? allDates[currentIndex + 1]
       : null;
 
-  async function handleNavigate(newDate: string) {
+  function handleNavigate(newDate: string) {
     if (newDate === date) return;
 
-    if (isDirtyRef.current) {
-      await saveSlots(date, Array.from(selectedSlots), false);
-    }
+    setDraftMap((prev) => {
+      const next = new Map(prev);
+      next.set(date, new Set(selectedSlots));
+      return next;
+    });
 
     if (onNavigateDate) {
       onNavigateDate(newDate);
     }
   }
 
-  async function handleSaveAndNext() {
-    const success = await saveSlots(date, Array.from(selectedSlots), false);
-    if (success && nextDate && onNavigateDate) {
-      onNavigateDate(nextDate);
+  function handleNext() {
+    if (nextDate) {
+      handleNavigate(nextDate);
+    }
+  }
+
+  // Save logic triggered strictly on Save Availability click
+  async function handleSaveClick() {
+    if (memberEmail === "admin@nu.edu.eg") {
+      setError(
+        "Admin accounts cannot mark availability. Please use the Admin Portal.",
+      );
+      return;
+    }
+    if (!memberId?.trim() || !memberCommittee?.trim()) {
+      setError(
+        "Please complete your profile (NU ID & Committee) before saving availability.",
+      );
+      return;
+    }
+
+    const currentMap = new Map(draftMap);
+    currentMap.set(date, new Set(selectedSlots));
+
+    const datesToSave =
+      dirtyDatesRef.current.size > 0
+        ? Array.from(dirtyDatesRef.current)
+        : [date];
+
+    const updates = datesToSave.map((d) => ({
+      date: d,
+      slots: Array.from(currentMap.get(d) ?? []),
+    }));
+
+    setIsSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updates,
+          memberName,
+          memberEmail,
+          memberId,
+          memberCommittee,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(
+          errData?.error || `Failed to save (Status ${res.status})`,
+        );
+      }
+
+      for (const item of updates) {
+        onSaved(item.date, item.slots);
+      }
+
+      dirtyDatesRef.current.clear();
+
+      toast.success(
+        datesToSave.length === 1
+          ? `Saved ${new Date(datesToSave[0] + "T00:00:00").toLocaleDateString(
+              "en-US",
+              {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              },
+            )}`
+          : `Saved availability for ${datesToSave.length} days`,
+        {
+          id: "availability-save",
+          duration: 2000,
+        },
+      );
+
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to save. Please try again.";
+      setError(message);
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -309,7 +358,8 @@ export function AvailabilityDialog({
               const dayNum = dObj.getDate();
               const isCurrent = d === date;
               const hasSlots =
-                (availabilityMap?.get(d)?.size ?? 0) > 0 ||
+                (draftMap.get(d)?.size ?? availabilityMap?.get(d)?.size ?? 0) >
+                  0 ||
                 (isCurrent && selectedSlots.size > 0);
 
               return (
@@ -484,11 +534,11 @@ export function AvailabilityDialog({
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleSaveAndNext}
+            onClick={handleNext}
             disabled={isSaving}
             className="min-h-[44px] touch-manipulation rounded-xl px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
           >
-            Save & Next →
+            Next →
           </Button>
         )}
 
