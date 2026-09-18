@@ -1,33 +1,33 @@
-import type { Metadata } from "next"
-import { redirect } from "next/navigation"
-import { headers } from "next/headers"
-import { auth } from "@/lib/auth"
-import { AuthForm } from "@/components/auth/auth-form"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { NusuLogo } from "@/components/nusu-logo"
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { AuthForm } from "@/components/auth/auth-form";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { NusuLogo } from "@/components/nusu-logo";
 
-import { getSafeCallbackUrl } from "@/lib/url-helpers"
+import { getSafeCallbackUrl } from "@/lib/url-helpers";
 
 export const metadata: Metadata = {
   title: "Member Access | Nile University Student Union",
   description:
     "Sign in or create a member account to mark your schedule availability.",
-}
+};
 
 export default async function AuthPage(props: {
-  searchParams: Promise<{ callbackUrl?: string; mode?: string }>
+  searchParams: Promise<{ callbackUrl?: string; mode?: string }>;
 }) {
-  const searchParams = await props.searchParams
-  const callbackUrl = getSafeCallbackUrl(searchParams.callbackUrl, "/")
-  const mode = searchParams.mode === "signup" ? "signup" : "signin"
+  const searchParams = await props.searchParams;
+  const callbackUrl = getSafeCallbackUrl(searchParams.callbackUrl, "/");
+  const mode = searchParams.mode === "signup" ? "signup" : "signin";
 
   // If the user is already signed in, send them straight to their destination
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.api.getSession({ headers: await headers() });
   if (session) {
     if (session.user.email === "admin@nu.edu.eg") {
-      redirect("/admin")
+      redirect("/admin");
     }
-    redirect(callbackUrl)
+    redirect(callbackUrl);
   }
 
   return (
@@ -56,5 +56,5 @@ export default async function AuthPage(props: {
         </div>
       </div>
     </main>
-  )
+  );
 }

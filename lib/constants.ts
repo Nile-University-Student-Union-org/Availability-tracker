@@ -7,4 +7,4 @@ export const COMMITTEES = [
   "Marketing",
   "Media & Design",
   "Operations",
-]
+];

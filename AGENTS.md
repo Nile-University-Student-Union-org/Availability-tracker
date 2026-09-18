@@ -18,7 +18,17 @@ This document serves as the operational guide and behavioral protocol for AI pai
 
 ---
 
-## 2. Session Lifecycle Automation (MANDATORY RULES)
+## 2. Task Orchestration & Dynamic Skill Management
+
+- **Orchestration Protocol**: For every task and user request, always operate with an orchestrator workflow:
+  1. **Analyze Requirements**: Assess the full scope and domain of the user's request.
+  2. **Select Best Skills**: Identify and activate the most effective specialized skills from the local and global skill catalogs.
+  3. **Install Skills When Necessary**: If a task requires domain-specific skills that are not already present, proactively discover and install the appropriate skills (via `antigravity-skills-manager` or skill management tools) before executing the implementation.
+  4. **Execute with Domain Guidance**: Follow the selected skills' instructions and guidelines strictly during planning, coding, and verification.
+
+---
+
+## 3. Session Lifecycle Automation (MANDATORY RULES)
 
 ### Command: `terminate`
 Whenever the user says **"terminate"** (or requests to end/wrap up the session):
@@ -49,7 +59,7 @@ Whenever the user says **"start"** (or begins a new session):
 
 ---
 
-## 3. Brand & Design System Guidelines
+## 4. Brand & Design System Guidelines
 
 - **NUSU Brand & Theme Colors**:
   - **Deep Nile Navy / Background**: Clean dark & light modes via `next-themes`
@@ -63,7 +73,7 @@ Whenever the user says **"start"** (or begins a new session):
 
 ---
 
-## 4. Key Developer Commands
+## 5. Key Developer Commands
 
 - **Development Server**: `pnpm dev` (runs on `http://localhost:3000/`)
 - **Type Checking**: `pnpm typecheck` (`tsc --noEmit`)

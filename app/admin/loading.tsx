@@ -76,5 +76,5 @@ export default function AdminLoading() {
         </main>
       </div>
     </div>
-  )
+  );
 }

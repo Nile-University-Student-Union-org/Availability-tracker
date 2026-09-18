@@ -1,10 +1,10 @@
-import type { Metadata } from "next"
-import Link from "next/link"
-import { NusuLogo } from "@/components/nusu-logo"
+import type { Metadata } from "next";
+import Link from "next/link";
+import { NusuLogo } from "@/components/nusu-logo";
 
 export const metadata: Metadata = {
   title: "404 — Page Not Found",
-}
+};
 
 export default function NotFound() {
   return (
@@ -37,5 +37,5 @@ export default function NotFound() {
         </Link>
       </div>
     </main>
-  )
+  );
 }

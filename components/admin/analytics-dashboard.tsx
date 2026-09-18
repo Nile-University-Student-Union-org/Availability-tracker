@@ -1,23 +1,23 @@
-"use client"
+"use client";
 
-import { useCallback, useState } from "react"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { RefreshIcon, Tick01Icon } from "@hugeicons/core-free-icons"
+import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { RefreshIcon, Tick01Icon } from "@hugeicons/core-free-icons";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Download, ExternalLink, FileSpreadsheet } from "lucide-react"
+} from "@/components/ui/select";
+import { Download, ExternalLink, FileSpreadsheet } from "lucide-react";
 import {
   slotToDateRange,
   downloadIcsFile,
@@ -25,16 +25,16 @@ import {
   escapeCsvCell,
   downloadCsvFile,
   type CalendarEvent,
-} from "@/lib/calendar-export"
+} from "@/lib/calendar-export";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { COMMITTEES } from "@/lib/constants"
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { COMMITTEES } from "@/lib/constants";
 import {
   BarChart,
   Bar,
@@ -43,85 +43,86 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-} from "recharts"
+} from "recharts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type SlotEntry = {
-  date: string
-  startTime: string
-  count: number
+  date: string;
+  startTime: string;
+  count: number;
   users: {
-    name: string | null
-    email: string
-    image: string | null
-    committee: string | null
-  }[]
-}
+    name: string | null;
+    email: string;
+    image: string | null;
+    committee: string | null;
+  }[];
+};
 
 export type UserEntry = {
-  id: string
-  name: string | null
-  email: string
-  nuId: string | null
-  image: string | null
-  committee: string | null
-  totalSlots: number
-  byDate: Record<string, string[]>
-}
+  id: string;
+  name: string | null;
+  email: string;
+  nuId: string | null;
+  image: string | null;
+  committee: string | null;
+  totalSlots: number;
+  byDate: Record<string, string[]>;
+};
 
 export type AnalyticsData = {
-  totalUsers: number
-  totalSlots: number
-  maxCount: number
-  slotMatrix: SlotEntry[]
-  users: UserEntry[]
-  dates: string[]
-  timeSlots: string[]
-}
+  totalUsers: number;
+  totalSlots: number;
+  maxCount: number;
+  slotMatrix: SlotEntry[];
+  users: UserEntry[];
+  dates: string[];
+  timeSlots: string[];
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatTime(time: string): string {
-  const [h, m] = time.split(":").map(Number)
-  const suffix = h >= 12 ? "PM" : "AM"
-  const hour = h % 12 || 12
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`
+  const [h, m] = time.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
 function formatDayShort(date: string): string {
-  const d = new Date(date + "T00:00:00")
-  return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric" })
+  const d = new Date(date + "T00:00:00");
+  return d.toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
 }
 
 function formatDayFull(date: string): string {
-  const d = new Date(date + "T00:00:00")
+  const d = new Date(date + "T00:00:00");
   return d.toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
-  })
+  });
 }
 
 function getInitials(name?: string | null, email?: string | null): string {
   if (name) {
-    const parts = name.trim().split(/\s+/)
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
-  return email?.slice(0, 2).toUpperCase() ?? "?"
+  return email?.slice(0, 2).toUpperCase() ?? "?";
 }
 
 /** Returns Tailwind classes for a heatmap cell based on its fill ratio. */
 function cellStyle(count: number, max: number): string {
-  if (count === 0) return "bg-muted/50 text-muted-foreground/30"
-  const ratio = count / Math.max(max, 1)
+  if (count === 0) return "bg-muted/50 text-muted-foreground/30";
+  const ratio = count / Math.max(max, 1);
   if (ratio <= 0.25)
-    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400"
+    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400";
   if (ratio <= 0.5)
-    return "bg-emerald-500/40 text-emerald-800 dark:text-emerald-300"
-  if (ratio <= 0.75) return "bg-emerald-500/65 text-emerald-900 dark:text-white"
-  return "bg-emerald-600 text-white"
+    return "bg-emerald-500/40 text-emerald-800 dark:text-emerald-300";
+  if (ratio <= 0.75)
+    return "bg-emerald-500/65 text-emerald-900 dark:text-white";
+  return "bg-emerald-600 text-white";
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -132,16 +133,16 @@ function MetricCard({
   sub,
   accent = false,
 }: {
-  label: string
-  value: string | number
-  sub: string
-  accent?: boolean
+  label: string;
+  value: string | number;
+  sub: string;
+  accent?: boolean;
 }) {
   return (
     <div
       className={cn(
         "rounded-3xl border px-4 py-4 transition-all",
-        accent ? "border-primary/25 bg-primary/8" : "bg-card"
+        accent ? "border-primary/25 bg-primary/8" : "bg-card",
       )}
     >
       <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
@@ -150,14 +151,14 @@ function MetricCard({
       <p
         className={cn(
           "mt-1 font-heading text-3xl font-semibold",
-          accent && "text-primary"
+          accent && "text-primary",
         )}
       >
         {value}
       </p>
       <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>
     </div>
-  )
+  );
 }
 
 function UserAvatar({
@@ -166,10 +167,10 @@ function UserAvatar({
   image,
   size = "sm",
 }: {
-  name: string | null
-  email: string
-  image: string | null
-  size?: "sm" | "xs"
+  name: string | null;
+  email: string;
+  image: string | null;
+  size?: "sm" | "xs";
 }) {
   return (
     <Avatar className={size === "xs" ? "size-5" : "size-8"}>
@@ -178,126 +179,113 @@ function UserAvatar({
         {getInitials(name, email)}
       </AvatarFallback>
     </Avatar>
-  )
+  );
 }
 
 // ─── Main dashboard ───────────────────────────────────────────────────────────
 export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
-  const {
-    totalUsers,
-    totalSlots,
-    maxCount,
-    slotMatrix,
-    users,
-    dates,
-    timeSlots,
-  } = data
+  const { slotMatrix, users, dates, timeSlots } = data;
   const [activeCell, setActiveCell] = useState<{
-    date: string
-    startTime: string
-  } | null>(null)
-  const [viewingUser, setViewingUser] = useState<UserEntry | null>(null)
+    date: string;
+    startTime: string;
+  } | null>(null);
+  const [viewingUser, setViewingUser] = useState<UserEntry | null>(null);
 
-  const [selectedCommittee, setSelectedCommittee] = useState<string>("all")
+  const [selectedCommittee, setSelectedCommittee] = useState<string>("all");
 
   // Matrix live-refresh state with tactile animation
-  const router = useRouter()
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [justRefreshed, setJustRefreshed] = useState(false)
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date())
+  const router = useRouter();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [justRefreshed, setJustRefreshed] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
 
   const handleRefresh = useCallback(() => {
-    if (isRefreshing) return
-    setIsRefreshing(true)
-    setJustRefreshed(false)
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setJustRefreshed(false);
 
-    router.refresh()
+    router.refresh();
 
     setTimeout(() => {
-      setIsRefreshing(false)
-      setJustRefreshed(true)
-      setLastRefreshedAt(new Date())
+      setIsRefreshing(false);
+      setJustRefreshed(true);
+      setLastRefreshedAt(new Date());
       toast.success("Availability table refreshed", {
         description: "Latest member bookings and slot counts synchronized.",
-      })
+      });
       setTimeout(() => {
-        setJustRefreshed(false)
-      }, 2000)
-    }, 250)
-  }, [isRefreshing, router])
+        setJustRefreshed(false);
+      }, 2000);
+    }, 250);
+  }, [isRefreshing, router]);
 
   const lastUpdatedTime = lastRefreshedAt.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
-  })
+  });
 
   const filteredUsers =
     selectedCommittee === "all"
       ? users
-      : users.filter((u) => u.committee === selectedCommittee)
+      : users.filter((u) => u.committee === selectedCommittee);
 
-  const filteredUserIds = new Set(filteredUsers.map((u) => u.id))
+  const filteredUserIds = new Set(filteredUsers.map((u) => u.id));
 
   // Recalculate everything based on filtered users
   const filteredSlotMatrix = slotMatrix.map((slot) => {
     const matchingUsers = slot.users.filter((u) => {
       // Find the user object in the main users list to get their ID for filtering
-      const mainUser = users.find((mu) => mu.email === u.email)
-      return mainUser && filteredUserIds.has(mainUser.id)
-    })
+      const mainUser = users.find((mu) => mu.email === u.email);
+      return mainUser && filteredUserIds.has(mainUser.id);
+    });
     return {
       ...slot,
       count: matchingUsers.length,
       users: matchingUsers,
-    }
-  })
+    };
+  });
 
   const filteredTotalSlots = filteredUsers.reduce(
     (sum, u) => sum + u.totalSlots,
-    0
-  )
+    0,
+  );
   const filteredMaxCount = filteredSlotMatrix.reduce(
     (m, s) => Math.max(m, s.count),
-    0
-  )
+    0,
+  );
 
   const avgSlots =
     filteredUsers.length > 0
       ? (filteredTotalSlots / filteredUsers.length).toFixed(1)
-      : "—"
-
-  const peakEntry = filteredSlotMatrix.reduce<SlotEntry | null>(
-    (best, entry) => (entry.count > (best?.count ?? 0) ? entry : best),
-    null
-  )
+      : "—";
 
   const activeCellData = activeCell
     ? (filteredSlotMatrix.find(
         (s) =>
-          s.date === activeCell.date && s.startTime === activeCell.startTime
+          s.date === activeCell.date && s.startTime === activeCell.startTime,
       ) ?? null)
-    : null
+    : null;
 
   // Top-5 busiest slots
   const topSlots = [...filteredSlotMatrix]
     .filter((s) => s.count > 0)
     .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
+    .slice(0, 5);
 
   // Committee breakdown for insights
   const committeeStats = COMMITTEES.map((c) => {
-    const cUsers = users.filter((u) => u.committee === c)
-    const cSlots = cUsers.reduce((sum, u) => sum + u.totalSlots, 0)
-    return { name: c, users: cUsers.length, slots: cSlots }
-  }).sort((a, b) => b.slots - a.slots)
+    const cUsers = users.filter((u) => u.committee === c);
+    const cSlots = cUsers.reduce((sum, u) => sum + u.totalSlots, 0);
+    return { name: c, users: cUsers.length, slots: cSlots };
+  }).sort((a, b) => b.slots - a.slots);
 
-  const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null
+  const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null;
 
   function handleExportSlotIcs(slot: SlotEntry) {
-    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime)
+    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime);
     const attendeeList = slot.users
       .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
-      .join("\n")
+      .join("\n");
     const event: CalendarEvent = {
       id: `nusu-meeting-${slot.date}-${slot.startTime}`,
       title: `NUSU Meeting (${formatTime(slot.startTime)})`,
@@ -305,40 +293,40 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       location: "Nile University Campus",
       startDate,
       endDate,
-    }
+    };
     downloadIcsFile(
       `nusu-meeting-${slot.date}-${slot.startTime.replace(":", "")}.ics`,
-      [event]
-    )
-    toast.success("Meeting calendar file (.ics) downloaded")
+      [event],
+    );
+    toast.success("Meeting calendar file (.ics) downloaded");
   }
 
   function handleOpenSlotGoogleCalendar(slot: SlotEntry) {
-    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime)
+    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime);
     const attendeeList = slot.users
       .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
-      .join(", ")
+      .join(", ");
     const url = buildGoogleCalendarUrl({
       title: `NUSU Meeting (${formatTime(slot.startTime)})`,
       description: `Nile University Student Union Meeting\n\nAvailable Members (${slot.count}):\n${attendeeList}`,
       location: "Nile University Campus",
       startDate,
       endDate,
-    })
-    window.open(url, "_blank", "noopener,noreferrer")
+    });
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function handleExportScheduleCsv() {
     const validSlots = filteredSlotMatrix
       .filter((s) => s.count > 0)
       .sort((a, b) => {
-        if (a.date !== b.date) return a.date.localeCompare(b.date)
-        return a.startTime.localeCompare(b.startTime)
-      })
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.startTime.localeCompare(b.startTime);
+      });
 
     if (validSlots.length === 0) {
-      toast.error("No schedule data available to export.")
-      return
+      toast.error("No schedule data available to export.");
+      return;
     }
 
     const csvHeaders = [
@@ -350,17 +338,17 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       "Attendee Count",
       "Attendees (Names)",
       "Attendees (Emails)",
-    ]
+    ];
 
-    const rows: string[] = [csvHeaders.join(",")]
+    const rows: string[] = [csvHeaders.join(",")];
 
     for (const slot of validSlots) {
-      const { endDate } = slotToDateRange(slot.date, slot.startTime)
-      const endH = String(endDate.getHours()).padStart(2, "0")
-      const endM = String(endDate.getMinutes()).padStart(2, "0")
-      const endTimeStr = formatTime(`${endH}:${endM}`)
-      const attendeeNames = slot.users.map((u) => u.name || u.email).join("; ")
-      const attendeeEmails = slot.users.map((u) => u.email).join("; ")
+      const { endDate } = slotToDateRange(slot.date, slot.startTime);
+      const endH = String(endDate.getHours()).padStart(2, "0");
+      const endM = String(endDate.getMinutes()).padStart(2, "0");
+      const endTimeStr = formatTime(`${endH}:${endM}`);
+      const attendeeNames = slot.users.map((u) => u.name || u.email).join("; ");
+      const attendeeEmails = slot.users.map((u) => u.email).join("; ");
 
       rows.push(
         [
@@ -369,33 +357,33 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           escapeCsvCell(endTimeStr),
           escapeCsvCell("60 mins"),
           escapeCsvCell(
-            selectedCommittee === "all" ? "All Committees" : selectedCommittee
+            selectedCommittee === "all" ? "All Committees" : selectedCommittee,
           ),
           escapeCsvCell(slot.count),
           escapeCsvCell(attendeeNames),
           escapeCsvCell(attendeeEmails),
-        ].join(",")
-      )
+        ].join(","),
+      );
     }
 
     const label =
       selectedCommittee === "all"
         ? "all-committees"
-        : selectedCommittee.toLowerCase().replace(/\s+/g, "-")
-    downloadCsvFile(`nusu-schedule-${label}.csv`, rows.join("\r\n"))
-    toast.success("Schedule CSV downloaded")
+        : selectedCommittee.toLowerCase().replace(/\s+/g, "-");
+    downloadCsvFile(`nusu-schedule-${label}.csv`, rows.join("\r\n"));
+    toast.success("Schedule CSV downloaded");
   }
 
   function handleExportMatrixCsv() {
     if (filteredUsers.length === 0) {
-      toast.error("No member data available to export.")
-      return
+      toast.error("No member data available to export.");
+      return;
     }
 
-    const slotHeaders: string[] = []
+    const slotHeaders: string[] = [];
     for (const d of dates) {
       for (const t of timeSlots) {
-        slotHeaders.push(`${d} ${t}`)
+        slotHeaders.push(`${d} ${t}`);
       }
     }
 
@@ -406,9 +394,9 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
       "Committee",
       "Total Available Slots",
       ...slotHeaders,
-    ]
+    ];
 
-    const rows: string[] = [csvHeaders.map(escapeCsvCell).join(",")]
+    const rows: string[] = [csvHeaders.map(escapeCsvCell).join(",")];
 
     for (const u of filteredUsers) {
       const row = [
@@ -417,44 +405,44 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         escapeCsvCell(u.email),
         escapeCsvCell(u.committee || ""),
         escapeCsvCell(u.totalSlots),
-      ]
+      ];
 
       for (const d of dates) {
-        const userSlotsOnDate = new Set(u.byDate[d] || [])
+        const userSlotsOnDate = new Set(u.byDate[d] || []);
         for (const t of timeSlots) {
-          row.push(escapeCsvCell(userSlotsOnDate.has(t) ? "YES" : "NO"))
+          row.push(escapeCsvCell(userSlotsOnDate.has(t) ? "YES" : "NO"));
         }
       }
-      rows.push(row.join(","))
+      rows.push(row.join(","));
     }
 
     const label =
       selectedCommittee === "all"
         ? "all-committees"
-        : selectedCommittee.toLowerCase().replace(/\s+/g, "-")
-    downloadCsvFile(`nusu-availability-matrix-${label}.csv`, rows.join("\r\n"))
-    toast.success("Availability matrix CSV downloaded")
+        : selectedCommittee.toLowerCase().replace(/\s+/g, "-");
+    downloadCsvFile(`nusu-availability-matrix-${label}.csv`, rows.join("\r\n"));
+    toast.success("Availability matrix CSV downloaded");
   }
 
   // NEW: Best slot per committee
   const bestSlotPerCommittee = COMMITTEES.map((c) => {
     const cSlots = filteredSlotMatrix.map((slot) => {
-      const cUsers = slot.users.filter((u) => u.committee === c)
-      return { ...slot, cCount: cUsers.length }
-    })
+      const cUsers = slot.users.filter((u) => u.committee === c);
+      return { ...slot, cCount: cUsers.length };
+    });
     const best = cSlots.reduce<{
-      date: string
-      startTime: string
-      cCount: number
+      date: string;
+      startTime: string;
+      cCount: number;
     } | null>(
       (acc, s) =>
         s.cCount > (acc?.cCount ?? 0)
           ? { date: s.date, startTime: s.startTime, cCount: s.cCount }
           : acc,
-      null
-    )
-    return { committee: c, best }
-  }).filter((b) => b.best && b.best.cCount > 0)
+      null,
+    );
+    return { committee: c, best };
+  }).filter((b) => b.best && b.best.cCount > 0);
 
   // NEW: Committee x Date matrix
   const committeeDateMatrix = COMMITTEES.map((c) => {
@@ -463,13 +451,13 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         filteredSlotMatrix
           .filter((s) => s.date === d)
           .flatMap((s) =>
-            s.users.filter((u) => u.committee === c).map((u) => u.email)
-          )
-      )
-      return { date: d, count: uniqueUsers.size }
-    })
-    return { committee: c, dates: datesData }
-  })
+            s.users.filter((u) => u.committee === c).map((u) => u.email),
+          ),
+      );
+      return { date: d, count: uniqueUsers.size };
+    });
+    return { committee: c, dates: datesData };
+  });
 
   return (
     <div className="space-y-5">
@@ -577,7 +565,12 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           </p>
         </div>
         <div className="h-64 w-full min-w-0 p-4">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={0}
+            minHeight={200}
+          >
             <BarChart
               data={committeeStats}
               layout="vertical"
@@ -650,8 +643,10 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
               disabled={isRefreshing}
               className={cn(
                 "group relative h-9 overflow-hidden rounded-xl border border-border/80 bg-background/80 px-3 text-xs font-semibold shadow-2xs transition-all duration-300 hover:border-primary/50 hover:bg-accent/40 active:scale-95 cursor-pointer touch-manipulation",
-                isRefreshing && "border-primary/60 bg-primary/5 text-primary shadow-xs",
-                justRefreshed && "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                isRefreshing &&
+                  "border-primary/60 bg-primary/5 text-primary shadow-xs",
+                justRefreshed &&
+                  "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
               )}
               title="Refresh availability table data"
             >
@@ -668,7 +663,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     "size-3.5 transition-transform duration-500 ease-out",
                     isRefreshing
                       ? "animate-spin text-primary"
-                      : "group-hover:rotate-180 text-muted-foreground group-hover:text-foreground"
+                      : "group-hover:rotate-180 text-muted-foreground group-hover:text-foreground",
                   )}
                   strokeWidth={2}
                 />
@@ -701,7 +696,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
               <table
                 className={cn(
                   "w-full min-w-90 text-xs transition-opacity duration-200",
-                  isRefreshing && "opacity-60"
+                  isRefreshing && "opacity-60",
                 )}
               >
                 <thead>
@@ -725,19 +720,19 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                       </td>
                       {dates.map((date) => {
                         const entry = filteredSlotMatrix.find(
-                          (s) => s.date === date && s.startTime === startTime
-                        )
-                        const count = entry?.count ?? 0
+                          (s) => s.date === date && s.startTime === startTime,
+                        );
+                        const count = entry?.count ?? 0;
                         const isActive =
                           activeCell?.date === date &&
-                          activeCell?.startTime === startTime
+                          activeCell?.startTime === startTime;
 
                         return (
                           <td key={date} className="px-1 py-0.5">
                             <button
                               onClick={() =>
                                 setActiveCell(
-                                  isActive ? null : { date, startTime }
+                                  isActive ? null : { date, startTime },
                                 )
                               }
                               disabled={count === 0}
@@ -747,13 +742,13 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                                 count > 0 && "cursor-pointer hover:opacity-75",
                                 count === 0 && "cursor-default",
                                 isActive &&
-                                  "ring-2 ring-primary ring-offset-1 ring-offset-card"
+                                  "ring-2 ring-primary ring-offset-1 ring-offset-card",
                               )}
                             >
                               {count > 0 ? count : "·"}
                             </button>
                           </td>
-                        )
+                        );
                       })}
                     </tr>
                   ))}
@@ -815,9 +810,9 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           <div className="space-y-4">
             {COMMITTEES.map((c) => {
               const cUsers = activeCellData.users.filter(
-                (u) => u.committee === c
-              )
-              if (cUsers.length === 0) return null
+                (u) => u.committee === c,
+              );
+              if (cUsers.length === 0) return null;
               return (
                 <div key={c}>
                   <p className="mb-2 text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
@@ -842,7 +837,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     ))}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -922,19 +917,19 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
           <div className="divide-y">
             {dates.map((date) => {
               const daySlots = filteredSlotMatrix.filter(
-                (s) => s.date === date && s.count > 0
-              )
+                (s) => s.date === date && s.count > 0,
+              );
               const uniqueUsers = new Set(
-                daySlots.flatMap((s) => s.users.map((u) => u.email))
-              )
+                daySlots.flatMap((s) => s.users.map((u) => u.email)),
+              );
               const totalDaySlots = daySlots.reduce(
                 (sum, s) => sum + s.count,
-                0
-              )
+                0,
+              );
               const fill =
                 filteredUsers.length > 0
                   ? uniqueUsers.size / filteredUsers.length
-                  : 0
+                  : 0;
 
               return (
                 <div key={date} className="px-5 py-3">
@@ -953,7 +948,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     />
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -999,7 +994,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                           "inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px]",
                           d.count > 0
                             ? "bg-emerald-500/15 font-bold text-emerald-700"
-                            : "text-muted-foreground/30"
+                            : "text-muted-foreground/30",
                         )}
                       >
                         {d.count > 0 ? d.count : "0"}
@@ -1174,5 +1169,5 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

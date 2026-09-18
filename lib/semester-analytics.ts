@@ -1,71 +1,71 @@
-import { prisma } from "@/lib/prisma"
-import { getScheduleConfig, DAY_OF_WEEK_MAP } from "@/lib/schedule"
+import { prisma } from "@/lib/prisma";
+import { getScheduleConfig, DAY_OF_WEEK_MAP } from "@/lib/schedule";
 
 export type RecurringSlotUser = {
-  id: string
-  name: string | null
-  email: string
-  image: string | null
-  committee: string | null
-}
+  id: string;
+  name: string | null;
+  email: string;
+  image: string | null;
+  committee: string | null;
+};
 
 export type RecurringSlotEntry = {
-  dayOfWeek: number
-  startTime: string
-  count: number
-  users: RecurringSlotUser[]
-}
+  dayOfWeek: number;
+  startTime: string;
+  count: number;
+  users: RecurringSlotUser[];
+};
 
 export type RecurringUserEntry = {
-  id: string
-  name: string | null
-  email: string
-  nuId: string | null
-  image: string | null
-  committee: string | null
-  totalSlots: number
-  byDay: Record<number, string[]>
-}
+  id: string;
+  name: string | null;
+  email: string;
+  nuId: string | null;
+  image: string | null;
+  committee: string | null;
+  totalSlots: number;
+  byDay: Record<number, string[]>;
+};
 
 export type GoldenSlotRecommendation = {
-  dayOfWeek: number
-  dayLabel: string
-  dayShort: string
-  startTime: string
-  endTime: string
-  count: number
-  totalEligible: number
-  percentage: number
-  availableUsers: RecurringSlotUser[]
-  missingUsers: RecurringSlotUser[]
-}
+  dayOfWeek: number;
+  dayLabel: string;
+  dayShort: string;
+  startTime: string;
+  endTime: string;
+  count: number;
+  totalEligible: number;
+  percentage: number;
+  availableUsers: RecurringSlotUser[];
+  missingUsers: RecurringSlotUser[];
+};
 
 export type SemesterAnalyticsData = {
-  totalUsers: number
-  totalSlots: number
-  maxCount: number
-  slotMatrix: RecurringSlotEntry[]
-  users: RecurringUserEntry[]
-  days: number[]
-  timeSlots: string[]
-  recommendations: GoldenSlotRecommendation[]
-}
+  totalUsers: number;
+  totalSlots: number;
+  maxCount: number;
+  slotMatrix: RecurringSlotEntry[];
+  users: RecurringUserEntry[];
+  days: number[];
+  timeSlots: string[];
+  recommendations: GoldenSlotRecommendation[];
+};
 
 function getEndTime(startTime: string): string {
-  const [h, m] = startTime.split(":").map(Number)
-  const endH = (h + 1) % 24
-  return `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+  const [h, m] = startTime.split(":").map(Number);
+  const endH = (h + 1) % 24;
+  return `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 export async function getSemesterAnalytics(
-  committeeFilter?: string | null
+  committeeFilter?: string | null,
 ): Promise<SemesterAnalyticsData> {
-  const config = await getScheduleConfig()
-  
+  const config = await getScheduleConfig();
+
   // Nile University academic week: Sunday (0) to Thursday (4)
   // Include Saturday (6) if enabled
-  const includeSaturday = config?.weeklyIncludeSaturday ?? false
-  const days = includeSaturday ? [0, 1, 2, 3, 4, 6] : [0, 1, 2, 3, 4]
+  const includeSaturday = config?.weeklyIncludeSaturday ?? false;
+  const days = includeSaturday ? [0, 1, 2, 3, 4, 6] : [0, 1, 2, 3, 4];
 
   const rawSlots = await prisma.recurringAvailability.findMany({
     where: {
@@ -92,7 +92,7 @@ export async function getSemesterAnalytics(
       },
     },
     orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
-  })
+  });
 
   // All eligible users for participation percentage calculation
   const allEligibleUsers = await prisma.user.findMany({
@@ -109,14 +109,16 @@ export async function getSemesterAnalytics(
       image: true,
       committee: true,
     },
-  })
+  });
 
   // Determine time slots
-  let timeSlots: string[] = []
+  let timeSlots: string[] = [];
   if (config?.slotMode === "fixed" && config.timeSlots.length > 0) {
-    timeSlots = config.timeSlots
+    timeSlots = config.timeSlots;
   } else {
-    const fromBookings = Array.from(new Set(rawSlots.map((s) => s.startTime))).sort()
+    const fromBookings = Array.from(
+      new Set(rawSlots.map((s) => s.startTime)),
+    ).sort();
     timeSlots =
       fromBookings.length > 0
         ? fromBookings
@@ -130,28 +132,28 @@ export async function getSemesterAnalytics(
             "14:30",
             "15:30",
             "16:30",
-          ]
+          ];
   }
 
   const relevantSlots =
     config?.slotMode === "fixed" && config.timeSlots.length > 0
       ? rawSlots.filter((s) => timeSlots.includes(s.startTime))
-      : rawSlots
+      : rawSlots;
 
   // Fast O(N) bucketing of slots by `${dayOfWeek}_${startTime}`
-  const slotBuckets = new Map<string, typeof relevantSlots>()
-  const userMap = new Map<string, RecurringUserEntry>()
+  const slotBuckets = new Map<string, typeof relevantSlots>();
+  const userMap = new Map<string, RecurringUserEntry>();
 
   for (const slot of relevantSlots) {
-    const key = `${slot.dayOfWeek}_${slot.startTime}`
-    const bucket = slotBuckets.get(key)
+    const key = `${slot.dayOfWeek}_${slot.startTime}`;
+    const bucket = slotBuckets.get(key);
     if (bucket) {
-      bucket.push(slot)
+      bucket.push(slot);
     } else {
-      slotBuckets.set(key, [slot])
+      slotBuckets.set(key, [slot]);
     }
 
-    const u = slot.user
+    const u = slot.user;
     if (!userMap.has(u.id)) {
       userMap.set(u.id, {
         id: u.id,
@@ -162,26 +164,26 @@ export async function getSemesterAnalytics(
         committee: u.committee,
         totalSlots: 0,
         byDay: {},
-      })
+      });
     }
-    const entry = userMap.get(u.id)!
-    entry.totalSlots += 1
+    const entry = userMap.get(u.id)!;
+    entry.totalSlots += 1;
     if (!entry.byDay[slot.dayOfWeek]) {
-      entry.byDay[slot.dayOfWeek] = []
+      entry.byDay[slot.dayOfWeek] = [];
     }
-    entry.byDay[slot.dayOfWeek].push(slot.startTime)
+    entry.byDay[slot.dayOfWeek].push(slot.startTime);
   }
 
   // Construct Slot Matrix
-  const slotMatrix: RecurringSlotEntry[] = []
-  let maxCount = 0
+  const slotMatrix: RecurringSlotEntry[] = [];
+  let maxCount = 0;
 
   for (const day of days) {
     for (const time of timeSlots) {
-      const key = `${day}_${time}`
-      const matching = slotBuckets.get(key) ?? []
-      const count = matching.length
-      if (count > maxCount) maxCount = count
+      const key = `${day}_${time}`;
+      const matching = slotBuckets.get(key) ?? [];
+      const count = matching.length;
+      if (count > maxCount) maxCount = count;
 
       slotMatrix.push({
         dayOfWeek: day,
@@ -194,30 +196,30 @@ export async function getSemesterAnalytics(
           image: m.user.image,
           committee: m.user.committee,
         })),
-      })
+      });
     }
   }
 
   const users = Array.from(userMap.values()).sort(
-    (a, b) => b.totalSlots - a.totalSlots
-  )
+    (a, b) => b.totalSlots - a.totalSlots,
+  );
 
-  const totalEligibleCount = Math.max(users.length, allEligibleUsers.length, 1)
+  const totalEligibleCount = Math.max(users.length, allEligibleUsers.length, 1);
 
   // Calculate Golden Slot Recommendations
   // Sort all slots by count descending
   const sortedSlots = [...slotMatrix]
     .filter((s) => s.count > 0)
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => b.count - a.count);
 
   const recommendations: GoldenSlotRecommendation[] = sortedSlots
     .slice(0, 5)
     .map((slot) => {
-      const dayMeta = DAY_OF_WEEK_MAP.find((d) => d.day === slot.dayOfWeek)
-      const dayLabel = dayMeta?.label ?? `Day ${slot.dayOfWeek}`
-      const dayShort = dayMeta?.short ?? `D${slot.dayOfWeek}`
+      const dayMeta = DAY_OF_WEEK_MAP.find((d) => d.day === slot.dayOfWeek);
+      const dayLabel = dayMeta?.label ?? `Day ${slot.dayOfWeek}`;
+      const dayShort = dayMeta?.short ?? `D${slot.dayOfWeek}`;
 
-      const availableIds = new Set(slot.users.map((u) => u.id))
+      const availableIds = new Set(slot.users.map((u) => u.id));
       const missingUsers: RecurringSlotUser[] = allEligibleUsers
         .filter((u) => !availableIds.has(u.id))
         .map((u) => ({
@@ -226,9 +228,9 @@ export async function getSemesterAnalytics(
           email: u.email,
           image: u.image,
           committee: u.committee,
-        }))
+        }));
 
-      const percentage = Math.round((slot.count / totalEligibleCount) * 100)
+      const percentage = Math.round((slot.count / totalEligibleCount) * 100);
 
       return {
         dayOfWeek: slot.dayOfWeek,
@@ -241,8 +243,8 @@ export async function getSemesterAnalytics(
         percentage,
         availableUsers: slot.users,
         missingUsers,
-      }
-    })
+      };
+    });
 
   return {
     totalUsers: users.length,
@@ -253,5 +255,5 @@ export async function getSemesterAnalytics(
     days,
     timeSlots,
     recommendations,
-  }
+  };
 }

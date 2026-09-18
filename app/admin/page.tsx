@@ -1,29 +1,29 @@
-import type { Metadata } from "next"
-import { headers } from "next/headers"
-import { redirect } from "next/navigation"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { isAdminEmail, getEnvAdminEmails } from "@/lib/admin"
-import { getScheduleConfig } from "@/lib/schedule"
-import { getSemesterAnalytics } from "@/lib/semester-analytics"
+import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { isAdminEmail, getEnvAdminEmails } from "@/lib/admin";
+import { getScheduleConfig } from "@/lib/schedule";
+import { getSemesterAnalytics } from "@/lib/semester-analytics";
 import {
   type AnalyticsData,
   type SlotEntry,
   type UserEntry,
-} from "@/components/admin/analytics-dashboard"
-import { AdminLayoutShell } from "@/components/admin/admin-layout-shell"
+} from "@/components/admin/analytics-dashboard";
+import { AdminLayoutShell } from "@/components/admin/admin-layout-shell";
 
 export const metadata: Metadata = {
   title: "Admin Console | Nile University Student Union",
   description:
     "Administrative dashboard for Availability Tracker schedule configuration and analytics.",
-}
+};
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  let session = null
-  let config: Awaited<ReturnType<typeof getScheduleConfig>> = null
+  let session = null;
+  let config: Awaited<ReturnType<typeof getScheduleConfig>> = null;
   let semesterAnalytics: Awaited<ReturnType<typeof getSemesterAnalytics>> = {
     totalUsers: 0,
     totalSlots: 0,
@@ -33,46 +33,46 @@ export default async function AdminPage() {
     days: [0, 1, 2, 3, 4],
     timeSlots: [],
     recommendations: [],
-  }
+  };
 
   try {
     const [fetchedSession, fetchedConfig, fetchedSemester] = await Promise.all([
       auth.api.getSession({ headers: await headers() }),
       getScheduleConfig(),
       getSemesterAnalytics(),
-    ])
-    session = fetchedSession
-    config = fetchedConfig
-    semesterAnalytics = fetchedSemester
+    ]);
+    session = fetchedSession;
+    config = fetchedConfig;
+    semesterAnalytics = fetchedSemester;
   } catch (err: unknown) {
-    const error = err as { digest?: string }
+    const error = err as { digest?: string };
     if (
       error?.digest?.startsWith("NEXT_REDIRECT") ||
       error?.digest === "DYNAMIC_SERVER_USAGE"
     ) {
-      throw err
+      throw err;
     }
-    console.error("Admin session or config lookup failed:", err)
-    redirect("/auth?mode=signin&callbackUrl=/admin")
+    console.error("Admin session or config lookup failed:", err);
+    redirect("/auth?mode=signin&callbackUrl=/admin");
   }
 
   if (!session) {
-    redirect("/auth?mode=signin&callbackUrl=/admin")
+    redirect("/auth?mode=signin&callbackUrl=/admin");
   }
 
-  const userEmail = session.user.email.toLowerCase()
-  const isSpecialAdmin = userEmail === "admin@nu.edu.eg"
-  const userRole = (session.user as Record<string, unknown>).role
-  const isRoleAdmin = userRole === "admin" || userRole === "super-admin"
-  const isEnvAdmin = getEnvAdminEmails().includes(userEmail)
+  const userEmail = session.user.email.toLowerCase();
+  const isSpecialAdmin = userEmail === "admin@nu.edu.eg";
+  const userRole = (session.user as Record<string, unknown>).role;
+  const isRoleAdmin = userRole === "admin" || userRole === "super-admin";
+  const isEnvAdmin = getEnvAdminEmails().includes(userEmail);
   const isAuthorized =
     isSpecialAdmin ||
     isRoleAdmin ||
     isEnvAdmin ||
-    (await isAdminEmail(userEmail))
+    (await isAdminEmail(userEmail));
 
   if (!isAuthorized) {
-    redirect("/")
+    redirect("/");
   }
 
   let analytics: AnalyticsData = {
@@ -83,13 +83,13 @@ export default async function AdminPage() {
     users: [],
     dates: [],
     timeSlots: [],
-  }
+  };
 
-  let dateRangeLabel = "No schedule configured"
+  let dateRangeLabel = "No schedule configured";
 
   if (config) {
     try {
-      const { dates, timeSlots } = config
+      const { dates, timeSlots } = config;
 
       const rawSlots = await prisma.availability.findMany({
         where: {
@@ -113,37 +113,37 @@ export default async function AdminPage() {
           },
         },
         orderBy: [{ date: "asc" }, { startTime: "asc" }],
-      })
+      });
 
       // In fixed mode: only count slots that match the configured time slots.
       // In free mode: derive the slot list from actual bookings so the matrix reflects reality.
       const allTimeSlots =
         config.slotMode === "fixed"
           ? timeSlots
-          : Array.from(new Set(rawSlots.map((s) => s.startTime))).sort()
+          : Array.from(new Set(rawSlots.map((s) => s.startTime))).sort();
 
       const relevantSlots =
         config.slotMode === "fixed"
           ? rawSlots.filter((s) => timeSlots.includes(s.startTime))
-          : rawSlots
+          : rawSlots;
 
       // Fast O(N) bucketing of slots by `${date}_${startTime}` to eliminate quadratic searching
-      const slotBuckets = new Map<string, typeof relevantSlots>()
-      const userMap = new Map<string, UserEntry>()
+      const slotBuckets = new Map<string, typeof relevantSlots>();
+      const userMap = new Map<string, UserEntry>();
 
       for (const slot of relevantSlots) {
-        const isoDate = (slot.date as Date).toISOString().slice(0, 10)
-        const bucketKey = `${isoDate}_${slot.startTime}`
-        const bucket = slotBuckets.get(bucketKey)
+        const isoDate = (slot.date as Date).toISOString().slice(0, 10);
+        const bucketKey = `${isoDate}_${slot.startTime}`;
+        const bucket = slotBuckets.get(bucketKey);
         if (bucket) {
-          bucket.push(slot)
+          bucket.push(slot);
         } else {
-          slotBuckets.set(bucketKey, [slot])
+          slotBuckets.set(bucketKey, [slot]);
         }
 
-        const { user, startTime } = slot
+        const { user, startTime } = slot;
         if (user) {
-          const key = user.id
+          const key = user.id;
           if (!userMap.has(key)) {
             userMap.set(key, {
               id: user.id,
@@ -154,19 +154,19 @@ export default async function AdminPage() {
               committee: user.committee,
               totalSlots: 0,
               byDate: {},
-            })
+            });
           }
 
-          const entry = userMap.get(key)!
-          entry.totalSlots++
-          if (!entry.byDate[isoDate]) entry.byDate[isoDate] = []
-          entry.byDate[isoDate].push(startTime)
+          const entry = userMap.get(key)!;
+          entry.totalSlots++;
+          if (!entry.byDate[isoDate]) entry.byDate[isoDate] = [];
+          entry.byDate[isoDate].push(startTime);
         }
       }
 
       const slotMatrix: SlotEntry[] = dates.flatMap((date) =>
         allTimeSlots.map((startTime) => {
-          const matching = slotBuckets.get(`${date}_${startTime}`) ?? []
+          const matching = slotBuckets.get(`${date}_${startTime}`) ?? [];
           return {
             date,
             startTime,
@@ -179,15 +179,15 @@ export default async function AdminPage() {
                 image: s.user.image,
                 committee: s.user.committee,
               })),
-          }
-        })
-      )
+          };
+        }),
+      );
 
-      const maxCount = slotMatrix.reduce((m, s) => Math.max(m, s.count), 0)
+      const maxCount = slotMatrix.reduce((m, s) => Math.max(m, s.count), 0);
 
       const users = Array.from(userMap.values()).sort(
-        (a, b) => b.totalSlots - a.totalSlots
-      )
+        (a, b) => b.totalSlots - a.totalSlots,
+      );
 
       analytics = {
         totalUsers: users.length,
@@ -197,27 +197,27 @@ export default async function AdminPage() {
         users,
         dates,
         timeSlots: allTimeSlots,
-      }
+      };
 
       const startLabel = new Date(
-        config.startDate + "T00:00:00.000Z"
+        config.startDate + "T00:00:00.000Z",
       ).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         timeZone: "UTC",
-      })
+      });
       const endLabel = new Date(
-        config.endDate + "T00:00:00.000Z"
+        config.endDate + "T00:00:00.000Z",
       ).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
         timeZone: "UTC",
-      })
-      dateRangeLabel = `${startLabel}–${endLabel} · Admin view`
+      });
+      dateRangeLabel = `${startLabel}–${endLabel} · Admin view`;
     } catch (err) {
-      console.error("Failed to load admin analytics data:", err)
-      dateRangeLabel = "Error loading schedule data"
+      console.error("Failed to load admin analytics data:", err);
+      dateRangeLabel = "Error loading schedule data";
     }
   }
 
@@ -230,5 +230,5 @@ export default async function AdminPage() {
       initialConfig={config}
       initialAdmins={[]}
     />
-  )
+  );
 }

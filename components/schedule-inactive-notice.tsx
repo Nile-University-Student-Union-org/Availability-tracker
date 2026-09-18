@@ -1,21 +1,21 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { Badge } from "@/components/ui/badge"
-import { HugeiconsIcon } from "@hugeicons/react"
+import * as React from "react";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Calendar03Icon,
   Clock01Icon,
   ArrowRight01Icon,
-} from "@hugeicons/core-free-icons"
-import { Lock } from "lucide-react"
-import { ScheduleModeTabs } from "@/components/schedule-mode-tabs"
+} from "@hugeicons/core-free-icons";
+import { Lock } from "lucide-react";
+import { ScheduleModeTabs } from "@/components/schedule-mode-tabs";
 
 interface ScheduleInactiveNoticeProps {
-  currentMode: "specific" | "weekly"
-  dateScheduleActive?: boolean
-  weeklyScheduleActive?: boolean
+  currentMode: "specific" | "weekly";
+  dateScheduleActive?: boolean;
+  weeklyScheduleActive?: boolean;
 }
 
 export function ScheduleInactiveNotice({
@@ -23,21 +23,25 @@ export function ScheduleInactiveNotice({
   dateScheduleActive = false,
   weeklyScheduleActive = false,
 }: ScheduleInactiveNoticeProps) {
-  const isSpecific = currentMode === "specific"
+  const isSpecific = currentMode === "specific";
   const title = isSpecific
     ? "Specific Date Submissions Closed"
-    : "Semester Availability Submissions Closed"
+    : "Semester Availability Submissions Closed";
 
   const description = isSpecific
     ? "The Nile University Student Union is not currently collecting inputs for specific date polls."
-    : "The Nile University Student Union is not currently collecting inputs for semester recurring availability."
+    : "The Nile University Student Union is not currently collecting inputs for semester recurring availability.";
 
-  const alternativeActive = isSpecific ? weeklyScheduleActive : dateScheduleActive
-  const alternativeHref = isSpecific ? "/weekly" : "/specific"
-  const alternativeLabel = isSpecific ? "Semester Availability" : "Specific Date"
-  const AlternativeIcon = isSpecific ? Clock01Icon : Calendar03Icon
+  const alternativeActive = isSpecific
+    ? weeklyScheduleActive
+    : dateScheduleActive;
+  const alternativeHref = isSpecific ? "/weekly" : "/specific";
+  const alternativeLabel = isSpecific
+    ? "Semester Availability"
+    : "Specific Date";
+  const AlternativeIcon = isSpecific ? Clock01Icon : Calendar03Icon;
 
-  const bothClosed = !dateScheduleActive && !weeklyScheduleActive
+  const bothClosed = !dateScheduleActive && !weeklyScheduleActive;
 
   return (
     <div className="flex w-full max-w-lg flex-col items-center gap-6">
@@ -85,5 +89,5 @@ export function ScheduleInactiveNotice({
         )}
       </div>
     </div>
-  )
+  );
 }

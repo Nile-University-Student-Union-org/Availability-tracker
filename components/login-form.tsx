@@ -1,51 +1,53 @@
-"use client"
-import { useState } from "react"
-import { authClient } from "@/lib/auth-client"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { toast } from "sonner"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons"
+"use client";
+import { useState } from "react";
+import { authClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { ViewIcon, ViewOffIcon } from "@hugeicons/core-free-icons";
 
-import { getSafeCallbackUrl } from "@/lib/url-helpers"
+import { getSafeCallbackUrl } from "@/lib/url-helpers";
 
 export function LoginForm() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
+    e.preventDefault();
     if (!email || !password) {
-      toast.error("Please enter both email and password.")
-      return
+      toast.error("Please enter both email and password.");
+      return;
     }
 
     try {
-      setLoading(true)
+      setLoading(true);
       const targetUrl = getSafeCallbackUrl(
         new URL(window.location.href).searchParams.get("callbackUrl"),
-        "/admin"
-      )
+        "/admin",
+      );
       const { error } = await authClient.signIn.email({
         email: email.trim().toLowerCase(),
         password,
         callbackURL: targetUrl,
-      })
+      });
 
       if (error) {
-        toast.error(error.message || "Invalid credentials. Please try again.")
+        toast.error(error.message || "Invalid credentials. Please try again.");
       } else {
-        toast.success("Signed in successfully!")
-        window.location.href = targetUrl
+        toast.success("Signed in successfully!");
+        window.location.href = targetUrl;
       }
-    } catch (err: any) {
-      console.error("Critical login error:", err)
-      toast.error(`Error: ${err.message || "An unexpected error occurred."}`)
+    } catch (err: unknown) {
+      console.error("Critical login error:", err);
+      const message =
+        err instanceof Error ? err.message : "An unexpected error occurred.";
+      toast.error(`Error: ${message}`);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -79,7 +81,7 @@ export function LoginForm() {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
           >
             <HugeiconsIcon
               icon={showPassword ? ViewOffIcon : ViewIcon}
@@ -90,12 +92,12 @@ export function LoginForm() {
       </div>
       <Button
         type="submit"
-        className="w-full rounded-xl"
+        className="w-full cursor-pointer rounded-xl"
         size="lg"
         disabled={loading}
       >
         {loading ? "Signing in..." : "Sign In"}
       </Button>
     </form>
-  )
+  );
 }

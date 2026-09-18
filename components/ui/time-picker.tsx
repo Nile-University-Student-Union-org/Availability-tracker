@@ -1,50 +1,50 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useState, useMemo } from "react"
+import * as React from "react";
+import { useState, useMemo } from "react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import { Clock, Check, ChevronDown } from "lucide-react"
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Clock, Check, ChevronDown } from "lucide-react";
 
 interface TimePickerProps {
-  value: string // "HH:mm" e.g. "08:30"
-  onChange: (value: string) => void
-  placeholder?: string
-  className?: string
-  id?: string
+  value: string; // "HH:mm" e.g. "08:30"
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+  id?: string;
 }
 
 function parseHHmm(timeStr: string): {
-  hour12: number
-  minute: number
-  period: "AM" | "PM"
+  hour12: number;
+  minute: number;
+  period: "AM" | "PM";
 } {
   if (!timeStr || !timeStr.includes(":")) {
-    return { hour12: 9, minute: 0, period: "AM" }
+    return { hour12: 9, minute: 0, period: "AM" };
   }
-  const [hStr, mStr] = timeStr.split(":")
-  const h = Number(hStr) || 0
-  const m = Number(mStr) || 0
-  const period = h >= 12 ? "PM" : "AM"
-  const hour12 = h % 12 || 12
-  return { hour12, minute: m, period }
+  const [hStr, mStr] = timeStr.split(":");
+  const h = Number(hStr) || 0;
+  const m = Number(mStr) || 0;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 || 12;
+  return { hour12, minute: m, period };
 }
 
 function toHHmm(hour12: number, minute: number, period: "AM" | "PM"): string {
-  let h = hour12 % 12
-  if (period === "PM") h += 12
-  return `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+  let h = hour12 % 12;
+  if (period === "PM") h += 12;
+  return `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function formatDisplay(timeStr: string): string {
-  if (!timeStr) return ""
-  const { hour12, minute, period } = parseHHmm(timeStr)
-  return `${hour12}:${String(minute).padStart(2, "0")} ${period}`
+  if (!timeStr) return "";
+  const { hour12, minute, period } = parseHHmm(timeStr);
+  return `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
 }
 
 const COMMON_PRESETS = [
@@ -68,7 +68,7 @@ const COMMON_PRESETS = [
   "16:00",
   "17:00",
   "18:00",
-]
+];
 
 export function TimePicker({
   value,
@@ -77,37 +77,37 @@ export function TimePicker({
   className,
   id,
 }: TimePickerProps) {
-  const [open, setOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<"presets" | "custom">("presets")
+  const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"presets" | "custom">("presets");
 
-  const { hour12, minute, period } = useMemo(() => parseHHmm(value), [value])
+  const { hour12, minute, period } = useMemo(() => parseHHmm(value), [value]);
 
-  const [selectedHour, setSelectedHour] = useState(hour12)
-  const [selectedMinute, setSelectedMinute] = useState(minute)
-  const [selectedPeriod, setSelectedPeriod] = useState<"AM" | "PM">(period)
+  const [selectedHour, setSelectedHour] = useState(hour12);
+  const [selectedMinute, setSelectedMinute] = useState(minute);
+  const [selectedPeriod, setSelectedPeriod] = useState<"AM" | "PM">(period);
 
   React.useEffect(() => {
     if (value) {
-      const parsed = parseHHmm(value)
-      setSelectedHour(parsed.hour12)
-      setSelectedMinute(parsed.minute)
-      setSelectedPeriod(parsed.period)
+      const parsed = parseHHmm(value);
+      setSelectedHour(parsed.hour12);
+      setSelectedMinute(parsed.minute);
+      setSelectedPeriod(parsed.period);
     }
-  }, [value])
+  }, [value]);
 
   function handleSelectPreset(preset: string) {
-    onChange(preset)
-    setOpen(false)
+    onChange(preset);
+    setOpen(false);
   }
 
   function handleApplyCustom() {
-    const formatted = toHHmm(selectedHour, selectedMinute, selectedPeriod)
-    onChange(formatted)
-    setOpen(false)
+    const formatted = toHHmm(selectedHour, selectedMinute, selectedPeriod);
+    onChange(formatted);
+    setOpen(false);
   }
 
-  const hours = [8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7]
-  const minutes = [0, 15, 30, 45]
+  const hours = [8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7];
+  const minutes = [0, 15, 30, 45];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -117,7 +117,7 @@ export function TimePicker({
         className={cn(
           "flex h-9 w-full items-center justify-between rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground shadow-xs transition-colors hover:border-primary/50 focus:border-primary focus:outline-hidden",
           !value && "text-muted-foreground",
-          className
+          className,
         )}
       >
         <div className="flex items-center gap-2">
@@ -125,7 +125,7 @@ export function TimePicker({
           <span
             className={cn(
               "font-medium",
-              !value && "font-normal text-muted-foreground"
+              !value && "font-normal text-muted-foreground",
             )}
           >
             {value ? formatDisplay(value) : placeholder}
@@ -146,7 +146,7 @@ export function TimePicker({
                   "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
                   activeTab === "presets"
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 Quick Slots
@@ -158,7 +158,7 @@ export function TimePicker({
                   "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
                   activeTab === "custom"
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 Custom Time
@@ -179,7 +179,7 @@ export function TimePicker({
               </p>
               <div className="grid max-h-48 grid-cols-4 gap-1.5 overflow-y-auto pr-1">
                 {COMMON_PRESETS.map((preset) => {
-                  const isSelected = value === preset
+                  const isSelected = value === preset;
                   return (
                     <button
                       key={preset}
@@ -189,12 +189,12 @@ export function TimePicker({
                         "rounded-lg border px-2 py-1.5 text-center text-xs font-medium transition-all",
                         isSelected
                           ? "border-emerald-500 bg-emerald-500/15 font-semibold text-emerald-700 dark:text-emerald-300"
-                          : "border-border hover:border-primary/40 hover:bg-muted"
+                          : "border-border hover:border-primary/40 hover:bg-muted",
                       )}
                     >
                       {formatDisplay(preset)}
                     </button>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -217,7 +217,7 @@ export function TimePicker({
                           "rounded-md py-1 text-xs font-medium transition-colors",
                           selectedHour === h
                             ? "bg-primary font-semibold text-primary-foreground"
-                            : "bg-muted/40 text-foreground hover:bg-muted"
+                            : "bg-muted/40 text-foreground hover:bg-muted",
                         )}
                       >
                         {h}
@@ -241,7 +241,7 @@ export function TimePicker({
                           "w-full rounded-md py-1 text-xs font-medium transition-colors",
                           selectedMinute === m
                             ? "bg-primary font-semibold text-primary-foreground"
-                            : "bg-muted/40 text-foreground hover:bg-muted"
+                            : "bg-muted/40 text-foreground hover:bg-muted",
                         )}
                       >
                         :{String(m).padStart(2, "0")}
@@ -265,7 +265,7 @@ export function TimePicker({
                           "w-full rounded-md py-2 text-xs font-semibold transition-colors",
                           selectedPeriod === p
                             ? "bg-primary text-primary-foreground shadow-xs"
-                            : "bg-muted/40 text-foreground hover:bg-muted"
+                            : "bg-muted/40 text-foreground hover:bg-muted",
                         )}
                       >
                         {p}
@@ -291,5 +291,5 @@ export function TimePicker({
         </div>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

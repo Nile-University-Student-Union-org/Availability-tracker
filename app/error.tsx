@@ -1,35 +1,34 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { NusuLogo } from "@/components/nusu-logo"
-import { Button } from "@/components/ui/button"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { RefreshIcon, Home01Icon } from "@hugeicons/core-free-icons"
+import * as React from "react";
+import { NusuLogo } from "@/components/nusu-logo";
+import { Button } from "@/components/ui/button";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { RefreshIcon, Home01Icon } from "@hugeicons/core-free-icons";
 
 export default function GlobalError({
   error,
   reset,
 }: {
-  error: Error & { digest?: string }
-  reset: () => void
+  error: Error & { digest?: string };
+  reset: () => void;
 }) {
-  const isRedirect = error?.digest?.startsWith("NEXT_REDIRECT")
+  const isRedirect = error?.digest?.startsWith("NEXT_REDIRECT");
 
   React.useEffect(() => {
     if (isRedirect && error?.digest) {
-      const parts = error.digest.split(";")
-      const targetUrl = parts[2]
+      const parts = error.digest.split(";");
+      const targetUrl = parts[2];
       if (targetUrl) {
-        window.location.replace(targetUrl)
-        return
+        window.location.replace(targetUrl);
+        return;
       }
     }
-    console.error("Application error:", error)
-  }, [error, isRedirect])
+    console.error("Application error:", error);
+  }, [error, isRedirect]);
 
   if (isRedirect) {
-    return null
+    return null;
   }
 
   return (
@@ -50,28 +49,34 @@ export default function GlobalError({
         <div className="flex w-full flex-col gap-3 sm:flex-row sm:gap-3">
           <Button
             onClick={() => {
-              reset()
-              window.location.reload()
+              reset();
+              window.location.reload();
             }}
             className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold shadow-xs touch-manipulation active:scale-[0.98] sm:flex-1 cursor-pointer"
             variant="default"
           >
-            <HugeiconsIcon icon={RefreshIcon} className="mr-2 size-4.5 shrink-0" />
+            <HugeiconsIcon
+              icon={RefreshIcon}
+              className="mr-2 size-4.5 shrink-0"
+            />
             Try again
           </Button>
 
           <Button
             onClick={() => {
-              window.location.href = "/"
+              window.location.href = "/";
             }}
             variant="outline"
             className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98] sm:flex-1 cursor-pointer"
           >
-            <HugeiconsIcon icon={Home01Icon} className="mr-2 size-4.5 shrink-0" />
+            <HugeiconsIcon
+              icon={Home01Icon}
+              className="mr-2 size-4.5 shrink-0"
+            />
             Return Home
           </Button>
         </div>
       </div>
     </div>
-  )
+  );
 }

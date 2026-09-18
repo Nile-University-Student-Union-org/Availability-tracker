@@ -1,52 +1,53 @@
-import type { Metadata } from "next"
-import { redirect } from "next/navigation"
-import { headers } from "next/headers"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
-import { getScheduleConfig } from "@/lib/schedule"
-import { AvailabilityCalendar } from "@/components/calendar/availability-calendar"
-import { ScheduleInactiveNotice } from "@/components/schedule-inactive-notice"
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { getScheduleConfig } from "@/lib/schedule";
+import { AvailabilityCalendar } from "@/components/calendar/availability-calendar";
+import { ScheduleInactiveNotice } from "@/components/schedule-inactive-notice";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const config = await getScheduleConfig()
-  const title = config?.dateScheduleTitle || "Specific Date Availability"
+  const config = await getScheduleConfig();
+  const title = config?.dateScheduleTitle || "Specific Date Availability";
   return {
     title: `${title} | Nile University Student Union`,
-    description: "Mark your available meeting slots for union campaigns and events.",
-  }
+    description:
+      "Mark your available meeting slots for union campaigns and events.",
+  };
 }
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 export default async function SpecificDatePage() {
-  let session = null
+  let session = null;
   try {
-    session = await auth.api.getSession({ headers: await headers() })
+    session = await auth.api.getSession({ headers: await headers() });
   } catch (err: unknown) {
-    const error = err as { digest?: string }
+    const error = err as { digest?: string };
     if (
       error?.digest?.startsWith("NEXT_REDIRECT") ||
       error?.digest === "DYNAMIC_SERVER_USAGE"
     ) {
-      throw err
+      throw err;
     }
-    console.error("Session lookup failed on /specific:", err)
-    redirect("/auth?mode=signin&callbackUrl=/specific")
+    console.error("Session lookup failed on /specific:", err);
+    redirect("/auth?mode=signin&callbackUrl=/specific");
   }
 
   if (!session) {
-    redirect("/auth?mode=signin&callbackUrl=/specific")
+    redirect("/auth?mode=signin&callbackUrl=/specific");
   }
 
   // admin@nu.edu.eg is restricted strictly to the Admin Panel and cannot mark availability
   if (session.user.email === "admin@nu.edu.eg") {
-    redirect("/admin")
+    redirect("/admin");
   }
 
-  const config = await getScheduleConfig()
-  const isDateActive = config?.dateScheduleActive ?? true
-  const isWeeklyActive = config?.weeklyScheduleActive ?? true
-  const formTitle = config?.dateScheduleTitle || "Specific Date Availability"
+  const config = await getScheduleConfig();
+  const isDateActive = config?.dateScheduleActive ?? true;
+  const isWeeklyActive = config?.weeklyScheduleActive ?? true;
+  const formTitle = config?.dateScheduleTitle || "Specific Date Availability";
 
   // If specific date schedule is inactive, render the inactive notice card
   if (!isDateActive) {
@@ -58,11 +59,11 @@ export default async function SpecificDatePage() {
           weeklyScheduleActive={isWeeklyActive}
         />
       </main>
-    )
+    );
   }
 
-  let dbUser = null
-  let initialAvailability: { date: string; startTime: string }[] = []
+  let dbUser = null;
+  let initialAvailability: { date: string; startTime: string }[] = [];
 
   if (session.user.email && config) {
     try {
@@ -76,23 +77,23 @@ export default async function SpecificDatePage() {
           nuId: true,
           committee: true,
         },
-      })
+      });
       const targetDates = config.dates.map(
-        (d) => new Date(d + "T00:00:00.000Z")
-      )
+        (d) => new Date(d + "T00:00:00.000Z"),
+      );
       const records = await prisma.availability.findMany({
         where: {
           user: { email: session.user.email.toLowerCase() },
           date: { in: targetDates },
         },
         select: { date: true, startTime: true },
-      })
+      });
       initialAvailability = records.map((r) => ({
         date: r.date.toISOString().slice(0, 10),
         startTime: r.startTime,
-      }))
+      }));
     } catch (err) {
-      console.error("Failed to pre-fetch member availability on server:", err)
+      console.error("Failed to pre-fetch member availability on server:", err);
     }
   }
 
@@ -103,7 +104,8 @@ export default async function SpecificDatePage() {
           {formTitle}
         </h1>
         <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
-          Select dates and mark your available meeting intervals for upcoming union campaigns.
+          Select dates and mark your available meeting intervals for upcoming
+          union campaigns.
         </p>
       </div>
 
@@ -113,5 +115,5 @@ export default async function SpecificDatePage() {
         initialAvailability={initialAvailability}
       />
     </main>
-  )
+  );
 }

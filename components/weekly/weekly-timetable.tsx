@@ -1,60 +1,61 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { toast } from "sonner"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { authClient } from "@/lib/auth-client"
+import * as React from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { authClient } from "@/lib/auth-client";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { HugeiconsIcon } from "@hugeicons/react"
+} from "@/components/ui/select";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Tick01Icon,
   Delete02Icon,
   CheckmarkCircle02Icon,
-} from "@hugeicons/core-free-icons"
-import { COMMITTEES } from "@/lib/constants"
-import { DAY_OF_WEEK_MAP, formatTimeSlot } from "@/lib/schedule"
-import { cn } from "@/lib/utils"
+} from "@hugeicons/core-free-icons";
+import { AlertCircle } from "lucide-react";
+import { COMMITTEES } from "@/lib/constants";
+import { DAY_OF_WEEK_MAP, formatTimeSlot } from "@/lib/schedule";
+import { cn } from "@/lib/utils";
 
 export interface WeeklyTimetableProps {
   user: {
-    id: string
-    name: string | null
-    email: string
-    nuId?: string | null
-    image?: string | null
-    committee?: string | null
-  }
-  timeSlots: string[]
-  includeSaturday?: boolean
-  initialSlots?: { dayOfWeek: number; startTime: string }[]
+    id: string;
+    name: string | null;
+    email: string;
+    nuId?: string | null;
+    image?: string | null;
+    committee?: string | null;
+  };
+  timeSlots: string[];
+  includeSaturday?: boolean;
+  initialSlots?: { dayOfWeek: number; startTime: string }[];
 }
 
 function getEndTime(startTime: string): string {
-  const [h, m] = startTime.split(":").map(Number)
-  const endH = (h + 1) % 24
-  const suffix = endH >= 12 ? "PM" : "AM"
-  const hour = endH % 12 || 12
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`
+  const [h, m] = startTime.split(":").map(Number);
+  const endH = (h + 1) % 24;
+  const suffix = endH >= 12 ? "PM" : "AM";
+  const hour = endH % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
 function getInitials(name?: string | null, email?: string | null): string {
   if (name) {
-    const parts = name.trim().split(/\s+/)
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
-  return email?.slice(0, 2).toUpperCase() ?? "NU"
+  return email?.slice(0, 2).toUpperCase() ?? "NU";
 }
 
 export function WeeklyTimetable({
@@ -63,138 +64,146 @@ export function WeeklyTimetable({
   includeSaturday = false,
   initialSlots = [],
 }: WeeklyTimetableProps) {
-  const { data: session } = authClient.useSession()
-  const activeUser = session?.user ?? user
+  const { data: session } = authClient.useSession();
+  const activeUser = session?.user ?? user;
 
   // Days to show: Sunday (0) to Thursday (4), and Saturday (6) if enabled
   const activeDays = React.useMemo(() => {
-    const base = [0, 1, 2, 3, 4]
-    if (includeSaturday) base.push(6)
-    return base
-  }, [includeSaturday])
+    const base = [0, 1, 2, 3, 4];
+    if (includeSaturday) base.push(6);
+    return base;
+  }, [includeSaturday]);
 
-  const [selectedDay, setSelectedDay] = React.useState<number>(0)
-  const [isSaving, setIsSaving] = React.useState(false)
-  const [hasChanges, setHasChanges] = React.useState(false)
+  const [selectedDay, setSelectedDay] = React.useState<number>(0);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [hasChanges, setHasChanges] = React.useState(false);
 
   // Profile states
-  const [memberName, setMemberName] = React.useState(activeUser?.name ?? user?.name ?? "")
-  const [memberEmail, setMemberEmail] = React.useState(activeUser?.email ?? user?.email ?? "")
+  const [memberName, setMemberName] = React.useState(
+    activeUser?.name ?? user?.name ?? "",
+  );
+  const [memberEmail, setMemberEmail] = React.useState(
+    activeUser?.email ?? user?.email ?? "",
+  );
   const [memberId, setMemberId] = React.useState(
-    ((activeUser as Record<string, unknown>)?.nuId as string) ?? user?.nuId ?? ""
-  )
+    ((activeUser as Record<string, unknown>)?.nuId as string) ??
+      user?.nuId ??
+      "",
+  );
   const [memberCommittee, setMemberCommittee] = React.useState(
-    ((activeUser as Record<string, unknown>)?.committee as string) ?? user?.committee ?? ""
-  )
+    ((activeUser as Record<string, unknown>)?.committee as string) ??
+      user?.committee ??
+      "",
+  );
 
   React.useEffect(() => {
-    const savedName = localStorage.getItem("memberName")
-    const savedEmail = localStorage.getItem("memberEmail")
-    const savedId = localStorage.getItem("memberId")
-    const savedCommittee = localStorage.getItem("memberCommittee")
+    const savedName = localStorage.getItem("memberName");
+    const savedEmail = localStorage.getItem("memberEmail");
+    const savedId = localStorage.getItem("memberId");
+    const savedCommittee = localStorage.getItem("memberCommittee");
 
-    if (savedName && !memberName) setMemberName(savedName)
-    if (savedEmail && !memberEmail) setMemberEmail(savedEmail)
-    if (savedId && !memberId) setMemberId(savedId)
-    if (savedCommittee && !memberCommittee) setMemberCommittee(savedCommittee)
-  }, [memberName, memberEmail, memberId, memberCommittee])
+    if (savedName && !memberName) setMemberName(savedName);
+    if (savedEmail && !memberEmail) setMemberEmail(savedEmail);
+    if (savedId && !memberId) setMemberId(savedId);
+    if (savedCommittee && !memberCommittee) setMemberCommittee(savedCommittee);
+  }, [memberName, memberEmail, memberId, memberCommittee]);
 
   // Slot states: Map from dayOfWeek -> Set of startTimes
   const [slotMap, setSlotMap] = React.useState<Map<number, Set<string>>>(() => {
-    const map = new Map<number, Set<string>>()
+    const map = new Map<number, Set<string>>();
     for (const d of activeDays) {
-      map.set(d, new Set<string>())
+      map.set(d, new Set<string>());
     }
     for (const slot of initialSlots) {
       if (map.has(slot.dayOfWeek)) {
-        map.get(slot.dayOfWeek)?.add(slot.startTime)
+        map.get(slot.dayOfWeek)?.add(slot.startTime);
       }
     }
-    return map
-  })
+    return map;
+  });
 
   // Total marked slots across all days
   const totalSlotsCount = React.useMemo(() => {
-    let count = 0
+    let count = 0;
     slotMap.forEach((slots) => {
-      count += slots.size
-    })
-    return count
-  }, [slotMap])
+      count += slots.size;
+    });
+    return count;
+  }, [slotMap]);
 
   // Toggle a single time slot for the active day
   const toggleSlot = (startTime: string) => {
     setSlotMap((prev) => {
-      const next = new Map(prev)
-      const currentDaySlots = new Set(next.get(selectedDay) ?? [])
+      const next = new Map(prev);
+      const currentDaySlots = new Set(next.get(selectedDay) ?? []);
       if (currentDaySlots.has(startTime)) {
-        currentDaySlots.delete(startTime)
+        currentDaySlots.delete(startTime);
       } else {
-        currentDaySlots.add(startTime)
+        currentDaySlots.add(startTime);
       }
-      next.set(selectedDay, currentDaySlots)
-      return next
-    })
-    setHasChanges(true)
-  }
+      next.set(selectedDay, currentDaySlots);
+      return next;
+    });
+    setHasChanges(true);
+  };
 
   // Select all available time slots for the active day
   const selectAllDay = () => {
     setSlotMap((prev) => {
-      const next = new Map(prev)
-      next.set(selectedDay, new Set(timeSlots))
-      return next
-    })
-    setHasChanges(true)
-  }
+      const next = new Map(prev);
+      next.set(selectedDay, new Set(timeSlots));
+      return next;
+    });
+    setHasChanges(true);
+  };
 
   // Clear all time slots for the active day
   const clearDay = () => {
     setSlotMap((prev) => {
-      const next = new Map(prev)
-      next.set(selectedDay, new Set())
-      return next
-    })
-    setHasChanges(true)
-  }
+      const next = new Map(prev);
+      next.set(selectedDay, new Set());
+      return next;
+    });
+    setHasChanges(true);
+  };
 
   // Clear entire week
   const clearAllWeek = () => {
     setSlotMap(() => {
-      const next = new Map()
+      const next = new Map();
       for (const d of activeDays) {
-        next.set(d, new Set())
+        next.set(d, new Set());
       }
-      return next
-    })
-    setHasChanges(true)
-  }
+      return next;
+    });
+    setHasChanges(true);
+  };
 
   // Save changes to the server
   const handleSave = async () => {
     // Validate profile
     if (!memberName.trim()) {
-      toast.error("Please enter your name")
-      return
+      toast.error("Please enter your name");
+      return;
     }
     if (memberId && !/^\d{9}$/.test(memberId.trim())) {
-      toast.error("Student ID must be 9 digits")
-      return
+      toast.error("Student ID must be 9 digits");
+      return;
     }
     if (!memberCommittee) {
-      toast.error("Please select your committee")
-      return
+      toast.error("Please select your committee");
+      return;
     }
 
-    setIsSaving(true)
+    setIsSaving(true);
 
     // Build slots array
-    const slotsPayload: { dayOfWeek: number; startTime: string }[] = []
+    const slotsPayload: { dayOfWeek: number; startTime: string }[] = [];
     slotMap.forEach((slots, day) => {
       slots.forEach((startTime) => {
-        slotsPayload.push({ dayOfWeek: day, startTime })
-      })
-    })
+        slotsPayload.push({ dayOfWeek: day, startTime });
+      });
+    });
 
     try {
       const res = await fetch("/api/recurring-availability", {
@@ -206,35 +215,31 @@ export function WeeklyTimetable({
           committee: memberCommittee,
           slots: slotsPayload,
         }),
-      })
+      });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
+        const errorData = await res.json().catch(() => ({}));
         throw new Error(
-          errorData.error || "Failed to save your semester availability"
-        )
+          errorData.error || "Failed to save your semester availability",
+        );
       }
 
-      setHasChanges(false)
-      toast.success("Semester availability saved successfully!", {
-        description: `${slotsPayload.length} weekly recurring slots updated.`,
-        action: {
-          label: "View Specific Dates",
-          onClick: () => {
-            window.location.href = "/specific"
-          },
-        },
-      })
+      setHasChanges(false);
+      toast.success("Saved semester availability", {
+        id: "weekly-availability-save",
+        duration: 2000,
+      });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to save schedule"
-      toast.error(msg)
+      const msg =
+        err instanceof Error ? err.message : "Failed to save schedule";
+      toast.error(msg);
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
-  const activeDaySlots = slotMap.get(selectedDay) ?? new Set()
-  const activeDayMeta = DAY_OF_WEEK_MAP.find((d) => d.day === selectedDay)
+  const activeDaySlots = slotMap.get(selectedDay) ?? new Set();
+  const activeDayMeta = DAY_OF_WEEK_MAP.find((d) => d.day === selectedDay);
 
   return (
     <div className="w-full flex flex-col items-center gap-6">
@@ -267,8 +272,7 @@ export function WeeklyTimetable({
         {(memberCommittee || memberId) && (
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2.5">
             {memberCommittee && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                <span className="size-1.5 rounded-full bg-emerald-500" />
+              <span className="inline-flex items-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                 {memberCommittee}
               </span>
             )}
@@ -282,9 +286,13 @@ export function WeeklyTimetable({
 
         {(!memberCommittee || !memberId) && (
           <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
-            <p className="font-semibold">⚠️ Complete Your Profile</p>
-            <p className="mt-0.5 text-[11px] text-amber-700 dark:text-amber-400">
-              Please enter your 9-digit NU ID and select your committee to submit availability.
+            <div className="flex items-center gap-1.5 font-semibold">
+              <AlertCircle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>Complete Your Profile</span>
+            </div>
+            <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400">
+              Please enter your 9-digit NU ID and select your committee to
+              submit availability.
             </p>
             <div className="mt-2 space-y-2">
               {!memberId && (
@@ -293,9 +301,9 @@ export function WeeklyTimetable({
                   maxLength={9}
                   value={memberId}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "")
-                    setMemberId(val)
-                    localStorage.setItem("memberId", val)
+                    const val = e.target.value.replace(/\D/g, "");
+                    setMemberId(val);
+                    localStorage.setItem("memberId", val);
                   }}
                   className="h-8 text-xs bg-background/80"
                 />
@@ -305,8 +313,8 @@ export function WeeklyTimetable({
                   value={memberCommittee}
                   onValueChange={(val) => {
                     if (val) {
-                      setMemberCommittee(val)
-                      localStorage.setItem("memberCommittee", val)
+                      setMemberCommittee(val);
+                      localStorage.setItem("memberCommittee", val);
                     }
                   }}
                 >
@@ -340,9 +348,9 @@ export function WeeklyTimetable({
 
         <div className="flex gap-2 overflow-x-auto pb-1 pt-0.5 no-scrollbar touch-pan-x">
           {activeDays.map((dayNum) => {
-            const meta = DAY_OF_WEEK_MAP.find((d) => d.day === dayNum)
-            const isSelected = selectedDay === dayNum
-            const dayCount = slotMap.get(dayNum)?.size ?? 0
+            const meta = DAY_OF_WEEK_MAP.find((d) => d.day === dayNum);
+            const isSelected = selectedDay === dayNum;
+            const dayCount = slotMap.get(dayNum)?.size ?? 0;
 
             return (
               <button
@@ -353,28 +361,26 @@ export function WeeklyTimetable({
                   "flex-1 min-w-[72px] sm:min-w-[90px] flex flex-col items-center justify-center py-2.5 px-3 rounded-2xl border transition-all duration-200 select-none min-h-[52px] touch-manipulation cursor-pointer",
                   isSelected
                     ? "bg-[#0F3056] text-white border-[#0F3056] shadow-md ring-2 ring-[#0F3056]/20 dark:bg-[#18477D] dark:border-[#2DB1FA]/50 dark:text-white dark:ring-2 dark:ring-[#2DB1FA]/25 dark:shadow-md"
-                    : "bg-card/70 border-border/80 text-foreground hover:bg-muted/80 hover:border-border"
+                    : "bg-card/70 border-border/80 text-foreground hover:bg-muted/80 hover:border-border",
                 )}
               >
                 <span className="text-xs sm:text-sm font-bold tracking-tight">
                   {meta?.short}
                 </span>
-                <span
-                  className={cn(
-                    "text-[10px] mt-0.5 font-medium px-1.5 py-0.2 rounded-full",
-                    isSelected
-                      ? dayCount > 0
-                        ? "bg-emerald-500/25 text-emerald-200 border border-emerald-400/30 font-semibold"
-                        : "bg-white/20 text-white"
-                      : dayCount > 0
-                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold"
-                        : "text-muted-foreground"
-                  )}
-                >
-                  {dayCount > 0 ? `${dayCount} hrs` : "Off"}
-                </span>
+                {dayCount > 0 && (
+                  <span
+                    className={cn(
+                      "text-[10px] mt-0.5 font-semibold px-1.5 py-0.2 rounded-full",
+                      isSelected
+                        ? "bg-emerald-500/25 text-emerald-200 border border-emerald-400/30"
+                        : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+                    )}
+                  >
+                    {dayCount} {dayCount === 1 ? "hr" : "hrs"}
+                  </span>
+                )}
               </button>
-            )
+            );
           })}
         </div>
       </div>
@@ -397,7 +403,8 @@ export function WeeklyTimetable({
                 )}
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Tap the intervals when you are free between classes/labs on {activeDayMeta?.label}s.
+                Tap the intervals when you are free between classes/labs on{" "}
+                {activeDayMeta?.label}s.
               </p>
             </div>
 
@@ -427,9 +434,9 @@ export function WeeklyTimetable({
           {/* Time Slots Touch Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
             {timeSlots.map((startTime) => {
-              const isMarked = activeDaySlots.has(startTime)
-              const formattedStart = formatTimeSlot(startTime)
-              const formattedEnd = getEndTime(startTime)
+              const isMarked = activeDaySlots.has(startTime);
+              const formattedStart = formatTimeSlot(startTime);
+              const formattedEnd = getEndTime(startTime);
 
               return (
                 <button
@@ -440,7 +447,7 @@ export function WeeklyTimetable({
                     "flex items-center justify-between px-4 py-3 rounded-2xl border transition-all duration-150 select-none min-h-[56px] text-left touch-manipulation cursor-pointer active:scale-[0.98]",
                     isMarked
                       ? "border-emerald-500 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100 ring-2 ring-emerald-500/30 shadow-xs"
-                      : "border-border/80 bg-background/60 hover:bg-muted/60 hover:border-border text-foreground"
+                      : "border-border/80 bg-background/60 hover:bg-muted/60 hover:border-border text-foreground",
                   )}
                 >
                   <span className="text-xs sm:text-sm font-semibold tracking-tight">
@@ -452,61 +459,76 @@ export function WeeklyTimetable({
                       "size-6 rounded-full flex items-center justify-center transition-colors shrink-0",
                       isMarked
                         ? "bg-emerald-600 text-white"
-                        : "bg-muted border border-border/80 text-transparent"
+                        : "bg-muted border border-border/80 text-transparent",
                     )}
                   >
-                    <HugeiconsIcon icon={Tick01Icon} size={14} strokeWidth={3} />
+                    <HugeiconsIcon
+                      icon={Tick01Icon}
+                      size={14}
+                      strokeWidth={3}
+                    />
                   </div>
                 </button>
-              )
+              );
             })}
           </div>
         </CardContent>
       </Card>
 
-      {/* ─── Sticky Bottom Save Bar ──────────────────────────────────────────── */}
-      <div className="sticky bottom-4 z-20 flex items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-card/90 backdrop-blur-xl border border-border/80 shadow-xl">
-        <div className="flex flex-col">
-          <span className="text-xs font-bold tracking-tight">
-            {totalSlotsCount} Weekly Hours Marked
-          </span>
-          <span className="text-[10px] text-muted-foreground">
-            {hasChanges ? "Unsaved updates" : "All changes saved to profile"}
-          </span>
-        </div>
+      {/* ─── Floating Dynamic Save Island (Visible only on unsaved changes) ────── */}
+      <div
+        className={cn(
+          "fixed bottom-6 inset-x-0 mx-auto z-40 w-[calc(100%-2rem)] max-w-md transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)]",
+          hasChanges
+            ? "translate-y-0 opacity-100 scale-100 pointer-events-auto"
+            : "translate-y-10 opacity-0 scale-95 pointer-events-none",
+        )}
+      >
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-full bg-card/90 dark:bg-card/85 backdrop-blur-2xl border border-white/20 dark:border-white/15 shadow-[0_12px_36px_-6px_rgba(0,0,0,0.3)]">
+          <div className="flex items-center gap-2 min-w-0 pl-1">
+            <span className="text-xs font-semibold tracking-tight truncate text-foreground">
+              Unsaved changes ({totalSlotsCount}{" "}
+              {totalSlotsCount === 1 ? "hr" : "hrs"})
+            </span>
+          </div>
 
-        <div className="flex items-center gap-2">
-          {totalSlotsCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearAllWeek}
-              className="text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-10 px-3 cursor-pointer"
-            >
-              Reset Week
-            </Button>
-          )}
-
-          <Button
-            size="lg"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="min-h-[44px] px-6 gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-600/20 cursor-pointer"
-          >
-            {isSaving ? (
-              <>
-                <div className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                <HugeiconsIcon icon={Tick01Icon} size={16} strokeWidth={2.5} />
-                <span>Save Semester Availability</span>
-              </>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {totalSlotsCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllWeek}
+                className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full cursor-pointer"
+              >
+                Reset
+              </Button>
             )}
-          </Button>
+
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving}
+              className="h-8 px-4 gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs cursor-pointer active:scale-95 transition-transform"
+            >
+              {isSaving ? (
+                <>
+                  <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <HugeiconsIcon
+                    icon={Tick01Icon}
+                    size={14}
+                    strokeWidth={2.5}
+                  />
+                  <span>Save</span>
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

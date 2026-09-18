@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import * as React from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -18,8 +18,8 @@ import {
   SidebarProvider,
   SidebarSeparator,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { HugeiconsIcon } from "@hugeicons/react"
+} from "@/components/ui/sidebar";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Calendar03Icon,
   Clock01Icon,
@@ -27,26 +27,25 @@ import {
   Home01Icon,
   Logout02Icon,
   ArrowRight01Icon,
-} from "@hugeicons/core-free-icons"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { SignOutDialog } from "@/components/auth/sign-out-dialog"
-import dynamic from "next/dynamic"
+} from "@hugeicons/core-free-icons";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { SignOutDialog } from "@/components/auth/sign-out-dialog";
+import dynamic from "next/dynamic";
 import {
   AnalyticsDashboard,
   type AnalyticsData,
-} from "@/components/admin/analytics-dashboard"
-import type { SemesterAnalyticsData } from "@/lib/semester-analytics"
-import type { ScheduleConfigData } from "@/components/admin/schedule-config-panel"
-import type { AdminUserInfo } from "@/lib/admin"
-import { NusuLogo } from "@/components/nusu-logo"
-import { cn } from "@/lib/utils"
+} from "@/components/admin/analytics-dashboard";
+import type { SemesterAnalyticsData } from "@/lib/semester-analytics";
+import type { ScheduleConfigData } from "@/components/admin/schedule-config-panel";
+import type { AdminUserInfo } from "@/lib/admin";
+import { NusuLogo } from "@/components/nusu-logo";
 
 const SemesterAnalyticsPanel = dynamic(
   () =>
     import("@/components/admin/semester-analytics-panel").then(
-      (m) => m.SemesterAnalyticsPanel
+      (m) => m.SemesterAnalyticsPanel,
     ),
   {
     loading: () => (
@@ -54,13 +53,13 @@ const SemesterAnalyticsPanel = dynamic(
         <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     ),
-  }
-)
+  },
+);
 
 const ScheduleConfigPanel = dynamic(
   () =>
     import("@/components/admin/schedule-config-panel").then(
-      (m) => m.ScheduleConfigPanel
+      (m) => m.ScheduleConfigPanel,
     ),
   {
     loading: () => (
@@ -68,13 +67,13 @@ const ScheduleConfigPanel = dynamic(
         <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     ),
-  }
-)
+  },
+);
 
 const AdminUsersPanel = dynamic(
   () =>
     import("@/components/admin/admin-users-panel").then(
-      (m) => m.AdminUsersPanel
+      (m) => m.AdminUsersPanel,
     ),
   {
     loading: () => (
@@ -82,33 +81,33 @@ const AdminUsersPanel = dynamic(
         <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     ),
-  }
-)
+  },
+);
 
 export type AdminTab =
   | "specific-analytics"
   | "semester-analytics"
   | "analytics"
   | "schedule"
-  | "admins"
+  | "admins";
 
 interface AdminLayoutShellProps {
   session: {
     user: {
-      id: string
-      name: string
-      email: string
-      image?: string | null
-      committee?: string | null
-      role?: string | null
-    }
-  }
-  analytics: AnalyticsData
-  semesterAnalytics: SemesterAnalyticsData
-  dateRangeLabel: string
-  initialTab?: AdminTab
-  initialConfig?: ScheduleConfigData | null
-  initialAdmins?: AdminUserInfo[]
+      id: string;
+      name: string;
+      email: string;
+      image?: string | null;
+      committee?: string | null;
+      role?: string | null;
+    };
+  };
+  analytics: AnalyticsData;
+  semesterAnalytics: SemesterAnalyticsData;
+  dateRangeLabel: string;
+  initialTab?: AdminTab;
+  initialConfig?: ScheduleConfigData | null;
+  initialAdmins?: AdminUserInfo[];
 }
 
 export function AdminLayoutShell({
@@ -120,13 +119,13 @@ export function AdminLayoutShell({
   initialConfig = null,
   initialAdmins = [],
 }: AdminLayoutShellProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const tabParam = (searchParams.get("tab") as AdminTab) || initialTab
-  const [activeTab, setActiveTab] = React.useState<AdminTab>(tabParam)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = (searchParams.get("tab") as AdminTab) || initialTab;
+  const [activeTab, setActiveTab] = React.useState<AdminTab>(tabParam);
 
   React.useEffect(() => {
-    const qTab = searchParams.get("tab") as AdminTab
+    const qTab = searchParams.get("tab") as AdminTab;
     if (
       qTab &&
       [
@@ -137,31 +136,31 @@ export function AdminLayoutShell({
         "admins",
       ].includes(qTab)
     ) {
-      setActiveTab(qTab)
+      setActiveTab(qTab);
     }
-  }, [searchParams])
+  }, [searchParams]);
 
   const setTab = (tab: AdminTab) => {
-    setActiveTab(tab)
-    const url = new URL(window.location.href)
-    url.searchParams.set("tab", tab)
-    window.history.replaceState({}, "", url.toString())
-  }
+    setActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tab);
+    window.history.replaceState({}, "", url.toString());
+  };
 
-  const [signOutOpen, setSignOutOpen] = React.useState(false)
+  const [signOutOpen, setSignOutOpen] = React.useState(false);
 
   function handleSignOut() {
-    setSignOutOpen(true)
+    setSignOutOpen(true);
   }
 
   const getInitials = (name?: string, email?: string) => {
     if (name) {
-      const parts = name.trim().split(/\s+/)
-      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      const parts = name.trim().split(/\s+/);
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-    return email?.slice(0, 2).toUpperCase() ?? "AD"
-  }
+    return email?.slice(0, 2).toUpperCase() ?? "AD";
+  };
 
   return (
     <SidebarProvider>
@@ -415,58 +414,6 @@ export function AdminLayoutShell({
                     "Authorize university emails with administrative privileges to manage the Union Tracker."}
                 </p>
               </div>
-
-              {/* Navigation Tabs Pill Switcher */}
-              <div className="inline-flex items-center gap-1 self-start rounded-xl border border-border/80 bg-muted/60 p-1 sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setTab("specific-analytics")}
-                  className={cn(
-                    "cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
-                    activeTab === "specific-analytics" || activeTab === "analytics"
-                      ? "bg-background text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Specific Date
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTab("semester-analytics")}
-                  className={cn(
-                    "cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
-                    activeTab === "semester-analytics"
-                      ? "bg-background text-foreground shadow-xs text-emerald-600 dark:text-emerald-400"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Semester
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTab("schedule")}
-                  className={cn(
-                    "cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
-                    activeTab === "schedule"
-                      ? "bg-background text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Schedule
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTab("admins")}
-                  className={cn(
-                    "cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
-                    activeTab === "admins"
-                      ? "bg-background text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Admins
-                </button>
-              </div>
             </div>
 
             {/* Dynamic Tab Body */}
@@ -496,5 +443,5 @@ export function AdminLayoutShell({
         <SignOutDialog open={signOutOpen} onOpenChange={setSignOutOpen} />
       </div>
     </SidebarProvider>
-  )
+  );
 }

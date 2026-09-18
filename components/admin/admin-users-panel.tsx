@@ -1,94 +1,97 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
+import * as React from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Shield01Icon,
   UserAdd01Icon,
   Delete02Icon,
-  UserCheck01Icon,
-  AlertCircleIcon,
   RefreshIcon,
-  InformationCircleIcon,
-} from "@hugeicons/core-free-icons"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Skeleton } from "@/components/ui/skeleton"
-import { toast } from "sonner"
-import { cn } from "@/lib/utils"
-import type { AdminUserInfo } from "@/lib/admin"
+} from "@hugeicons/core-free-icons";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import type { AdminUserInfo } from "@/lib/admin";
 
 interface AdminUsersPanelProps {
-  initialAdmins?: AdminUserInfo[]
+  initialAdmins?: AdminUserInfo[];
 }
 
-export function AdminUsersPanel({ initialAdmins = [] }: AdminUsersPanelProps = {}) {
-  const [admins, setAdmins] = React.useState<AdminUserInfo[]>(initialAdmins)
-  const [loading, setLoading] = React.useState(initialAdmins.length === 0)
-  const [newEmail, setNewEmail] = React.useState("")
-  const [submitting, setSubmitting] = React.useState(false)
-  const [revokingEmail, setRevokingEmail] = React.useState<string | null>(null)
+export function AdminUsersPanel({
+  initialAdmins = [],
+}: AdminUsersPanelProps = {}) {
+  const [admins, setAdmins] = React.useState<AdminUserInfo[]>(initialAdmins);
+  const [loading, setLoading] = React.useState(initialAdmins.length === 0);
+  const [newEmail, setNewEmail] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [revokingEmail, setRevokingEmail] = React.useState<string | null>(null);
 
   const fetchAdmins = React.useCallback(async () => {
     try {
-      setLoading(true)
-      const res = await fetch("/api/admin/users")
+      setLoading(true);
+      const res = await fetch("/api/admin/users");
       if (!res.ok) {
-        throw new Error("Failed to load admin users")
+        throw new Error("Failed to load admin users");
       }
-      const data = await res.json()
-      setAdmins(data.admins ?? [])
-    } catch (err: any) {
-      toast.error(err.message || "Could not fetch admin list")
+      const data = await res.json();
+      setAdmins(data.admins ?? []);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Could not fetch admin list";
+      toast.error(message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
     if (initialAdmins.length === 0) {
-      void fetchAdmins()
+      void fetchAdmins();
     }
-  }, [fetchAdmins, initialAdmins])
+  }, [fetchAdmins, initialAdmins]);
 
   async function handleGrantAccess(e: React.FormEvent) {
-    e.preventDefault()
-    const email = newEmail.trim().toLowerCase()
+    e.preventDefault();
+    const email = newEmail.trim().toLowerCase();
 
     if (!email) {
-      toast.error("Please enter an email address")
-      return
+      toast.error("Please enter an email address");
+      return;
     }
 
     if (!email.endsWith("@nu.edu.eg")) {
       toast.error(
-        "Only official @nu.edu.eg university emails can be granted admin access."
-      )
-      return
+        "Only official @nu.edu.eg university emails can be granted admin access.",
+      );
+      return;
     }
 
     try {
-      setSubmitting(true)
+      setSubmitting(true);
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to grant admin access")
+        throw new Error(data.error || "Failed to grant admin access");
       }
 
-      toast.success(data.message || `Admin access granted to ${email}`)
-      setNewEmail("")
-      await fetchAdmins()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to grant admin access")
+      toast.success(data.message || `Admin access granted to ${email}`);
+      setNewEmail("");
+      await fetchAdmins();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to grant admin access";
+      toast.error(message);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
@@ -96,28 +99,30 @@ export function AdminUsersPanel({ initialAdmins = [] }: AdminUsersPanelProps = {
     if (
       !confirm(`Are you sure you want to revoke admin access for ${email}?`)
     ) {
-      return
+      return;
     }
 
     try {
-      setRevokingEmail(email)
+      setRevokingEmail(email);
       const res = await fetch("/api/admin/users", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Failed to revoke admin access")
+        throw new Error(data.error || "Failed to revoke admin access");
       }
 
-      toast.success(data.message || `Revoked admin access for ${email}`)
-      await fetchAdmins()
-    } catch (err: any) {
-      toast.error(err.message || "Failed to revoke admin access")
+      toast.success(data.message || `Revoked admin access for ${email}`);
+      await fetchAdmins();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to revoke admin access";
+      toast.error(message);
     } finally {
-      setRevokingEmail(null)
+      setRevokingEmail(null);
     }
   }
 
@@ -125,19 +130,13 @@ export function AdminUsersPanel({ initialAdmins = [] }: AdminUsersPanelProps = {
     <div className="space-y-6">
       {/* Grant Access Card */}
       <div className="rounded-2xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-sm sm:p-6">
-        <div className="mb-2 flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <HugeiconsIcon icon={UserAdd01Icon} size={18} />
           </div>
-          <div>
-            <h3 className="font-heading text-lg leading-tight font-semibold">
-              Grant Admin Privileges
-            </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Add university email addresses to grant access to the NUSU
-              Availability Admin Console.
-            </p>
-          </div>
+          <h3 className="font-heading text-lg leading-tight font-semibold">
+            Grant Admin Privileges
+          </h3>
         </div>
 
         <form
@@ -172,19 +171,6 @@ export function AdminUsersPanel({ initialAdmins = [] }: AdminUsersPanelProps = {
             )}
           </Button>
         </form>
-
-        <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <HugeiconsIcon
-            icon={InformationCircleIcon}
-            size={14}
-            className="shrink-0 text-primary"
-          />
-          <span>
-            If the user already has an account, their role is elevated
-            immediately. If not, they will be granted admin access as soon as
-            they sign up.
-          </span>
-        </div>
       </div>
 
       {/* Admin List Card */}
@@ -194,15 +180,9 @@ export function AdminUsersPanel({ initialAdmins = [] }: AdminUsersPanelProps = {
             <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <HugeiconsIcon icon={Shield01Icon} size={18} />
             </div>
-            <div>
-              <h3 className="font-heading text-lg leading-tight font-semibold">
-                Active Administrators ({admins.length})
-              </h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Personnel authorized to view analytics, schedule configuration,
-                and manage member roles.
-              </p>
-            </div>
+            <h3 className="font-heading text-lg leading-tight font-semibold">
+              Active Administrators ({admins.length})
+            </h3>
           </div>
 
           <Button
@@ -249,7 +229,12 @@ export function AdminUsersPanel({ initialAdmins = [] }: AdminUsersPanelProps = {
             No administrators found.
           </div>
         ) : (
-          <div className={cn("divide-y divide-border/60 transition-opacity duration-200", loading && "opacity-60")}>
+          <div
+            className={cn(
+              "divide-y divide-border/60 transition-opacity duration-200",
+              loading && "opacity-60",
+            )}
+          >
             {admins.map((admin) => {
               const initials = admin.name
                 ? admin.name
@@ -258,9 +243,9 @@ export function AdminUsersPanel({ initialAdmins = [] }: AdminUsersPanelProps = {
                     .slice(0, 2)
                     .join("")
                     .toUpperCase()
-                : admin.email.slice(0, 2).toUpperCase()
-              const isEnvAdmin = admin.source === "env"
-              const isRevoking = revokingEmail === admin.email
+                : admin.email.slice(0, 2).toUpperCase();
+              const isEnvAdmin = admin.source === "env";
+              const isRevoking = revokingEmail === admin.email;
 
               return (
                 <div
@@ -349,11 +334,11 @@ export function AdminUsersPanel({ initialAdmins = [] }: AdminUsersPanelProps = {
                     )}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }

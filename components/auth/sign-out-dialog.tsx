@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useRouter } from "next/navigation"
-import { authClient } from "@/lib/auth-client"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -13,7 +13,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   Drawer,
   DrawerContent,
@@ -21,40 +21,40 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
-} from "@/components/ui/drawer"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Logout02Icon } from "@hugeicons/core-free-icons"
-import { toast } from "sonner"
+} from "@/components/ui/drawer";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Logout02Icon } from "@hugeicons/core-free-icons";
+import { toast } from "sonner";
 
 interface SignOutDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
-  const router = useRouter()
-  const isMobile = useIsMobile()
-  const [isSigningOut, setIsSigningOut] = React.useState(false)
+  const router = useRouter();
+  const isMobile = useIsMobile();
+  const [isSigningOut, setIsSigningOut] = React.useState(false);
 
   async function handleConfirmSignOut() {
-    setIsSigningOut(true)
+    setIsSigningOut(true);
     try {
       await authClient.signOut({
         fetchOptions: {
           onSuccess: () => {
-            toast.success("Signed out successfully")
-            onOpenChange(false)
-            router.push("/auth?mode=signin")
+            toast.success("Signed out successfully");
+            onOpenChange(false);
+            router.push("/auth?mode=signin");
           },
           onError: () => {
-            toast.error("Failed to sign out. Please try again.")
-            setIsSigningOut(false)
+            toast.error("Failed to sign out. Please try again.");
+            setIsSigningOut(false);
           },
         },
-      })
+      });
     } catch {
-      toast.error("An error occurred while signing out.")
-      setIsSigningOut(false)
+      toast.error("An error occurred while signing out.");
+      setIsSigningOut(false);
     }
   }
 
@@ -118,7 +118,7 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
           </div>
         </DrawerContent>
       </Drawer>
-    )
+    );
   }
 
   // Desktop Centered Alert Dialog
@@ -179,5 +179,5 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

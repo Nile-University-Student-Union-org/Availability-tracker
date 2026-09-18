@@ -1,18 +1,18 @@
-import type { Metadata } from "next"
-import { Poppins } from "next/font/google"
+import type { Metadata } from "next";
+import { Poppins } from "next/font/google";
 
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import { ThemeBeam } from "@/components/theme-beam"
-import { Toaster } from "@/components/ui/sonner"
-import { cn } from "@/lib/utils"
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeBeam } from "@/components/theme-beam";
+import { Toaster } from "@/components/ui/sonner";
+import { cn } from "@/lib/utils";
 
 // Poppins — brand body font (Poppins in the SU brand guidelines)
 const poppins = Poppins({
   weight: ["400", "500", "600", "700", "800", "900"],
   subsets: ["latin"],
   variable: "--font-sans",
-})
+});
 
 export const metadata: Metadata = {
   title: {
@@ -24,12 +24,12 @@ export const metadata: Metadata = {
   icons: {
     icon: [{ url: "/logo.svg", type: "image/svg+xml" }],
   },
-}
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html
@@ -45,5 +45,5 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }

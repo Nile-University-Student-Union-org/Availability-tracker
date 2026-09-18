@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export interface NusuLogoProps {
-  size?: "sm" | "default" | "lg"
-  showText?: boolean
-  className?: string
-  href?: string
+  size?: "sm" | "default" | "lg";
+  showText?: boolean;
+  className?: string;
+  href?: string;
 }
 
 export function NusuLogo({
@@ -39,14 +39,14 @@ export function NusuLogo({
       subtitleSize: "text-xs sm:text-sm tracking-[0.26em]",
       gap: "gap-3.5",
     },
-  }[size]
+  }[size];
 
   const content = (
     <div
       className={cn(
         "inline-flex items-center select-none",
         sizeConfig.gap,
-        className
+        className,
       )}
     >
       {/* Emblem SVG with exact Nile University Student Union vectors */}
@@ -99,7 +99,7 @@ export function NusuLogo({
             className={cn(
               "font-heading leading-none font-black tracking-tight transition-colors duration-300",
               "text-[#143459] dark:text-white",
-              sizeConfig.titleSize
+              sizeConfig.titleSize,
             )}
           >
             NUSU
@@ -108,7 +108,7 @@ export function NusuLogo({
             className={cn(
               "mt-0.5 font-sans leading-none font-bold uppercase transition-colors duration-300",
               "text-[#068DCE] dark:text-white",
-              sizeConfig.subtitleSize
+              sizeConfig.subtitleSize,
             )}
           >
             STUDENT UNION
@@ -116,7 +116,7 @@ export function NusuLogo({
         </div>
       )}
     </div>
-  )
+  );
 
   if (href) {
     return (
@@ -127,8 +127,8 @@ export function NusuLogo({
       >
         {content}
       </Link>
-    )
+    );
   }
 
-  return content
+  return content;
 }

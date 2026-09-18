@@ -1,62 +1,67 @@
-import { headers } from "next/headers"
-import { revalidatePath } from "next/cache"
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { isAdminEmail } from "@/lib/admin"
-import { prisma } from "@/lib/prisma"
+import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/admin";
+import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 async function requireAdmin() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session || !(await isAdminEmail(session.user.email))) {
-    return null
+    return null;
   }
-  return session
+  return session;
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await requireAdmin()
+    const session = await requireAdmin();
     if (!session) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = (await request.json()) as {
-      startDate: string
-      endDate: string
-      slotMode: string
-      timeSlots: string[]
-      dateScheduleActive?: boolean
-      weeklyScheduleActive?: boolean
-      weeklyIncludeSaturday?: boolean
-      dateScheduleTitle?: string
-      weeklyScheduleTitle?: string
-    }
+      startDate: string;
+      endDate: string;
+      slotMode: string;
+      timeSlots: string[];
+      dateScheduleActive?: boolean;
+      weeklyScheduleActive?: boolean;
+      weeklyIncludeSaturday?: boolean;
+      dateScheduleTitle?: string;
+      weeklyScheduleTitle?: string;
+    };
 
     // Validate dates with UTC
-    const start = new Date(body.startDate + "T00:00:00.000Z")
-    const end = new Date(body.endDate + "T00:00:00.000Z")
+    const start = new Date(body.startDate + "T00:00:00.000Z");
+    const end = new Date(body.endDate + "T00:00:00.000Z");
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
-      return NextResponse.json({ error: "Invalid date range" }, { status: 400 })
+      return NextResponse.json(
+        { error: "Invalid date range" },
+        { status: 400 },
+      );
     }
 
     // Validate slot mode
     if (!["fixed", "free"].includes(body.slotMode)) {
-      return NextResponse.json({ error: "Invalid slot mode" }, { status: 400 })
+      return NextResponse.json({ error: "Invalid slot mode" }, { status: 400 });
     }
 
     // Validate time slots format (HH:mm)
-    const timeSlotRegex = /^\d{2}:\d{2}$/
-    const validSlots = (body.timeSlots ?? []).filter((s) => timeSlotRegex.test(s))
+    const timeSlotRegex = /^\d{2}:\d{2}$/;
+    const validSlots = (body.timeSlots ?? []).filter((s) =>
+      timeSlotRegex.test(s),
+    );
 
-    const dateScheduleActive = body.dateScheduleActive ?? true
-    const weeklyScheduleActive = body.weeklyScheduleActive ?? true
-    const weeklyIncludeSaturday = body.weeklyIncludeSaturday ?? false
+    const dateScheduleActive = body.dateScheduleActive ?? true;
+    const weeklyScheduleActive = body.weeklyScheduleActive ?? true;
+    const weeklyIncludeSaturday = body.weeklyIncludeSaturday ?? false;
     const dateScheduleTitle =
-      body.dateScheduleTitle?.trim() || "Specific Date Availability"
+      body.dateScheduleTitle?.trim() || "Specific Date Availability";
     const weeklyScheduleTitle =
-      body.weeklyScheduleTitle?.trim() || "Semester Availability"
+      body.weeklyScheduleTitle?.trim() || "Semester Availability";
 
     // Upsert config + replace all time slots atomically
     await prisma.$transaction(async (tx) => {
@@ -83,12 +88,12 @@ export async function PUT(request: NextRequest) {
           dateScheduleTitle,
           weeklyScheduleTitle,
         },
-      })
+      });
 
       // Replace time slots
       await tx.timeSlotConfig.deleteMany({
         where: { scheduleConfigId: "default" },
-      })
+      });
 
       if (validSlots.length > 0) {
         await tx.timeSlotConfig.createMany({
@@ -96,7 +101,7 @@ export async function PUT(request: NextRequest) {
             scheduleConfigId: "default",
             startTime,
           })),
-        })
+        });
 
         // In fixed mode, prune any previously submitted availability records
         // that were marked for time slots that the admin has now deleted.
@@ -105,13 +110,13 @@ export async function PUT(request: NextRequest) {
             where: {
               startTime: { notIn: validSlots },
             },
-          })
+          });
           // Also prune recurring availability that doesn't match validSlots
           await tx.recurringAvailability.deleteMany({
             where: {
               startTime: { notIn: validSlots },
             },
-          })
+          });
         }
       }
 
@@ -120,21 +125,23 @@ export async function PUT(request: NextRequest) {
         where: {
           OR: [{ date: { lt: start } }, { date: { gt: end } }],
         },
-      })
-    })
+      });
+    });
 
     // Immediately purge Next.js server-side cached routes
-    revalidatePath("/admin")
-    revalidatePath("/")
-    revalidatePath("/specific")
-    revalidatePath("/weekly")
-    revalidatePath("/api/schedule-config")
+    revalidatePath("/admin");
+    revalidatePath("/");
+    revalidatePath("/specific");
+    revalidatePath("/weekly");
+    revalidatePath("/api/schedule-config");
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error("Error in PUT /api/admin/schedule-config:", error)
+    console.error("Error in PUT /api/admin/schedule-config:", error);
     const message =
-      error instanceof Error ? error.message : "Failed to update schedule config"
-    return NextResponse.json({ error: message }, { status: 500 })
+      error instanceof Error
+        ? error.message
+        : "Failed to update schedule config";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -1,129 +1,133 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import * as React from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { HugeiconsIcon } from "@hugeicons/react"
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   RefreshIcon,
   Tick01Icon,
-  SparklesIcon,
   Clock01Icon,
   UserGroupIcon,
-  CrownIcon,
-} from "@hugeicons/core-free-icons"
-import { COMMITTEES } from "@/lib/constants"
-import { DAY_OF_WEEK_MAP, formatTimeSlot } from "@/lib/schedule"
+  Target02Icon,
+  Calendar03Icon,
+} from "@hugeicons/core-free-icons";
+import { COMMITTEES } from "@/lib/constants";
+import { DAY_OF_WEEK_MAP, formatTimeSlot } from "@/lib/schedule";
 import type {
   SemesterAnalyticsData,
   RecurringSlotUser,
-} from "@/lib/semester-analytics"
-import { cn } from "@/lib/utils"
+} from "@/lib/semester-analytics";
+import { cn } from "@/lib/utils";
 
 interface SemesterAnalyticsPanelProps {
-  initialData: SemesterAnalyticsData
+  initialData: SemesterAnalyticsData;
 }
 
 function getInitials(name?: string | null, email?: string | null): string {
   if (name) {
-    const parts = name.trim().split(/\s+/)
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
-  return email?.slice(0, 2).toUpperCase() ?? "NU"
+  return email?.slice(0, 2).toUpperCase() ?? "NU";
 }
 
 function getEndTime(startTime: string): string {
-  const [h, m] = startTime.split(":").map(Number)
-  const endH = (h + 1) % 24
-  const suffix = endH >= 12 ? "PM" : "AM"
-  const hour = endH % 12 || 12
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`
+  const [h, m] = startTime.split(":").map(Number);
+  const endH = (h + 1) % 24;
+  const suffix = endH >= 12 ? "PM" : "AM";
+  const hour = endH % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
 function cellStyle(count: number, max: number): string {
-  if (count === 0) return "bg-muted/40 text-muted-foreground/30 hover:bg-muted/60"
-  const ratio = count / Math.max(max, 1)
+  if (count === 0)
+    return "bg-muted/40 text-muted-foreground/30 hover:bg-muted/60";
+  const ratio = count / Math.max(max, 1);
   if (ratio <= 0.25)
-    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/30"
+    return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/30";
   if (ratio <= 0.5)
-    return "bg-emerald-500/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/50"
+    return "bg-emerald-500/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/50";
   if (ratio <= 0.75)
-    return "bg-emerald-500/65 text-emerald-950 dark:text-white hover:bg-emerald-500/75"
-  return "bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs"
+    return "bg-emerald-500/65 text-emerald-950 dark:text-white hover:bg-emerald-500/75";
+  return "bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs";
 }
 
 export function SemesterAnalyticsPanel({
   initialData,
 }: SemesterAnalyticsPanelProps) {
-  const [data, setData] = React.useState<SemesterAnalyticsData>(initialData)
-  const [committee, setCommittee] = React.useState<string>("all")
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [data, setData] = React.useState<SemesterAnalyticsData>(initialData);
+  const [committee, setCommittee] = React.useState<string>("all");
+  const [isLoading, setIsLoading] = React.useState(false);
 
   // Dialog inspection state
   const [selectedSlot, setSelectedSlot] = React.useState<{
-    dayOfWeek: number
-    startTime: string
-    count: number
-    users: RecurringSlotUser[]
-  } | null>(null)
-  const [dialogTab, setDialogTab] = React.useState<"available" | "missing">("available")
+    dayOfWeek: number;
+    startTime: string;
+    count: number;
+    users: RecurringSlotUser[];
+  } | null>(null);
+  const [dialogTab, setDialogTab] = React.useState<"available" | "missing">(
+    "available",
+  );
 
   // Fetch updated analytics when committee filter changes
   const fetchAnalytics = React.useCallback(async (comm: string) => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
       const url =
         comm === "all"
           ? "/api/admin/recurring-analytics"
-          : `/api/admin/recurring-analytics?committee=${encodeURIComponent(comm)}`
-      const res = await fetch(url)
-      if (!res.ok) throw new Error("Failed to load semester analytics")
-      const result = (await res.json()) as SemesterAnalyticsData
-      setData(result)
+          : `/api/admin/recurring-analytics?committee=${encodeURIComponent(comm)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to load semester analytics");
+      const result = (await res.json()) as SemesterAnalyticsData;
+      setData(result);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to load analytics"
-      toast.error(msg)
+      const msg =
+        err instanceof Error ? err.message : "Failed to load analytics";
+      toast.error(msg);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [])
+  }, []);
 
   const handleCommitteeChange = (newComm: string | null) => {
-    const val = newComm ?? "all"
-    setCommittee(val)
-    void fetchAnalytics(val)
-  }
+    const val = newComm ?? "all";
+    setCommittee(val);
+    void fetchAnalytics(val);
+  };
 
   // Calculate missing members for the currently selected inspected slot
   const missingMembersForSlot = React.useMemo(() => {
-    if (!selectedSlot) return []
-    const availableIds = new Set(selectedSlot.users.map((u) => u.id))
-    return data.users.filter((u) => !availableIds.has(u.id))
-  }, [selectedSlot, data.users])
+    if (!selectedSlot) return [];
+    const availableIds = new Set(selectedSlot.users.map((u) => u.id));
+    return data.users.filter((u) => !availableIds.has(u.id));
+  }, [selectedSlot, data.users]);
 
   const peakConsensusPercentage = React.useMemo(() => {
-    if (data.totalUsers === 0 || data.maxCount === 0) return 0
-    return Math.round((data.maxCount / data.totalUsers) * 100)
-  }, [data.maxCount, data.totalUsers])
+    if (data.totalUsers === 0 || data.maxCount === 0) return 0;
+    return Math.round((data.maxCount / data.totalUsers) * 100);
+  }, [data.maxCount, data.totalUsers]);
 
   return (
     <div className="flex flex-col gap-8 pb-16">
@@ -139,7 +143,8 @@ export function SemesterAnalyticsPanel({
             <span>Semester Availability Analytics</span>
           </h1>
           <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            Permanent weekly recurring schedule intelligence across academic days.
+            Permanent weekly recurring schedule intelligence across academic
+            days.
           </p>
         </div>
 
@@ -214,7 +219,7 @@ export function SemesterAnalyticsPanel({
         <Card className="border-border/70 bg-card/60 backdrop-blur-xl">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="flex size-11 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/20">
-              <HugeiconsIcon icon={SparklesIcon} size={20} />
+              <HugeiconsIcon icon={Target02Icon} size={20} />
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground">
@@ -228,94 +233,101 @@ export function SemesterAnalyticsPanel({
         </Card>
       </div>
 
-      {/* ─── Golden Standing Slot Recommendation Card ─────────────────────────── */}
+      {/* ─── Top Recommended Standing Meeting Times Card ─────────────────────── */}
       {data.recommendations && data.recommendations.length > 0 && (
-        <Card className="overflow-hidden border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.04] via-background to-blue-500/[0.04] shadow-md">
-          <div className="border-b border-emerald-500/20 bg-emerald-500/10 px-5 py-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
-                <HugeiconsIcon icon={CrownIcon} size={16} />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold tracking-tight text-emerald-950 dark:text-emerald-100 flex items-center gap-2">
-                  <span>🏆 Top Recommended Standing Meeting Times</span>
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px] py-0 h-4"
-                  >
-                    {committee === "all" ? "Whole Union" : committee}
-                  </Badge>
-                </h2>
-                <p className="text-[11px] text-muted-foreground">
-                  Algorithmic optimal recurring meeting times ranking based on member availability.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <CardContent className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-3 gap-3.5">
-            {data.recommendations.slice(0, 3).map((rec, index) => {
-              const isBest = index === 0
-              return (
-                <div
-                  key={`${rec.dayOfWeek}_${rec.startTime}`}
-                  className={cn(
-                    "flex flex-col justify-between p-4 rounded-2xl border transition-all duration-200",
-                    isBest
-                      ? "border-emerald-500/60 bg-emerald-500/10 shadow-sm ring-1 ring-emerald-500/30"
-                      : "border-border/70 bg-card/70"
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
-                        Rank #{index + 1}
-                      </span>
-                      <h3 className="text-base font-bold tracking-tight text-foreground mt-0.5">
-                        {rec.dayLabel}s
-                      </h3>
-                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                        {formatTimeSlot(rec.startTime)} → {rec.endTime}
-                      </p>
-                    </div>
-
+        <Card className="border-border/70 bg-card/60 backdrop-blur-xl shadow-sm">
+          <CardContent className="p-4 sm:p-6 flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20 shrink-0">
+                  <HugeiconsIcon icon={Calendar03Icon} size={18} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base sm:text-lg font-bold tracking-tight">
+                      Top Recommended Standing Meeting Times
+                    </h2>
                     <Badge
-                      className={cn(
-                        "font-bold text-xs shrink-0",
-                        isBest
-                          ? "bg-emerald-600 text-white"
-                          : "bg-muted text-foreground"
-                      )}
+                      variant="outline"
+                      className="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold py-0 h-5"
                     >
-                      {rec.percentage}%
+                      {committee === "all" ? "Whole Union" : committee}
                     </Badge>
                   </div>
-
-                  <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      <strong className="text-foreground">{rec.count}</strong> /{" "}
-                      {rec.totalEligible} members
-                    </span>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setSelectedSlot({
-                          dayOfWeek: rec.dayOfWeek,
-                          startTime: rec.startTime,
-                          count: rec.count,
-                          users: rec.availableUsers,
-                        })
-                      }
-                      className="h-7 text-xs font-semibold cursor-pointer"
-                    >
-                      Inspect
-                    </Button>
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Algorithmic optimal recurring meeting times ranking based on
+                    member availability.
+                  </p>
                 </div>
-              )
-            })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
+              {data.recommendations.slice(0, 3).map((rec, index) => {
+                const isBest = index === 0;
+                return (
+                  <div
+                    key={`${rec.dayOfWeek}_${rec.startTime}`}
+                    className={cn(
+                      "flex flex-col justify-between p-4 rounded-2xl border transition-all duration-200",
+                      isBest
+                        ? "border-emerald-500/40 bg-emerald-500/[0.06] shadow-xs ring-1 ring-emerald-500/20"
+                        : "border-border/70 bg-background/50 hover:bg-background/80",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+                          Rank #{index + 1}
+                        </span>
+                        <h3 className="text-base font-bold tracking-tight text-foreground mt-0.5">
+                          {rec.dayLabel}s
+                        </h3>
+                        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          {formatTimeSlot(rec.startTime)} → {rec.endTime}
+                        </p>
+                      </div>
+
+                      <Badge
+                        className={cn(
+                          "font-bold text-xs shrink-0",
+                          isBest
+                            ? "bg-emerald-600 text-white"
+                            : "bg-muted text-foreground",
+                        )}
+                      >
+                        {rec.percentage}%
+                      </Badge>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        <strong className="text-foreground font-semibold">
+                          {rec.count}
+                        </strong>{" "}
+                        / {rec.totalEligible} members
+                      </span>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setSelectedSlot({
+                            dayOfWeek: rec.dayOfWeek,
+                            startTime: rec.startTime,
+                            count: rec.count,
+                            users: rec.availableUsers,
+                          })
+                        }
+                        className="h-7 px-3 text-xs font-semibold cursor-pointer"
+                      >
+                        Inspect
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -358,7 +370,7 @@ export function SemesterAnalyticsPanel({
                   Time Slot
                 </div>
                 {data.days.map((dayNum) => {
-                  const meta = DAY_OF_WEEK_MAP.find((d) => d.day === dayNum)
+                  const meta = DAY_OF_WEEK_MAP.find((d) => d.day === dayNum);
                   return (
                     <div
                       key={dayNum}
@@ -368,15 +380,15 @@ export function SemesterAnalyticsPanel({
                         {meta?.label}
                       </p>
                     </div>
-                  )
+                  );
                 })}
               </div>
 
               {/* Table Rows: Time Slots */}
               <div className="flex flex-col gap-1.5">
                 {data.timeSlots.map((time) => {
-                  const formattedStart = formatTimeSlot(time)
-                  const formattedEnd = getEndTime(time)
+                  const formattedStart = formatTimeSlot(time);
+                  const formattedEnd = getEndTime(time);
 
                   return (
                     <div
@@ -388,14 +400,16 @@ export function SemesterAnalyticsPanel({
                     >
                       <div className="text-right pr-2 text-xs font-semibold text-muted-foreground leading-tight">
                         <div>{formattedStart}</div>
-                        <div className="text-[10px] opacity-70">to {formattedEnd}</div>
+                        <div className="text-[10px] opacity-70">
+                          to {formattedEnd}
+                        </div>
                       </div>
 
                       {data.days.map((dayNum) => {
                         const cell = data.slotMatrix.find(
-                          (s) => s.dayOfWeek === dayNum && s.startTime === time
-                        )
-                        const count = cell?.count ?? 0
+                          (s) => s.dayOfWeek === dayNum && s.startTime === time,
+                        );
+                        const count = cell?.count ?? 0;
 
                         return (
                           <button
@@ -411,15 +425,15 @@ export function SemesterAnalyticsPanel({
                             }
                             className={cn(
                               "h-12 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-150 cursor-pointer select-none active:scale-[0.97]",
-                              cellStyle(count, data.maxCount)
+                              cellStyle(count, data.maxCount),
                             )}
                           >
                             {count > 0 ? count : "—"}
                           </button>
-                        )
+                        );
                       })}
                     </div>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -436,7 +450,8 @@ export function SemesterAnalyticsPanel({
                 Member Recurring Timetables ({data.users.length})
               </h2>
               <p className="text-xs text-muted-foreground">
-                Individual weekly availability totals for registered union members.
+                Individual weekly availability totals for registered union
+                members.
               </p>
             </div>
           </div>
@@ -498,7 +513,11 @@ export function SemesterAnalyticsPanel({
                     variant="outline"
                     className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 text-xs font-bold"
                   >
-                    {DAY_OF_WEEK_MAP.find((d) => d.day === selectedSlot.dayOfWeek)?.label}
+                    {
+                      DAY_OF_WEEK_MAP.find(
+                        (d) => d.day === selectedSlot.dayOfWeek,
+                      )?.label
+                    }
                   </Badge>
                   <span className="text-xs font-semibold text-muted-foreground">
                     {formatTimeSlot(selectedSlot.startTime)} →{" "}
@@ -522,7 +541,7 @@ export function SemesterAnalyticsPanel({
                     "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
                     dialogTab === "available"
                       ? "bg-background text-foreground shadow-xs font-bold"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   Available ({selectedSlot.users.length})
@@ -534,7 +553,7 @@ export function SemesterAnalyticsPanel({
                     "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
                     dialogTab === "missing"
                       ? "bg-background text-foreground shadow-xs font-bold"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   Conflicting / Missing ({missingMembersForSlot.length})
@@ -569,7 +588,11 @@ export function SemesterAnalyticsPanel({
                             </p>
                           </div>
                           <div className="size-5 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center">
-                            <HugeiconsIcon icon={Tick01Icon} size={12} strokeWidth={3} />
+                            <HugeiconsIcon
+                              icon={Tick01Icon}
+                              size={12}
+                              strokeWidth={3}
+                            />
                           </div>
                         </div>
                       ))}
@@ -577,7 +600,8 @@ export function SemesterAnalyticsPanel({
                   )
                 ) : missingMembersForSlot.length === 0 ? (
                   <div className="py-8 text-center text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-                    100% Attendance! All registered members are free for this slot.
+                    100% Attendance! All registered members are free for this
+                    slot.
                   </div>
                 ) : (
                   <div className="divide-y divide-border/60">
@@ -616,5 +640,5 @@ export function SemesterAnalyticsPanel({
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
