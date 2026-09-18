@@ -5,7 +5,10 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons";
-import { executeThemeTransition } from "@/components/theme-beam";
+import {
+  executeThemeTransition,
+  prewarmThemePipeline,
+} from "@/components/theme-beam";
 import { cn } from "@/lib/utils";
 
 const emptySubscribe = () => () => {};
@@ -17,6 +20,12 @@ export function ThemeToggle() {
     () => false,
   );
   const { resolvedTheme, setTheme } = useTheme();
+
+  // Pre-warm the GPU clip-path shader pipeline during browser idle time
+  // so the first 1-2 theme toggles run at silky-smooth 60/120fps with zero shader compilation lag.
+  React.useEffect(() => {
+    prewarmThemePipeline();
+  }, []);
 
   function handleToggle(e: React.MouseEvent<HTMLButtonElement>) {
     const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
@@ -47,10 +56,10 @@ export function ThemeToggle() {
           <HugeiconsIcon
             icon={Sun03Icon}
             className={cn(
-              "size-4.5 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+              "size-4.5 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
               resolvedTheme === "dark"
                 ? "scale-100 rotate-0 text-amber-400 opacity-100 drop-shadow-[0_0_8px_rgba(251,191,36,0.45)]"
-                : "absolute scale-0 -rotate-90 opacity-0",
+                : "absolute scale-0 -rotate-90 opacity-0 pointer-events-none",
             )}
             strokeWidth={1.75}
           />
@@ -58,10 +67,10 @@ export function ThemeToggle() {
           <HugeiconsIcon
             icon={Moon02Icon}
             className={cn(
-              "size-4.5 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+              "size-4.5 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
               resolvedTheme === "light"
                 ? "scale-100 rotate-0 text-sky-600 opacity-100 drop-shadow-[0_0_8px_rgba(2,132,199,0.35)]"
-                : "absolute scale-0 rotate-90 opacity-0",
+                : "absolute scale-0 rotate-90 opacity-0 pointer-events-none",
             )}
             strokeWidth={1.75}
           />
