@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  DashboardSquare02Icon,
   Calendar03Icon,
+  Clock01Icon,
   Shield01Icon,
   Home01Icon,
   Logout02Icon,
@@ -37,10 +37,25 @@ import {
   AnalyticsDashboard,
   type AnalyticsData,
 } from "@/components/admin/analytics-dashboard"
+import type { SemesterAnalyticsData } from "@/lib/semester-analytics"
 import type { ScheduleConfigData } from "@/components/admin/schedule-config-panel"
 import type { AdminUserInfo } from "@/lib/admin"
 import { NusuLogo } from "@/components/nusu-logo"
 import { cn } from "@/lib/utils"
+
+const SemesterAnalyticsPanel = dynamic(
+  () =>
+    import("@/components/admin/semester-analytics-panel").then(
+      (m) => m.SemesterAnalyticsPanel
+    ),
+  {
+    loading: () => (
+      <div className="flex h-40 items-center justify-center">
+        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    ),
+  }
+)
 
 const ScheduleConfigPanel = dynamic(
   () =>
@@ -70,7 +85,12 @@ const AdminUsersPanel = dynamic(
   }
 )
 
-export type AdminTab = "analytics" | "schedule" | "admins"
+export type AdminTab =
+  | "specific-analytics"
+  | "semester-analytics"
+  | "analytics"
+  | "schedule"
+  | "admins"
 
 interface AdminLayoutShellProps {
   session: {
@@ -84,6 +104,7 @@ interface AdminLayoutShellProps {
     }
   }
   analytics: AnalyticsData
+  semesterAnalytics: SemesterAnalyticsData
   dateRangeLabel: string
   initialTab?: AdminTab
   initialConfig?: ScheduleConfigData | null
@@ -93,8 +114,9 @@ interface AdminLayoutShellProps {
 export function AdminLayoutShell({
   session,
   analytics,
+  semesterAnalytics,
   dateRangeLabel,
-  initialTab = "analytics",
+  initialTab = "specific-analytics",
   initialConfig = null,
   initialAdmins = [],
 }: AdminLayoutShellProps) {
@@ -105,7 +127,16 @@ export function AdminLayoutShell({
 
   React.useEffect(() => {
     const qTab = searchParams.get("tab") as AdminTab
-    if (qTab && ["analytics", "schedule", "admins"].includes(qTab)) {
+    if (
+      qTab &&
+      [
+        "specific-analytics",
+        "semester-analytics",
+        "analytics",
+        "schedule",
+        "admins",
+      ].includes(qTab)
+    ) {
       setActiveTab(qTab)
     }
   }, [searchParams])
@@ -174,17 +205,37 @@ export function AdminLayoutShell({
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      tooltip="Availability Analytics"
-                      isActive={activeTab === "analytics"}
-                      onClick={() => setTab("analytics")}
+                      tooltip="Specific Date Analytics"
+                      isActive={
+                        activeTab === "specific-analytics" ||
+                        activeTab === "analytics"
+                      }
+                      onClick={() => setTab("specific-analytics")}
                       className="cursor-pointer font-medium"
                     >
                       <HugeiconsIcon
-                        icon={DashboardSquare02Icon}
+                        icon={Calendar03Icon}
                         size={16}
                         strokeWidth={2}
                       />
-                      <span>Analytics Dashboard</span>
+                      <span>Specific Date Analytics</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      tooltip="Semester Availability Analytics"
+                      isActive={activeTab === "semester-analytics"}
+                      onClick={() => setTab("semester-analytics")}
+                      className="cursor-pointer font-medium"
+                    >
+                      <HugeiconsIcon
+                        icon={Clock01Icon}
+                        size={16}
+                        strokeWidth={2}
+                        className="text-emerald-500"
+                      />
+                      <span>Semester Analytics</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
@@ -344,15 +395,22 @@ export function AdminLayoutShell({
                   NUSU Administration
                 </p>
                 <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-                  {activeTab === "analytics" && "Availability Analytics"}
+                  {(activeTab === "specific-analytics" ||
+                    activeTab === "analytics") &&
+                    "Specific Date Analytics"}
+                  {activeTab === "semester-analytics" &&
+                    "Semester Availability Analytics"}
                   {activeTab === "schedule" && "Schedule Configuration"}
                   {activeTab === "admins" && "Administrator Management"}
                 </h1>
                 <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                  {activeTab === "analytics" &&
-                    `Comprehensive heatmap and member booking analytics · ${dateRangeLabel}`}
+                  {(activeTab === "specific-analytics" ||
+                    activeTab === "analytics") &&
+                    `Campaign heatmap and member booking analytics · ${dateRangeLabel}`}
+                  {activeTab === "semester-analytics" &&
+                    "Standing weekly timetable heatmap and Golden Slot meeting recommendations."}
                   {activeTab === "schedule" &&
-                    "Configure active calendar date boundaries, slot intervals, and booking modes."}
+                    "Configure availability mode toggles, active date boundaries, and slot intervals."}
                   {activeTab === "admins" &&
                     "Authorize university emails with administrative privileges to manage the Union Tracker."}
                 </p>
@@ -362,15 +420,27 @@ export function AdminLayoutShell({
               <div className="inline-flex items-center gap-1 self-start rounded-xl border border-border/80 bg-muted/60 p-1 sm:self-auto">
                 <button
                   type="button"
-                  onClick={() => setTab("analytics")}
+                  onClick={() => setTab("specific-analytics")}
                   className={cn(
                     "cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
-                    activeTab === "analytics"
+                    activeTab === "specific-analytics" || activeTab === "analytics"
                       ? "bg-background text-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  Analytics
+                  Specific Date
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab("semester-analytics")}
+                  className={cn(
+                    "cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                    activeTab === "semester-analytics"
+                      ? "bg-background text-foreground shadow-xs text-emerald-600 dark:text-emerald-400"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Semester
                 </button>
                 <button
                   type="button"
@@ -401,8 +471,12 @@ export function AdminLayoutShell({
 
             {/* Dynamic Tab Body */}
             <div>
-              {activeTab === "analytics" && (
+              {(activeTab === "specific-analytics" ||
+                activeTab === "analytics") && (
                 <AnalyticsDashboard data={analytics} />
+              )}
+              {activeTab === "semester-analytics" && (
+                <SemesterAnalyticsPanel initialData={semesterAnalytics} />
               )}
               {activeTab === "schedule" && (
                 <div className="max-w-2xl">

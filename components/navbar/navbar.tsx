@@ -11,22 +11,51 @@ import {
   DashboardSquare02Icon,
   Logout02Icon,
   Calendar03Icon,
+  Clock01Icon,
 } from "@hugeicons/core-free-icons"
 import { Sun, Moon, Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { executeThemeTransition, THEME_BEAM_EVENT } from "@/components/theme-beam"
 import { SignOutDialog } from "@/components/auth/sign-out-dialog"
 
-export function Navbar() {
+export interface NavbarProps {
+  dateScheduleTitle?: string
+  weeklyScheduleTitle?: string
+  initialUser?: {
+    name?: string | null
+    email?: string | null
+    image?: string | null
+  } | null
+  initialIsAdmin?: boolean
+}
+
+let globalAdminCache: { email: string; isAdmin: boolean } | null = null
+
+export function Navbar({
+  dateScheduleTitle,
+  weeklyScheduleTitle,
+  initialUser,
+  initialIsAdmin = false,
+}: NavbarProps = {}) {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = authClient.useSession()
+  const currentUser = session?.user ?? initialUser
+  const currentEmail = currentUser?.email?.toLowerCase()
+  const isSpecialAdmin = currentEmail === "admin@nu.edu.eg"
+
   const { theme, resolvedTheme, setTheme } = useTheme()
 
   const [mounted, setMounted] = React.useState(false)
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [isScrolled, setIsScrolled] = React.useState(false)
-  const [isAdmin, setIsAdmin] = React.useState(false)
+  const [isAdmin, setIsAdmin] = React.useState<boolean>(() => {
+    if (initialIsAdmin) return true
+    if (currentEmail && globalAdminCache && globalAdminCache.email === currentEmail) {
+      return globalAdminCache.isAdmin
+    }
+    return false
+  })
   const [signOutOpen, setSignOutOpen] = React.useState(false)
 
   // Dynamic sliding hover pill indicator for desktop nav
@@ -67,23 +96,28 @@ export function Navbar() {
     setMounted(true)
   }, [])
 
-  const isSpecialAdmin = session?.user?.email === "admin@nu.edu.eg"
-
   // Admin access check for active session
   React.useEffect(() => {
-    if (!session?.user?.email) {
+    if (!currentEmail) {
       setIsAdmin(false)
       return
     }
 
     if (isSpecialAdmin) {
       setIsAdmin(true)
+      globalAdminCache = { email: currentEmail, isAdmin: true }
       return
     }
 
-    const userRole = (session.user as Record<string, unknown>).role
+    const userRole = (currentUser as Record<string, unknown> | undefined)?.role
     if (userRole === "admin" || userRole === "super-admin") {
       setIsAdmin(true)
+      globalAdminCache = { email: currentEmail, isAdmin: true }
+      return
+    }
+
+    if (globalAdminCache && globalAdminCache.email === currentEmail) {
+      setIsAdmin(globalAdminCache.isAdmin)
       return
     }
 
@@ -91,11 +125,9 @@ export function Navbar() {
     fetch("/api/admin/check")
       .then((r) => r.json())
       .then((data) => {
-        if (!cancelled && data?.isAdmin) {
-          setIsAdmin(true)
-        } else if (!cancelled) {
-          setIsAdmin(false)
-        }
+        const isAdm = Boolean(data?.isAdmin)
+        globalAdminCache = { email: currentEmail, isAdmin: isAdm }
+        if (!cancelled) setIsAdmin(isAdm)
       })
       .catch(() => {
         if (!cancelled) setIsAdmin(false)
@@ -104,7 +136,7 @@ export function Navbar() {
     return () => {
       cancelled = true
     }
-  }, [session?.user, isSpecialAdmin])
+  }, [currentEmail, isSpecialAdmin, currentUser])
 
   // Aggressively prefetch the admin console as soon as user is recognized as admin
   React.useEffect(() => {
@@ -152,15 +184,37 @@ export function Navbar() {
 
   const isDark = mounted && (resolvedTheme === "dark" || theme === "dark")
 
+  const handleNavMouseLeave = () => {
+    setHoveredRect((prev) => (prev ? { ...prev, opacity: 0 } : null))
+  }
+
+  const handleLinkClick = (index: number) => {
+    setClickedIndex(index)
+    setTimeout(() => {
+      setClickedIndex(null)
+    }, 450)
+  }
+
+  const isActiveRoute = (href: string) => {
+    if (href === "/specific") return pathname === "/specific" || pathname === "/"
+    if (href === "/weekly") return pathname.startsWith("/weekly")
+    if (href === "/admin") return pathname.startsWith("/admin")
+    return pathname === href
+  }
+
   // Role-based navigation links
   // - admin@nu.edu.eg: Only "Admin Panel" (cannot mark availability)
-  // - Other admins: "Mark Availability" and "Admin Panel"
-  // - Normal users: No center nav links (only Logo, Theme Toggle, and Sign out)
+  // - Other admins: "Specific Date", "Semester Availability", and "Admin Panel"
+  // - Normal authenticated users: "Specific Date" and "Semester Availability"
   const navLinks: {
     label: string
     href: string
     icon: Parameters<typeof HugeiconsIcon>[0]["icon"]
   }[] = []
+
+  const specificLabel = dateScheduleTitle?.trim() || "Specific Date"
+  const weeklyLabel = weeklyScheduleTitle?.trim() || "Semester Availability"
+
   if (isSpecialAdmin) {
     navLinks.push({
       label: "Admin Panel",
@@ -170,14 +224,32 @@ export function Navbar() {
   } else if (isAdmin) {
     navLinks.push(
       {
-        label: "Mark Availability",
-        href: "/",
+        label: specificLabel,
+        href: "/specific",
         icon: Calendar03Icon,
+      },
+      {
+        label: weeklyLabel,
+        href: "/weekly",
+        icon: Clock01Icon,
       },
       {
         label: "Admin Panel",
         href: "/admin",
         icon: DashboardSquare02Icon,
+      }
+    )
+  } else if (currentUser) {
+    navLinks.push(
+      {
+        label: specificLabel,
+        href: "/specific",
+        icon: Calendar03Icon,
+      },
+      {
+        label: weeklyLabel,
+        href: "/weekly",
+        icon: Clock01Icon,
       }
     )
   }
@@ -195,22 +267,6 @@ export function Navbar() {
         opacity: 1,
       })
     }
-  }
-
-  const handleNavMouseLeave = () => {
-    setHoveredRect((prev) => (prev ? { ...prev, opacity: 0 } : null))
-  }
-
-  const handleLinkClick = (index: number) => {
-    setClickedIndex(index)
-    setTimeout(() => {
-      setClickedIndex(null)
-    }, 450)
-  }
-
-  const isActiveRoute = (href: string) => {
-    if (href === "/") return pathname === "/"
-    return pathname.startsWith(href)
   }
 
   const handleThemeToggle = () => {
@@ -403,7 +459,7 @@ export function Navbar() {
               </button>
 
               {/* Authenticated Controls: Sign out */}
-              {session?.user ? (
+              {currentUser ? (
                 <button
                   type="button"
                   onClick={handleSignOut}

@@ -27,6 +27,11 @@ export async function PUT(request: NextRequest) {
       endDate: string
       slotMode: string
       timeSlots: string[]
+      dateScheduleActive?: boolean
+      weeklyScheduleActive?: boolean
+      weeklyIncludeSaturday?: boolean
+      dateScheduleTitle?: string
+      weeklyScheduleTitle?: string
     }
 
     // Validate dates with UTC
@@ -45,6 +50,14 @@ export async function PUT(request: NextRequest) {
     const timeSlotRegex = /^\d{2}:\d{2}$/
     const validSlots = (body.timeSlots ?? []).filter((s) => timeSlotRegex.test(s))
 
+    const dateScheduleActive = body.dateScheduleActive ?? true
+    const weeklyScheduleActive = body.weeklyScheduleActive ?? true
+    const weeklyIncludeSaturday = body.weeklyIncludeSaturday ?? false
+    const dateScheduleTitle =
+      body.dateScheduleTitle?.trim() || "Specific Date Availability"
+    const weeklyScheduleTitle =
+      body.weeklyScheduleTitle?.trim() || "Semester Availability"
+
     // Upsert config + replace all time slots atomically
     await prisma.$transaction(async (tx) => {
       await tx.scheduleConfig.upsert({
@@ -54,11 +67,21 @@ export async function PUT(request: NextRequest) {
           startDate: start,
           endDate: end,
           slotMode: body.slotMode,
+          dateScheduleActive,
+          weeklyScheduleActive,
+          weeklyIncludeSaturday,
+          dateScheduleTitle,
+          weeklyScheduleTitle,
         },
         update: {
           startDate: start,
           endDate: end,
           slotMode: body.slotMode,
+          dateScheduleActive,
+          weeklyScheduleActive,
+          weeklyIncludeSaturday,
+          dateScheduleTitle,
+          weeklyScheduleTitle,
         },
       })
 
@@ -83,6 +106,12 @@ export async function PUT(request: NextRequest) {
               startTime: { notIn: validSlots },
             },
           })
+          // Also prune recurring availability that doesn't match validSlots
+          await tx.recurringAvailability.deleteMany({
+            where: {
+              startTime: { notIn: validSlots },
+            },
+          })
         }
       }
 
@@ -97,6 +126,8 @@ export async function PUT(request: NextRequest) {
     // Immediately purge Next.js server-side cached routes
     revalidatePath("/admin")
     revalidatePath("/")
+    revalidatePath("/specific")
+    revalidatePath("/weekly")
     revalidatePath("/api/schedule-config")
 
     return NextResponse.json({ success: true })

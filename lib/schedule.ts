@@ -7,7 +7,22 @@ export type ScheduleConfig = {
   slotMode: "fixed" | "free"
   timeSlots: string[]
   dates: string[]
+  dateScheduleActive: boolean
+  weeklyScheduleActive: boolean
+  weeklyIncludeSaturday: boolean
+  dateScheduleTitle: string
+  weeklyScheduleTitle: string
 }
+
+export const DAY_OF_WEEK_MAP = [
+  { day: 0, label: "Sunday", short: "Sun" },
+  { day: 1, label: "Monday", short: "Mon" },
+  { day: 2, label: "Tuesday", short: "Tue" },
+  { day: 3, label: "Wednesday", short: "Wed" },
+  { day: 4, label: "Thursday", short: "Thu" },
+  { day: 5, label: "Friday", short: "Fri" },
+  { day: 6, label: "Saturday", short: "Sat" },
+] as const
 
 /**
  * Loads the active schedule config from the DB.
@@ -41,6 +56,11 @@ export const getScheduleConfig = cache(
       slotMode: config.slotMode as "fixed" | "free",
       timeSlots: config.timeSlots.map((s) => s.startTime),
       dates,
+      dateScheduleActive: config.dateScheduleActive ?? true,
+      weeklyScheduleActive: config.weeklyScheduleActive ?? true,
+      weeklyIncludeSaturday: config.weeklyIncludeSaturday ?? false,
+      dateScheduleTitle: config.dateScheduleTitle || "Specific Date Availability",
+      weeklyScheduleTitle: config.weeklyScheduleTitle || "Semester Availability",
     }
   }
 )

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { isAdminEmail, getEnvAdminEmails } from "@/lib/admin"
 import { getScheduleConfig } from "@/lib/schedule"
+import { getSemesterAnalytics } from "@/lib/semester-analytics"
 import {
   type AnalyticsData,
   type SlotEntry,
@@ -23,14 +24,26 @@ export const dynamic = "force-dynamic"
 export default async function AdminPage() {
   let session = null
   let config: Awaited<ReturnType<typeof getScheduleConfig>> = null
+  let semesterAnalytics: Awaited<ReturnType<typeof getSemesterAnalytics>> = {
+    totalUsers: 0,
+    totalSlots: 0,
+    maxCount: 0,
+    slotMatrix: [],
+    users: [],
+    days: [0, 1, 2, 3, 4],
+    timeSlots: [],
+    recommendations: [],
+  }
 
   try {
-    const [fetchedSession, fetchedConfig] = await Promise.all([
+    const [fetchedSession, fetchedConfig, fetchedSemester] = await Promise.all([
       auth.api.getSession({ headers: await headers() }),
       getScheduleConfig(),
+      getSemesterAnalytics(),
     ])
     session = fetchedSession
     config = fetchedConfig
+    semesterAnalytics = fetchedSemester
   } catch (err: unknown) {
     const error = err as { digest?: string }
     if (
@@ -212,6 +225,7 @@ export default async function AdminPage() {
     <AdminLayoutShell
       session={session}
       analytics={analytics}
+      semesterAnalytics={semesterAnalytics}
       dateRangeLabel={dateRangeLabel}
       initialConfig={config}
       initialAdmins={[]}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Popover,
@@ -28,6 +29,11 @@ export type ScheduleConfigData = {
   endDate: string
   slotMode: "fixed" | "free"
   timeSlots: string[]
+  dateScheduleActive?: boolean
+  weeklyScheduleActive?: boolean
+  weeklyIncludeSaturday?: boolean
+  dateScheduleTitle?: string
+  weeklyScheduleTitle?: string
 }
 
 function formatTime(time: string): string {
@@ -197,6 +203,13 @@ export function ScheduleConfigPanel({
     endDate: initialConfig?.endDate ?? "",
     slotMode: initialConfig?.slotMode ?? "fixed",
     timeSlots: initialConfig?.timeSlots ?? [],
+    dateScheduleActive: initialConfig?.dateScheduleActive ?? true,
+    weeklyScheduleActive: initialConfig?.weeklyScheduleActive ?? true,
+    weeklyIncludeSaturday: initialConfig?.weeklyIncludeSaturday ?? false,
+    dateScheduleTitle:
+      initialConfig?.dateScheduleTitle ?? "Specific Date Availability",
+    weeklyScheduleTitle:
+      initialConfig?.weeklyScheduleTitle ?? "Semester Availability",
   }))
   const [isLoading, setIsLoading] = useState(!initialConfig)
   const [isSaving, setIsSaving] = useState(false)
@@ -220,6 +233,13 @@ export function ScheduleConfigPanel({
           endDate: data.endDate,
           slotMode: data.slotMode,
           timeSlots: data.timeSlots ?? [],
+          dateScheduleActive: data.dateScheduleActive ?? true,
+          weeklyScheduleActive: data.weeklyScheduleActive ?? true,
+          weeklyIncludeSaturday: data.weeklyIncludeSaturday ?? false,
+          dateScheduleTitle:
+            data.dateScheduleTitle || "Specific Date Availability",
+          weeklyScheduleTitle:
+            data.weeklyScheduleTitle || "Semester Availability",
         })
       }
     } finally {
@@ -310,6 +330,136 @@ export function ScheduleConfigPanel({
 
   return (
     <div className="space-y-5">
+      {/* Availability Controls & Toggles */}
+      <div className="overflow-hidden rounded-3xl border bg-card">
+        <div className="flex items-center gap-2 border-b px-5 py-4">
+          <HugeiconsIcon
+            icon={Clock01Icon}
+            className="size-4.5 text-primary"
+            strokeWidth={1.5}
+          />
+          <div>
+            <h2 className="font-heading text-base font-semibold">
+              Availability Controls & Submissions
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Toggle which availability options are currently accepting responses from members
+            </p>
+          </div>
+        </div>
+
+        <div className="divide-y p-5 space-y-4">
+          {/* Specific Date Toggle */}
+          <div className="flex items-center justify-between gap-4 pt-1">
+            <div>
+              <p className="text-sm font-medium">Accept Specific Date Submissions (/specific)</p>
+              <p className="text-xs text-muted-foreground">
+                When enabled, members can mark availability for specific calendar dates.
+              </p>
+            </div>
+            <Switch
+              checked={config.dateScheduleActive ?? true}
+              onCheckedChange={(checked) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  dateScheduleActive: checked,
+                }))
+              }
+            />
+          </div>
+
+          {/* Semester Availability Toggle */}
+          <div className="flex items-center justify-between gap-4 pt-4">
+            <div>
+              <p className="text-sm font-medium">Accept Semester Availability Submissions (/weekly)</p>
+              <p className="text-xs text-muted-foreground">
+                When enabled, members can mark their standing weekly semester timetable.
+              </p>
+            </div>
+            <Switch
+              checked={config.weeklyScheduleActive ?? true}
+              onCheckedChange={(checked) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  weeklyScheduleActive: checked,
+                }))
+              }
+            />
+          </div>
+
+          {/* Saturday Inclusion Toggle */}
+          <div className="flex items-center justify-between gap-4 pt-4">
+            <div>
+              <p className="text-sm font-medium">Include Saturday in Semester Timetable</p>
+              <p className="text-xs text-muted-foreground">
+                Expands the semester timetable from Sun–Thu (5 days) to Sun–Sat (6 days).
+              </p>
+            </div>
+            <Switch
+              checked={config.weeklyIncludeSaturday ?? false}
+              onCheckedChange={(checked) =>
+                setConfig((prev) => ({
+                  ...prev,
+                  weeklyIncludeSaturday: checked,
+                }))
+              }
+            />
+          </div>
+
+          {/* Form Display Names / Custom Titles */}
+          <div className="pt-5 space-y-3">
+            <div>
+              <p className="text-sm font-medium">Form Display Names (Member-Facing)</p>
+              <p className="text-xs text-muted-foreground">
+                Customize what members see in the navbar and page headers (e.g. rename Specific Date to &quot;Orientation Week Availability&quot; or an event name)
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              <div>
+                <Label className="text-xs font-semibold text-foreground">
+                  Specific Date Form Name
+                </Label>
+                <Input
+                  value={config.dateScheduleTitle ?? "Specific Date Availability"}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      dateScheduleTitle: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g. Orientation Week Availability"
+                  className="mt-1.5 h-9 text-xs sm:text-sm bg-background/60"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Displays on /specific and in the main navigation
+                </p>
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold text-foreground">
+                  Semester Availability Form Name
+                </Label>
+                <Input
+                  value={config.weeklyScheduleTitle ?? "Semester Availability"}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      weeklyScheduleTitle: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g. Semester Availability"
+                  className="mt-1.5 h-9 text-xs sm:text-sm bg-background/60"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Displays on /weekly and in the main navigation
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Date Range */}
       <div className="overflow-hidden rounded-3xl border bg-card">
         <div className="flex items-center gap-2 border-b px-5 py-4">
