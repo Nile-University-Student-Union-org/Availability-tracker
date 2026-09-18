@@ -39,3 +39,10 @@ pnpm-debug.log*
 next-env.d.ts
 .vercel
 .env*
+
+# internal & security
+handoff.md
+scratch/
+*.bak
+bfg*.jar
+replace-expressions.txt
