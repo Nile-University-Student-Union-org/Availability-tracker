@@ -4,6 +4,7 @@ export const COMMITTEES = [
   "Community Service",
   "Technical",
   "PR",
-  "Media",
+  "Marketing",
+  "Media & Design",
   "Operations",
 ]
