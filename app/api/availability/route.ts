@@ -102,6 +102,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!config.dateScheduleActive) {
+      return NextResponse.json(
+        {
+          error:
+            "Specific Date availability submissions are currently closed by the Student Union.",
+        },
+        { status: 403 },
+      );
+    }
+
     const body = (await request.json()) as {
       date?: string;
       slots?: string[];

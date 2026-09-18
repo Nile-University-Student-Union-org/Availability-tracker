@@ -186,8 +186,8 @@ export function WeeklyTimetable({
       toast.error("Please enter your name");
       return;
     }
-    if (memberId && !/^\d{9}$/.test(memberId.trim())) {
-      toast.error("Student ID must be 9 digits");
+    if (!memberId || !/^\d{9}$/.test(memberId.trim())) {
+      toast.error("Please enter your 9-digit Student ID");
       return;
     }
     if (!memberCommittee) {

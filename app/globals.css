@@ -162,19 +162,32 @@
 /* ─── Apple-grade Silky Smooth Circular View Transition ──────────────────── */
 
 ::view-transition-group(root) {
-  animation-duration: 520ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-duration: 440ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 ::view-transition-old(root) {
   animation: none;
   z-index: 1;
+  mix-blend-mode: normal;
 }
 
 ::view-transition-new(root) {
   animation: none;
   z-index: 999999;
   mix-blend-mode: normal;
+}
+
+::view-transition-image-pair(root) {
+  isolation: auto;
+}
+
+/* Pause conflicting child transitions during fullscreen theme ripple for 120fps mobile hardware compositing */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
