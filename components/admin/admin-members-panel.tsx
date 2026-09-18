@@ -70,6 +70,8 @@ export function AdminMembersPanel({
   const [searchQuery, setSearchQuery] = React.useState("");
   const [committeeFilter, setCommitteeFilter] = React.useState("all");
   const [roleFilter, setRoleFilter] = React.useState("all");
+  const [availableCommittees, setAvailableCommittees] =
+    React.useState<string[]>(COMMITTEES);
 
   // Deletion Dialog State
   const [memberToDelete, setMemberToDelete] = React.useState<MemberData | null>(
@@ -105,6 +107,14 @@ export function AdminMembersPanel({
 
   React.useEffect(() => {
     void fetchMembers();
+    fetch("/api/committees")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d?.committees) && d.committees.length > 0) {
+          setAvailableCommittees(d.committees);
+        }
+      })
+      .catch(() => {});
   }, [fetchMembers]);
 
   const handleCopyId = (nuId: string, memberId: string) => {
@@ -306,7 +316,7 @@ export function AdminMembersPanel({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Committees</SelectItem>
-              {COMMITTEES.map((comm) => (
+              {availableCommittees.map((comm) => (
                 <SelectItem key={comm} value={comm}>
                   {comm}
                 </SelectItem>

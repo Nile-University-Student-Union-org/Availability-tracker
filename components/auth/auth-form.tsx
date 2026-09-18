@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { COMMITTEES } from "@/lib/constants";
@@ -56,9 +56,30 @@ export function AuthForm({ initialMode, callbackUrl }: AuthFormProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [nuId, setNuId] = useState("");
   const [committee, setCommittee] = useState("");
+  const [availableCommittees, setAvailableCommittees] =
+    useState<string[]>(COMMITTEES);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/committees")
+      .then((r) => r.json())
+      .then((d) => {
+        if (
+          !cancelled &&
+          Array.isArray(d?.committees) &&
+          d.committees.length > 0
+        ) {
+          setAvailableCommittees(d.committees);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Signin Form State
   const [loginEmail, setLoginEmail] = useState("");
@@ -429,7 +450,7 @@ export function AuthForm({ initialMode, callbackUrl }: AuthFormProps) {
                   <SelectValue placeholder="Select committee" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  {COMMITTEES.map((c) => (
+                  {availableCommittees.map((c) => (
                     <SelectItem key={c} value={c} className="rounded-lg">
                       {c}
                     </SelectItem>

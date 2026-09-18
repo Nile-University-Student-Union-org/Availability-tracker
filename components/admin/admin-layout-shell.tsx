@@ -28,6 +28,7 @@ import {
   Home01Icon,
   Logout02Icon,
   ArrowRight01Icon,
+  Briefcase01Icon,
 } from "@hugeicons/core-free-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -99,13 +100,28 @@ const AdminMembersPanel = dynamic(
   },
 );
 
+const AdminCommitteesPanel = dynamic(
+  () =>
+    import("@/components/admin/admin-committees-panel").then(
+      (m) => m.AdminCommitteesPanel,
+    ),
+  {
+    loading: () => (
+      <div className="flex h-40 items-center justify-center">
+        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    ),
+  },
+);
+
 export type AdminTab =
   | "specific-analytics"
   | "semester-analytics"
   | "analytics"
   | "schedule"
   | "admins"
-  | "members";
+  | "members"
+  | "committees";
 
 interface AdminLayoutShellProps {
   session: {
@@ -316,6 +332,22 @@ export function AdminLayoutShell({
                       <span>Admin Management</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      tooltip="Manage Committees"
+                      isActive={activeTab === "committees"}
+                      onClick={() => setTab("committees")}
+                      className="cursor-pointer font-medium"
+                    >
+                      <HugeiconsIcon
+                        icon={Briefcase01Icon}
+                        size={16}
+                        strokeWidth={2}
+                      />
+                      <span>Committees</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -400,6 +432,7 @@ export function AdminLayoutShell({
                   {activeTab === "schedule" && "Schedule Configuration"}
                   {activeTab === "admins" && "Admin Access & Roles"}
                   {activeTab === "members" && "Members Directory"}
+                  {activeTab === "committees" && "Committees Management"}
                 </span>
               </div>
             </div>
@@ -433,6 +466,7 @@ export function AdminLayoutShell({
                   {activeTab === "schedule" && "Schedule Configuration"}
                   {activeTab === "admins" && "Administrator Management"}
                   {activeTab === "members" && "Union Members Directory"}
+                  {activeTab === "committees" && "Union Committees Management"}
                 </h1>
                 <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   {(activeTab === "specific-analytics" ||
@@ -446,6 +480,8 @@ export function AdminLayoutShell({
                     "Authorize university emails with administrative privileges to manage the Union Tracker."}
                   {activeTab === "members" &&
                     "Directory of all registered Union members. Copy student IDs, reset member passwords, or delete accounts."}
+                  {activeTab === "committees" &&
+                    "Create, view, and manage Nile University Student Union committees and monitor active member assignments."}
                 </p>
               </div>
             </div>
@@ -475,6 +511,7 @@ export function AdminLayoutShell({
                   currentUserEmail={session.user.email}
                 />
               )}
+              {activeTab === "committees" && <AdminCommitteesPanel />}
             </div>
           </main>
         </SidebarInset>

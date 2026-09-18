@@ -39,6 +39,14 @@ model AdminEmail {
   @@map("admin_email")
 }
 
+model Committee {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("committee")
+}
+
 model Session {
   id        String   @id
   expiresAt DateTime
