@@ -575,7 +575,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     <div className="space-y-5">
       {/* ── Multi-Committee Filter Bar ───────────────────────────────── */}
       <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2.5 min-w-0">
+        <div className="flex flex-col gap-2.5 min-w-0 max-w-full flex-1">
           <div className="flex flex-wrap items-center gap-2.5">
             <Label
               htmlFor="committee-filter-btn"
@@ -623,7 +623,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
 
               <PopoverContent
                 align="start"
-                className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm rounded-2xl border border-border/80 bg-popover/98 p-3 shadow-2xl backdrop-blur-xl space-y-2.5"
+                className="w-[calc(100vw-2rem)] sm:w-88 max-w-md rounded-2xl border border-border/80 bg-popover/98 p-3 shadow-2xl backdrop-blur-xl space-y-2.5 overflow-hidden"
               >
                 {/* Popover Header */}
                 <div className="flex items-center justify-between border-b border-border/60 pb-2">
@@ -707,52 +707,50 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                 )}
 
                 {/* Committees Checkbox List */}
-                <ScrollArea className="max-h-52 pr-1">
-                  <div className="space-y-0.5">
-                    {filteredAvailableCommittees.map((c) => {
-                      const isSelected = selectedCommittees.includes(c);
-                      const memberCount = committeeMemberCounts.get(c) ?? 0;
-                      return (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => toggleCommittee(c)}
-                          className={cn(
-                            "group flex w-full min-h-[38px] sm:min-h-[36px] items-center justify-between rounded-xl px-2.5 py-1.5 text-xs transition-colors cursor-pointer select-none touch-manipulation active:scale-[0.99]",
-                            isSelected
-                              ? "bg-primary/10 text-primary font-semibold"
-                              : "text-foreground hover:bg-muted/60",
-                          )}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0 flex-1 truncate mr-2">
-                            <div
-                              className={cn(
-                                "flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors",
-                                isSelected
-                                  ? "border-primary bg-primary text-primary-foreground"
-                                  : "border-muted-foreground/40 bg-background group-hover:border-primary/50",
-                              )}
-                            >
-                              {isSelected && (
-                                <Check className="size-3 stroke-[2.5]" />
-                              )}
-                            </div>
-                            <span className="truncate text-left">{c}</span>
+                <div className="max-h-60 overflow-y-auto overflow-x-hidden space-y-1 pr-0.5 scrollbar-thin">
+                  {filteredAvailableCommittees.map((c) => {
+                    const isSelected = selectedCommittees.includes(c);
+                    const memberCount = committeeMemberCounts.get(c) ?? 0;
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => toggleCommittee(c)}
+                        className={cn(
+                          "group flex w-full min-h-[38px] items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-xs transition-colors cursor-pointer select-none touch-manipulation active:scale-[0.99]",
+                          isSelected
+                            ? "bg-primary/10 text-primary font-semibold"
+                            : "text-foreground hover:bg-muted/60",
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div
+                            className={cn(
+                              "flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors",
+                              isSelected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-muted-foreground/40 bg-background group-hover:border-primary/50",
+                            )}
+                          >
+                            {isSelected && (
+                              <Check className="size-3 stroke-[2.5]" />
+                            )}
                           </div>
-                          <span className="text-[10px] text-muted-foreground/80 font-mono shrink-0">
-                            {memberCount}{" "}
-                            {memberCount === 1 ? "member" : "members"}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {filteredAvailableCommittees.length === 0 && (
-                      <p className="py-4 text-center text-xs text-muted-foreground">
-                        No committees match &quot;{committeeSearch}&quot;
-                      </p>
-                    )}
-                  </div>
-                </ScrollArea>
+                          <span className="truncate text-left block flex-1 font-medium">{c}</span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground/80 font-mono shrink-0 whitespace-nowrap pl-1">
+                          {memberCount}{" "}
+                          {memberCount === 1 ? "member" : "members"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {filteredAvailableCommittees.length === 0 && (
+                    <p className="py-4 text-center text-xs text-muted-foreground">
+                      No committees match &quot;{committeeSearch}&quot;
+                    </p>
+                  )}
+                </div>
 
                 {/* Popover Footer */}
                 <div className="flex items-center justify-between border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
@@ -776,21 +774,21 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
 
           {/* Interactive Selected Committee Pills / Badges */}
           {selectedCommittees.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <span className="text-[11px] font-semibold text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5 max-w-full">
+              <span className="text-[11px] font-semibold text-muted-foreground shrink-0">
                 Active:
               </span>
               {selectedCommittees.map((c) => (
                 <Badge
                   key={c}
                   variant="outline"
-                  className="h-6 gap-1 rounded-lg border-primary/30 bg-primary/10 text-primary text-[11px] font-medium pr-1 pl-2 transition-all hover:bg-primary/15"
+                  className="h-auto min-h-[24px] max-w-full gap-1 rounded-lg border-primary/30 bg-primary/10 text-primary text-[11px] font-medium py-0.5 pr-1 pl-2 transition-all hover:bg-primary/15"
                 >
-                  <span>{c}</span>
+                  <span className="truncate max-w-[200px]">{c}</span>
                   <button
                     type="button"
                     onClick={() => toggleCommittee(c)}
-                    className="rounded-full p-0.5 hover:bg-primary/20 text-primary/70 hover:text-primary transition-colors cursor-pointer"
+                    className="rounded-full p-0.5 hover:bg-primary/20 text-primary/70 hover:text-primary transition-colors cursor-pointer shrink-0"
                     title={`Remove ${c} from filter`}
                   >
                     <X className="size-3" />
@@ -802,7 +800,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                 variant="ghost"
                 size="sm"
                 onClick={handleClearCommittees}
-                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground font-medium cursor-pointer"
+                className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground font-medium cursor-pointer shrink-0"
               >
                 Clear all
               </Button>
