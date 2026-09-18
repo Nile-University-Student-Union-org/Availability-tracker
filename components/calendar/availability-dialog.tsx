@@ -115,31 +115,38 @@ export function AvailabilityDialog({
   const [isDragging, setIsDragging] = useState(false);
   const dragModeRef = useRef<"add" | "remove">("add");
 
-  // Sync draftMap whenever dialog is opened
+  const wasOpenRef = useRef(false);
+
+  // Sync draftMap ONLY when the dialog transitions from closed to open
   useEffect(() => {
     if (open) {
-      const initialMap = new Map<string, Set<string>>();
-      if (allDates.length > 0) {
-        for (const d of allDates) {
-          const s = availabilityMap?.get(d);
-          initialMap.set(d, new Set(s ? Array.from(s) : []));
+      if (!wasOpenRef.current) {
+        const initialMap = new Map<string, Set<string>>();
+        if (allDates.length > 0) {
+          for (const d of allDates) {
+            const s = availabilityMap?.get(d);
+            initialMap.set(d, new Set(s ? Array.from(s) : []));
+          }
         }
-      }
-      if (!initialMap.has(date) || initialMap.get(date)!.size === 0) {
-        if (initialSlots.length > 0) {
-          initialMap.set(date, new Set(initialSlots));
+        if (!initialMap.has(date) || initialMap.get(date)!.size === 0) {
+          if (initialSlots.length > 0) {
+            initialMap.set(date, new Set(initialSlots));
+          }
         }
+        setDraftMap(initialMap);
+        dirtyDatesRef.current = new Set();
+        setSelectedSlots(new Set(initialMap.get(date) ?? initialSlots));
+        setError(null);
       }
-      setDraftMap(initialMap);
+    } else {
       dirtyDatesRef.current = new Set();
-      setSelectedSlots(new Set(initialMap.get(date) ?? initialSlots));
-      setError(null);
     }
+    wasOpenRef.current = open;
   }, [open, date, allDates, availabilityMap, initialSlots]);
 
-  // When date changes while open, load slots from draftMap
+  // When date changes while dialog remains open, load slots from draftMap
   useEffect(() => {
-    if (open) {
+    if (open && wasOpenRef.current) {
       setSelectedSlots(
         new Set(
           draftMapRef.current.get(date) ?? availabilityMap?.get(date) ?? [],
@@ -220,6 +227,7 @@ export function AvailabilityDialog({
   function handleNavigate(newDate: string) {
     if (newDate === date) return;
 
+    draftMapRef.current.set(date, new Set(selectedSlots));
     setDraftMap((prev) => {
       const next = new Map(prev);
       next.set(date, new Set(selectedSlots));
