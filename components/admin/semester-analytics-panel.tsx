@@ -77,7 +77,20 @@ export function SemesterAnalyticsPanel({
 }: SemesterAnalyticsPanelProps) {
   const [data, setData] = React.useState<SemesterAnalyticsData>(initialData);
   const [committee, setCommittee] = React.useState<string>("all");
+  const [availableCommittees, setAvailableCommittees] =
+    React.useState<string[]>(COMMITTEES);
   const [isLoading, setIsLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch("/api/committees")
+      .then((res) => res.json())
+      .then((d) => {
+        if (Array.isArray(d?.committees) && d.committees.length > 0) {
+          setAvailableCommittees(d.committees);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Dialog inspection state
   const [selectedSlot, setSelectedSlot] = React.useState<{
@@ -148,16 +161,16 @@ export function SemesterAnalyticsPanel({
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
           <Select value={committee} onValueChange={handleCommitteeChange}>
-            <SelectTrigger className="h-9 w-[180px] text-xs font-semibold bg-background/60">
+            <SelectTrigger className="h-9 w-full sm:w-[200px] text-xs font-semibold bg-background/60">
               <SelectValue placeholder="All Committees" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all" className="text-xs">
                 All Committees
               </SelectItem>
-              {COMMITTEES.map((c) => (
+              {availableCommittees.map((c) => (
                 <SelectItem key={c} value={c} className="text-xs">
                   {c}
                 </SelectItem>

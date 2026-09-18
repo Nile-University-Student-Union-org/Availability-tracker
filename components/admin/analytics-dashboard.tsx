@@ -593,7 +593,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                 id="committee-filter-btn"
                 type="button"
                 className={cn(
-                  "group relative flex min-h-[38px] min-w-[210px] items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-left text-xs font-semibold shadow-2xs transition-all hover:border-primary/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
+                  "group relative flex min-h-[42px] sm:min-h-[38px] w-full sm:w-auto sm:min-w-[220px] max-w-full items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-left text-xs font-semibold shadow-2xs transition-all hover:border-primary/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
                   selectedCommittees.length > 0 &&
                     "border-primary/40 bg-primary/5 text-primary ring-1 ring-primary/20",
                 )}
@@ -623,7 +623,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
 
               <PopoverContent
                 align="start"
-                className="w-72 sm:w-80 rounded-2xl border border-border/80 bg-popover/98 p-3 shadow-xl backdrop-blur-md space-y-2.5"
+                className="w-[calc(100vw-2rem)] sm:w-80 max-w-sm rounded-2xl border border-border/80 bg-popover/98 p-3 shadow-2xl backdrop-blur-xl space-y-2.5"
               >
                 {/* Popover Header */}
                 <div className="flex items-center justify-between border-b border-border/60 pb-2">
@@ -718,7 +718,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                           type="button"
                           onClick={() => toggleCommittee(c)}
                           className={cn(
-                            "group flex w-full min-h-[36px] items-center justify-between rounded-xl px-2.5 py-1.5 text-xs transition-colors cursor-pointer select-none",
+                            "group flex w-full min-h-[38px] sm:min-h-[36px] items-center justify-between rounded-xl px-2.5 py-1.5 text-xs transition-colors cursor-pointer select-none touch-manipulation active:scale-[0.99]",
                             isSelected
                               ? "bg-primary/10 text-primary font-semibold"
                               : "text-foreground hover:bg-muted/60",

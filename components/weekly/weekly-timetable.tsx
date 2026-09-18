@@ -95,6 +95,19 @@ export function WeeklyTimetable({
       user?.committee ??
       "",
   );
+  const [availableCommittees, setAvailableCommittees] =
+    React.useState<string[]>(COMMITTEES);
+
+  React.useEffect(() => {
+    fetch("/api/committees")
+      .then((res) => res.json())
+      .then((d) => {
+        if (Array.isArray(d?.committees) && d.committees.length > 0) {
+          setAvailableCommittees(d.committees);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   React.useEffect(() => {
     const savedName = localStorage.getItem("memberName");
@@ -318,11 +331,11 @@ export function WeeklyTimetable({
                     }
                   }}
                 >
-                  <SelectTrigger className="h-8 text-xs bg-background/80">
+                  <SelectTrigger className="h-8.5 text-xs bg-background/80">
                     <SelectValue placeholder="Select Committee" />
                   </SelectTrigger>
                   <SelectContent>
-                    {COMMITTEES.map((c) => (
+                    {availableCommittees.map((c) => (
                       <SelectItem key={c} value={c} className="text-xs">
                         {c}
                       </SelectItem>

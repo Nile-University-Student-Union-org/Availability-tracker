@@ -84,7 +84,20 @@ export function AvailabilityCalendar({
   const [memberCommittee, setMemberCommittee] = useState(
     ((activeUser as Record<string, unknown>)?.committee as string) ?? "",
   );
+  const [availableCommittees, setAvailableCommittees] =
+    useState<string[]>(COMMITTEES);
   const [memberSaved, setMemberSaved] = useState(Boolean(activeUser?.email));
+
+  useEffect(() => {
+    fetch("/api/committees")
+      .then((res) => res.json())
+      .then((d) => {
+        if (Array.isArray(d?.committees) && d.committees.length > 0) {
+          setAvailableCommittees(d.committees);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [config, setConfig] = useState<ScheduleConfig | null>(initialConfig);
   const [availability, setAvailability] = useState<AvailabilityMap>(() => {
     const map = new Map<string, Set<string>>();
@@ -425,11 +438,11 @@ export function AvailabilityCalendar({
                         }
                       }}
                     >
-                      <SelectTrigger className="h-8 text-xs bg-background/80">
+                      <SelectTrigger className="h-8.5 text-xs bg-background/80">
                         <SelectValue placeholder="Select Committee" />
                       </SelectTrigger>
                       <SelectContent>
-                        {COMMITTEES.map((c) => (
+                        {availableCommittees.map((c) => (
                           <SelectItem key={c} value={c} className="text-xs">
                             {c}
                           </SelectItem>
@@ -484,11 +497,11 @@ export function AvailabilityCalendar({
                 value={memberCommittee}
                 onValueChange={(val) => setMemberCommittee(val ?? "")}
               >
-                <SelectTrigger id="member-committee">
+                <SelectTrigger id="member-committee" className="min-h-[44px]">
                   <SelectValue placeholder="Select your committee" />
                 </SelectTrigger>
                 <SelectContent>
-                  {COMMITTEES.map((c) => (
+                  {availableCommittees.map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
                     </SelectItem>
@@ -496,7 +509,7 @@ export function AvailabilityCalendar({
                 </SelectContent>
               </Select>
             </div>
-            <Button className="w-full" onClick={handleSaveMember}>
+            <Button className="w-full min-h-[44px] touch-manipulation cursor-pointer" onClick={handleSaveMember}>
               Save Details
             </Button>
           </div>

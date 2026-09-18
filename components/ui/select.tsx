@@ -90,19 +90,19 @@ function SelectContent({
         align={align}
         alignOffset={alignOffset}
         alignItemWithTrigger={alignItemWithTrigger}
-        className="isolate z-50"
+        className="isolate z-50 max-w-[calc(100vw-1.5rem)]"
       >
         <SelectPrimitive.Popup
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
           className={cn(
-            "relative isolate z-50 max-h-72 max-w-(--available-width) min-w-(--anchor-width) overflow-hidden rounded-2xl border border-border/80 bg-popover/95 p-1.5 text-popover-foreground shadow-xl shadow-black/10 backdrop-blur-md duration-150 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 dark:border-white/10 dark:bg-popover/95 dark:shadow-black/50 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "relative isolate z-50 max-h-72 w-auto min-w-[max(var(--anchor-width,10rem),13rem)] max-w-[min(var(--available-width,calc(100vw-2rem)),26rem)] overflow-hidden rounded-2xl border border-border/80 bg-popover/98 p-1.5 text-popover-foreground shadow-2xl shadow-black/20 backdrop-blur-xl duration-150 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 dark:border-white/10 dark:bg-popover/98 dark:shadow-black/60 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
           {...props}
         >
           <SelectScrollUpButton />
-          <SelectPrimitive.List className="scrollbar-thin max-h-64 space-y-0.5 overflow-y-auto p-0.5">
+          <SelectPrimitive.List className="scrollbar-thin max-h-64 space-y-0.5 overflow-x-hidden overflow-y-auto p-0.5">
             {children}
           </SelectPrimitive.List>
           <SelectScrollDownButton />
@@ -137,12 +137,12 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-[40px] w-full cursor-pointer touch-manipulation items-center justify-between gap-3 rounded-xl py-2.5 pr-9 pl-3 text-sm font-medium outline-hidden transition-colors select-none focus:bg-primary/10 focus:text-primary active:scale-[0.98] data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary sm:min-h-[38px] data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "relative flex min-h-[42px] sm:min-h-[38px] w-full cursor-pointer touch-manipulation items-center justify-between gap-3 rounded-xl py-2 pr-9 pl-3 text-xs sm:text-sm font-medium outline-hidden transition-colors select-none focus:bg-primary/10 focus:text-primary active:scale-[0.98] data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}
     >
-      <SelectPrimitive.ItemText className="flex flex-1 shrink-0 items-center gap-2 truncate">
+      <SelectPrimitive.ItemText className="flex min-w-0 flex-1 items-center gap-2 truncate text-left">
         {children}
       </SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator

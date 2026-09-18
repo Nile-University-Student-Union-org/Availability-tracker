@@ -410,15 +410,15 @@ export function AdminMembersPanel({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {/* Committee Filter */}
           <Select
             value={committeeFilter}
             onValueChange={(val) => setCommitteeFilter(val ?? "all")}
           >
-            <SelectTrigger className="h-10 w-[160px] text-xs sm:text-sm">
+            <SelectTrigger className="h-10 w-full sm:w-[185px] text-xs sm:text-sm">
               <div className="flex items-center gap-1.5 truncate">
-                <HugeiconsIcon icon={FilterIcon} className="size-3.5" />
+                <HugeiconsIcon icon={FilterIcon} className="size-3.5 shrink-0" />
                 <SelectValue placeholder="Committee" />
               </div>
             </SelectTrigger>
@@ -437,7 +437,7 @@ export function AdminMembersPanel({
             value={roleFilter}
             onValueChange={(val) => setRoleFilter(val ?? "all")}
           >
-            <SelectTrigger className="h-10 w-[130px] text-xs sm:text-sm">
+            <SelectTrigger className="h-10 w-full sm:w-[130px] text-xs sm:text-sm">
               <SelectValue placeholder="Role" />
             </SelectTrigger>
             <SelectContent>
