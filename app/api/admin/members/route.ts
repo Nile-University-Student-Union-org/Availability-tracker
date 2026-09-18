@@ -158,3 +158,182 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function PUT(req: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  try {
+    const body = await req.json();
+    const id = String(body.id ?? "").trim();
+    const name = String(body.name ?? "").trim();
+    const email = String(body.email ?? "")
+      .trim()
+      .toLowerCase();
+    const nuId =
+      body.nuId !== undefined &&
+      body.nuId !== null &&
+      String(body.nuId).trim() !== ""
+        ? String(body.nuId).trim()
+        : null;
+    const committee =
+      body.committee !== undefined &&
+      body.committee !== null &&
+      String(body.committee).trim() !== "" &&
+      String(body.committee).trim().toLowerCase() !== "none"
+        ? String(body.committee).trim()
+        : null;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Member ID is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!name || name.length < 2) {
+      return NextResponse.json(
+        { error: "Member name must be at least 2 characters" },
+        { status: 400 },
+      );
+    }
+
+    if (!email || !email.includes("@")) {
+      return NextResponse.json(
+        { error: "A valid university email is required" },
+        { status: 400 },
+      );
+    }
+
+    if (!email.endsWith("@nu.edu.eg")) {
+      return NextResponse.json(
+        { error: "Only @nu.edu.eg email addresses are permitted" },
+        { status: 400 },
+      );
+    }
+
+    if (nuId && !/^\d{9}$/.test(nuId)) {
+      return NextResponse.json(
+        { error: "Student ID must be exactly 9 digits (e.g. 202xxxxxx)" },
+        { status: 400 },
+      );
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        nuId: true,
+        committee: true,
+        role: true,
+      },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    const oldEmail = existingUser.email.toLowerCase();
+
+    // Check email uniqueness if email is changed
+    if (email !== oldEmail) {
+      // Prevent changing root admin email to something else
+      if (oldEmail === "admin@nu.edu.eg") {
+        return NextResponse.json(
+          { error: "Primary system administrator email cannot be modified" },
+          { status: 400 },
+        );
+      }
+
+      const emailConflict = await prisma.user.findFirst({
+        where: {
+          email,
+          NOT: { id },
+        },
+        select: { id: true, name: true },
+      });
+
+      if (emailConflict) {
+        return NextResponse.json(
+          {
+            error: `The email "${email}" is already registered to another member (${emailConflict.name}).`,
+          },
+          { status: 400 },
+        );
+      }
+
+      // If user is in AdminEmail table, update their admin authorization email
+      await prisma.adminEmail.updateMany({
+        where: { email: oldEmail },
+        data: { email },
+      });
+
+      // Update Better Auth account credentials accountId if it matched old email
+      await prisma.account.updateMany({
+        where: { userId: id, accountId: oldEmail },
+        data: { accountId: email },
+      });
+    }
+
+    // Check nuId uniqueness if provided and changed
+    if (nuId && nuId !== existingUser.nuId) {
+      const nuIdConflict = await prisma.user.findFirst({
+        where: {
+          nuId,
+          NOT: { id },
+        },
+        select: { id: true, name: true },
+      });
+
+      if (nuIdConflict) {
+        return NextResponse.json(
+          {
+            error: `Student ID "${nuId}" is already assigned to ${nuIdConflict.name}.`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    const updatedMember = await prisma.user.update({
+      where: { id },
+      data: {
+        name,
+        email,
+        nuId,
+        committee,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        nuId: true,
+        committee: true,
+        role: true,
+        mustResetPassword: true,
+        createdAt: true,
+        image: true,
+        _count: {
+          select: {
+            availabilities: true,
+            recurringAvailabilities: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Member "${updatedMember.name}" updated successfully.`,
+      member: updatedMember,
+    });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Failed to update member";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

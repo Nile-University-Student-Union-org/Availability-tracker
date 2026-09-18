@@ -13,12 +13,22 @@ import {
   AlertCircleIcon,
   CheckmarkCircle02Icon,
   FilterIcon,
+  UserEdit01Icon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -182,6 +192,104 @@ export function AdminMembersPanel({
       toast.error(message);
     } finally {
       setResetting(false);
+    }
+  }
+
+  // Edit Member Dialog State
+  const [memberToEdit, setMemberToEdit] = React.useState<MemberData | null>(
+    null,
+  );
+  const [editName, setEditName] = React.useState("");
+  const [editEmail, setEditEmail] = React.useState("");
+  const [editNuId, setEditNuId] = React.useState("");
+  const [editCommittee, setEditCommittee] = React.useState("none");
+  const [savingEdit, setSavingEdit] = React.useState(false);
+  const [editError, setEditError] = React.useState<string | null>(null);
+
+  const openEditMember = (member: MemberData) => {
+    setMemberToEdit(member);
+    setEditName(member.name);
+    setEditEmail(member.email);
+    setEditNuId(member.nuId || "");
+    setEditCommittee(member.committee || "none");
+    setEditError(null);
+  };
+
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!memberToEdit) return;
+
+    const trimmedName = editName.trim();
+    const normalizedEmail = editEmail.trim().toLowerCase();
+    const trimmedNuId = editNuId.trim();
+
+    if (!trimmedName || trimmedName.length < 2) {
+      setEditError("Full name must be at least 2 characters.");
+      return;
+    }
+
+    if (!normalizedEmail || !normalizedEmail.includes("@")) {
+      setEditError("A valid email address is required.");
+      return;
+    }
+
+    if (!normalizedEmail.endsWith("@nu.edu.eg")) {
+      setEditError("Only @nu.edu.eg university email addresses are allowed.");
+      return;
+    }
+
+    if (trimmedNuId && !/^\d{9}$/.test(trimmedNuId)) {
+      setEditError("Student ID must be exactly 9 digits (e.g. 202xxxxxx).");
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      setEditError(null);
+
+      const res = await fetch("/api/admin/members", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: memberToEdit.id,
+          name: trimmedName,
+          email: normalizedEmail,
+          nuId: trimmedNuId || null,
+          committee: editCommittee === "none" ? null : editCommittee,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to update member");
+      }
+
+      toast.success(
+        data.message || `Member "${trimmedName}" updated successfully.`,
+      );
+
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === memberToEdit.id
+            ? {
+                ...m,
+                name: trimmedName,
+                email: normalizedEmail,
+                nuId: trimmedNuId || null,
+                committee: editCommittee === "none" ? null : editCommittee,
+              }
+            : m,
+        ),
+      );
+
+      setMemberToEdit(null);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to update member";
+      setEditError(message);
+      toast.error(message);
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -506,6 +614,21 @@ export function AdminMembersPanel({
 
                   {/* Right: Actions */}
                   <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                    {/* Edit Member details button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditMember(member)}
+                      className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl border-border/80 hover:border-primary/40 hover:bg-primary/10 hover:text-primary touch-manipulation active:scale-[0.98]"
+                      title={`Edit ${member.name}'s details`}
+                    >
+                      <HugeiconsIcon
+                        icon={UserEdit01Icon}
+                        className="size-3.5"
+                      />
+                      <span>Edit</span>
+                    </Button>
+
                     {/* Change / Reset Password button */}
                     <Button
                       variant="outline"
@@ -644,6 +767,185 @@ export function AdminMembersPanel({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Member Details Dialog */}
+      <Dialog
+        open={Boolean(memberToEdit)}
+        onOpenChange={(open) => {
+          if (!open && !savingEdit) {
+            setMemberToEdit(null);
+          }
+        }}
+      >
+        <DialogContent className="rounded-3xl border-border/80 bg-card p-6 shadow-2xl sm:max-w-[480px]">
+          <DialogHeader>
+            <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-2">
+              <HugeiconsIcon icon={UserEdit01Icon} size={24} />
+            </div>
+            <DialogTitle className="text-lg font-heading">
+              Edit Member Details
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Update personal information, university email, student ID, or
+              committee assignment for{" "}
+              <strong className="text-foreground font-semibold">
+                {memberToEdit?.name}
+              </strong>
+              .
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveEdit} className="space-y-4 pt-2">
+            {editError && (
+              <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                <HugeiconsIcon
+                  icon={AlertCircleIcon}
+                  className="size-4 shrink-0"
+                />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            {/* Full Name */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="edit-member-name"
+                className="text-xs font-semibold"
+              >
+                Full Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="edit-member-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="e.g. Mostafa Ahmed"
+                required
+                className="h-10 rounded-xl border-border/80 text-sm"
+              />
+            </div>
+
+            {/* University Email */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="edit-member-email"
+                className="text-xs font-semibold"
+              >
+                University Email <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="edit-member-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="user@nu.edu.eg"
+                required
+                disabled={memberToEdit?.email === "admin@nu.edu.eg"}
+                className="h-10 rounded-xl border-border/80 text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Must be an active university address ending with @nu.edu.eg
+              </p>
+            </div>
+
+            {/* 9-Digit Student ID */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="edit-member-nuid"
+                className="text-xs font-semibold"
+              >
+                9-Digit Student ID (NU ID)
+              </Label>
+              <Input
+                id="edit-member-nuid"
+                value={editNuId}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 9);
+                  setEditNuId(val);
+                }}
+                placeholder="e.g. 202201234"
+                maxLength={9}
+                className="h-10 rounded-xl border-border/80 font-mono text-sm tracking-wider"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Optional 9-digit Nile University student identifier
+              </p>
+            </div>
+
+            {/* Committee Assignment */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="edit-member-committee"
+                className="text-xs font-semibold"
+              >
+                Union Committee
+              </Label>
+              <Select
+                value={editCommittee}
+                onValueChange={(val) => setEditCommittee(val ?? "none")}
+              >
+                <SelectTrigger
+                  id="edit-member-committee"
+                  className="h-10 rounded-xl border-border/80 text-sm cursor-pointer"
+                >
+                  <SelectValue placeholder="Select committee" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl max-h-56">
+                  <SelectItem
+                    value="none"
+                    className="text-muted-foreground cursor-pointer"
+                  >
+                    None / Unassigned
+                  </SelectItem>
+                  {availableCommittees.map((comm) => (
+                    <SelectItem
+                      key={comm}
+                      value={comm}
+                      className="cursor-pointer"
+                    >
+                      {comm}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Select the committee this member belongs to
+              </p>
+            </div>
+
+            <DialogFooter className="mt-6 gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={savingEdit}
+                onClick={() => setMemberToEdit(null)}
+                className="rounded-xl cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingEdit}
+                className="gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+              >
+                {savingEdit ? (
+                  <>
+                    <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Saving Changes...
+                  </>
+                ) : (
+                  <>
+                    <HugeiconsIcon
+                      icon={CheckmarkCircle02Icon}
+                      className="size-4"
+                    />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
