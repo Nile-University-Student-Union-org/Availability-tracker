@@ -17,9 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
 import { Download, ExternalLink, FileSpreadsheet } from "lucide-react"
-import { toast } from "sonner"
 import {
   slotToDateRange,
   downloadIcsFile,
