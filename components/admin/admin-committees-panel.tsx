@@ -50,10 +50,19 @@ export function AdminCommitteesPanel() {
     React.useState<CommitteeData | null>(null);
   const [deleting, setDeleting] = React.useState(false);
 
-  // Drag-to-reorder state
+  // Drag-to-reorder: the held row follows the pointer, others slide aside,
+  // and the list order only changes on drop.
   const listRef = React.useRef<HTMLDivElement>(null);
-  const [draggingId, setDraggingId] = React.useState<string | null>(null);
-  const orderBeforeDrag = React.useRef<CommitteeData[] | null>(null);
+  const [drag, setDrag] = React.useState<{
+    id: string;
+    from: number;
+    to: number;
+    dy: number;
+    height: number;
+  } | null>(null);
+  const [settling, setSettling] = React.useState(false);
+  const dragStart = React.useRef<{ y: number; centers: number[] } | null>(null);
+  const draggingId = drag?.id ?? null;
 
   async function saveOrder(next: CommitteeData[], previous: CommitteeData[]) {
     try {
@@ -82,36 +91,57 @@ export function AdminCommitteesPanel() {
   }
 
   function handleDragStart(e: React.PointerEvent, id: string) {
+    if (e.button !== 0 || !listRef.current) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
-    orderBeforeDrag.current = committees;
-    setDraggingId(id);
+    const rows = [
+      ...listRef.current.querySelectorAll<HTMLElement>("[data-committee-id]"),
+    ];
+    const from = rows.findIndex((r) => r.dataset.committeeId === id);
+    const boxes = rows.map((r) => r.getBoundingClientRect());
+    dragStart.current = {
+      y: e.clientY,
+      centers: boxes.map((b) => b.top + b.height / 2),
+    };
+    setDrag({ id, from, to: from, dy: 0, height: boxes[from].height });
   }
 
   function handleDragMove(e: React.PointerEvent) {
-    if (!draggingId || !listRef.current) return;
-    // Insert position = how many other rows have their midpoint above the pointer
-    const others = [
-      ...listRef.current.querySelectorAll<HTMLElement>("[data-committee-id]"),
-    ].filter((row) => row.dataset.committeeId !== draggingId);
-    const index = others.filter((row) => {
-      const box = row.getBoundingClientRect();
-      return box.top + box.height / 2 < e.clientY;
-    }).length;
-    setCommittees((prev) => {
-      const next = moveTo(draggingId, index, prev);
-      return next.every((c, i) => c.id === prev[i].id) ? prev : next;
-    });
+    if (!drag || !dragStart.current) return;
+    const { y, centers } = dragStart.current;
+    const dy = e.clientY - y;
+    const center = centers[drag.from] + dy;
+    // Target slot = how many other rows' original centers sit above the held row's center
+    const to = centers.filter((c, i) => i !== drag.from && c < center).length;
+    setDrag({ ...drag, dy, to });
   }
 
   function handleDragEnd() {
-    if (!draggingId) return;
-    const previous = orderBeforeDrag.current ?? committees;
-    setDraggingId(null);
-    orderBeforeDrag.current = null;
-    if (committees.some((c, i) => c.id !== previous[i]?.id)) {
-      void saveOrder(committees, previous);
+    if (!drag) return;
+    const { id, from, to } = drag;
+    dragStart.current = null;
+    // Commit without transitions so rows don't animate back from their shifted spot
+    setSettling(true);
+    setDrag(null);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => setSettling(false)),
+    );
+    if (from !== to) {
+      const previous = committees;
+      const next = moveTo(id, to, committees);
+      setCommittees(next);
+      void saveOrder(next, previous);
     }
+  }
+
+  function rowShift(index: number) {
+    if (!drag) return 0;
+    if (index === drag.from) return drag.dy;
+    if (drag.from < drag.to && index > drag.from && index <= drag.to)
+      return -drag.height;
+    if (drag.to < drag.from && index >= drag.to && index < drag.from)
+      return drag.height;
+    return 0;
   }
 
   function handleKeyMove(e: React.KeyboardEvent, id: string) {
@@ -387,16 +417,30 @@ export function AdminCommitteesPanel() {
             </p>
           </div>
         ) : (
-          <div ref={listRef} className="divide-y divide-border/40">
-            {filteredCommittees.map((committee) => (
+          <div
+            ref={listRef}
+            className={cn(
+              "divide-y divide-border/40",
+              drag && "cursor-grabbing select-none",
+            )}
+          >
+            {filteredCommittees.map((committee, index) => (
               <div
                 key={committee.id}
                 data-committee-id={committee.id}
+                style={{
+                  transform: `translate3d(0, ${rowShift(index)}px, 0)${draggingId === committee.id ? " scale(1.01)" : ""}`,
+                }}
                 className={cn(
-                  "relative flex items-center justify-between gap-2 py-3 pr-2 pl-1.5 transition-[background-color,box-shadow] sm:p-4 sm:px-6",
+                  "relative flex items-center justify-between gap-2 bg-card py-3 pr-2 pl-1.5 sm:p-4 sm:px-6",
                   draggingId === committee.id
-                    ? "z-10 rounded-2xl bg-card shadow-lg ring-1 ring-border"
-                    : "hover:bg-muted/30",
+                    ? "z-10 rounded-2xl shadow-[0_12px_32px_-8px_rgb(15_23_42/0.25)] ring-1 ring-border"
+                    : drag || settling
+                      ? ""
+                      : "hover:bg-muted/30",
+                  settling || draggingId === committee.id
+                    ? "transition-none"
+                    : "transition-transform duration-200 ease-[cubic-bezier(0.25,1,0.5,1)]",
                 )}
               >
                 <div className="flex items-center gap-2 min-w-0 sm:gap-3">
