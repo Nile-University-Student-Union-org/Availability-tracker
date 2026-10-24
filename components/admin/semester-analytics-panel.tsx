@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  RefreshSpinIcon,
+  useRefreshSpin,
+} from "@/components/admin/refresh-spin";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,7 +26,6 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  RefreshIcon,
   Tick01Icon,
   Clock01Icon,
   UserGroupIcon,
@@ -110,6 +113,7 @@ export function SemesterAnalyticsPanel({
     status,
     refresh,
   } = useLivePoll(fetchAnalytics, 10000, initialData);
+  const { spinKey, spin } = useRefreshSpin();
 
   const handleCommitteeChange = (newComm: string | null) => {
     setCommittee(newComm ?? "all");
@@ -175,10 +179,13 @@ export function SemesterAnalyticsPanel({
             variant="outline"
             size="icon"
             className="size-11 shrink-0 cursor-pointer touch-manipulation active:scale-[0.97]"
-            onClick={refresh}
+            onClick={() => {
+              spin();
+              refresh();
+            }}
             title="Refresh analytics"
           >
-            <HugeiconsIcon icon={RefreshIcon} size={15} />
+            <RefreshSpinIcon spinKey={spinKey} />
           </Button>
           <div className="w-full">
             <LiveIndicator lastUpdated={lastUpdated} status={status} />

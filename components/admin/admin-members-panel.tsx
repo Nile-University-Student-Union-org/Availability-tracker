@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  RefreshSpinIcon,
+  useRefreshSpin,
+} from "@/components/admin/refresh-spin";
 import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -7,7 +11,6 @@ import {
   Search01Icon,
   Delete02Icon,
   LockPasswordIcon,
-  RefreshIcon,
   Copy01Icon,
   Shield01Icon,
   AlertCircleIcon,
@@ -75,6 +78,7 @@ export function AdminMembersPanel({
   currentUserId,
   currentUserEmail,
 }: AdminMembersPanelProps) {
+  const { spinKey, spin } = useRefreshSpin();
   const [members, setMembers] = React.useState<MemberData[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -453,15 +457,15 @@ export function AdminMembersPanel({
           <Button
             variant="outline"
             size="icon"
-            onClick={fetchMembers}
+            onClick={() => {
+              spin();
+              void fetchMembers();
+            }}
             disabled={loading}
             className="h-10 w-10 shrink-0 cursor-pointer rounded-xl"
             title="Refresh members directory"
           >
-            <HugeiconsIcon
-              icon={RefreshIcon}
-              className={cn("size-4", loading && "animate-spin")}
-            />
+            <RefreshSpinIcon spinKey={spinKey} size={16} />
           </Button>
         </div>
       </div>

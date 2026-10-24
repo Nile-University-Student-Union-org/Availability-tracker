@@ -1,12 +1,15 @@
 "use client";
 
+import {
+  RefreshSpinIcon,
+  useRefreshSpin,
+} from "@/components/admin/refresh-spin";
 import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   UserGroupIcon,
   Search01Icon,
   Delete02Icon,
-  RefreshIcon,
   Add01Icon,
   AlertCircleIcon,
   Briefcase01Icon,
@@ -37,6 +40,7 @@ export interface CommitteeData {
 }
 
 export function AdminCommitteesPanel() {
+  const { spinKey, spin } = useRefreshSpin();
   const [committees, setCommittees] = React.useState<CommitteeData[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -373,14 +377,14 @@ export function AdminCommitteesPanel() {
         <Button
           variant="outline"
           size="sm"
-          onClick={fetchCommittees}
+          onClick={() => {
+            spin();
+            void fetchCommittees();
+          }}
           disabled={loading}
           className="h-10 cursor-pointer rounded-xl text-xs gap-1.5 self-start sm:self-auto"
         >
-          <HugeiconsIcon
-            icon={RefreshIcon}
-            className={cn("size-3.5", loading && "animate-spin")}
-          />
+          <RefreshSpinIcon spinKey={spinKey} size={14} />
           Refresh List
         </Button>
       </div>
