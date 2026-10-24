@@ -2,11 +2,8 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { authClient } from "@/lib/auth-client";
 import {
@@ -346,19 +343,31 @@ export function WeeklyTimetable({
         )}
       </div>
 
-      {/* ─── Day Selector Pills (Nile Academic Week) ──────────────────────────── */}
-      <div className="w-full flex flex-col gap-2">
-        <div className="flex items-center justify-between px-1">
-          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Academic Days
-          </Label>
-          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-            {totalSlotsCount} weekly {totalSlotsCount === 1 ? "slot" : "slots"}{" "}
-            selected
+      {/* ─── Day selector ─────────────────────────────────────────────────── */}
+      <section className="w-full space-y-4" aria-label="Weekly availability">
+        <div className="flex items-baseline justify-between px-1">
+          <h2 className="text-sm font-semibold text-foreground">Pick a day</h2>
+          <span
+            className={cn(
+              "text-xs font-medium tabular-nums",
+              totalSlotsCount > 0
+                ? "text-emerald-700 dark:text-emerald-400"
+                : "text-muted-foreground",
+            )}
+          >
+            {totalSlotsCount} {totalSlotsCount === 1 ? "slot" : "slots"} this
+            week
           </span>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1 pt-0.5 no-scrollbar touch-pan-x">
+        <div
+          role="tablist"
+          aria-label="Days"
+          className="grid gap-1 rounded-2xl bg-muted/70 p-1 ring-1 ring-border/50"
+          style={{
+            gridTemplateColumns: `repeat(${activeDays.length}, minmax(0, 1fr))`,
+          }}
+        >
           {activeDays.map((dayNum) => {
             const meta = DAY_OF_WEEK_MAP.find((d) => d.day === dayNum);
             const isSelected = selectedDay === dayNum;
@@ -368,117 +377,89 @@ export function WeeklyTimetable({
               <button
                 key={dayNum}
                 type="button"
+                role="tab"
+                aria-selected={isSelected}
+                aria-label={`${meta?.label}, ${dayCount} selected`}
                 onClick={() => setSelectedDay(dayNum)}
                 className={cn(
-                  "flex-1 min-w-[44px] sm:min-w-[90px] flex flex-col items-center justify-center py-2.5 px-1 sm:px-3 rounded-2xl border transition-all duration-200 select-none min-h-[52px] touch-manipulation cursor-pointer",
+                  "relative flex min-h-[48px] min-w-0 cursor-pointer touch-manipulation select-none flex-col items-center justify-center gap-0.5 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.97]",
                   isSelected
-                    ? "bg-[#0F3056] text-white border-[#0F3056] shadow-md ring-2 ring-[#0F3056]/20 dark:bg-[#18477D] dark:border-[#2DB1FA]/50 dark:text-white dark:ring-2 dark:ring-[#2DB1FA]/25 dark:shadow-md"
-                    : "bg-card/70 border-border/80 text-foreground hover:bg-muted/80 hover:border-border",
+                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/60"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <span className="text-xs sm:text-sm font-bold tracking-tight">
-                  {meta?.short}
-                </span>
-                {dayCount > 0 && (
-                  <span
-                    className={cn(
-                      "text-[10px] mt-0.5 font-semibold px-1.5 py-0.2 rounded-full",
-                      isSelected
-                        ? "bg-emerald-500/25 text-emerald-200 border border-emerald-400/30"
-                        : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-                    )}
-                  >
-                    {dayCount}
-                  </span>
-                )}
+                {meta?.short}
+                <span
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full transition-colors",
+                    dayCount > 0 ? "bg-emerald-500" : "bg-transparent",
+                  )}
+                />
               </button>
             );
           })}
         </div>
-      </div>
 
-      {/* ─── Day Slot Manager ────────────────────────────────────────────────── */}
-      <Card className="w-full border-border/70 bg-card/60 backdrop-blur-xl shadow-sm">
-        <CardContent className="p-4 sm:p-6 flex flex-col gap-4">
-          {/* Day Header & Quick Actions */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
-            <div>
-              <h2 className="text-base sm:lg font-bold tracking-tight flex items-center gap-2">
-                <span>{activeDayMeta?.label} Availability</span>
-                {activeDaySlots.size > 0 && (
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-xs"
-                  >
-                    {activeDaySlots.size} slots marked
-                  </Badge>
-                )}
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Tap the intervals when you are free between classes/labs on{" "}
-                {activeDayMeta?.label}s.
+        {/* ─── Slots for the selected day ─────────────────────────────────── */}
+        <div className="rounded-3xl border border-border/70 bg-card p-4 shadow-xs sm:p-5">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="font-heading text-lg font-bold tracking-tight">
+                {activeDayMeta?.label}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {activeDaySlots.size} of {selectedDaySlots.length} marked
+                &middot; tap the times you&apos;re free
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={selectAllDay}
-                className="h-8 text-xs font-semibold gap-1.5 hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-500/30 cursor-pointer"
+                disabled={activeDaySlots.size === selectedDaySlots.length}
+                className="h-9 cursor-pointer gap-1.5 rounded-xl px-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400"
               >
-                <HugeiconsIcon icon={CheckmarkCircle02Icon} size={14} />
-                <span>Select All</span>
+                <HugeiconsIcon icon={CheckmarkCircle02Icon} size={15} />
+                All
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={clearDay}
                 disabled={activeDaySlots.size === 0}
-                className="h-8 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1.5 cursor-pointer"
+                className="h-9 cursor-pointer gap-1.5 rounded-xl px-2.5 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               >
-                <HugeiconsIcon icon={Delete02Icon} size={14} />
-                <span>Clear Day</span>
+                <HugeiconsIcon icon={Delete02Icon} size={15} />
+                Clear
               </Button>
             </div>
           </div>
 
-          {/* Time Slots Touch Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+          <div className="flex flex-col gap-2">
             {selectedDaySlots.map(({ startTime, endTime }) => {
               const isMarked = activeDaySlots.has(startTime);
-              const formattedStart = formatTimeSlot(startTime);
-              const formattedEnd = formatTimeSlot(endTime);
 
               return (
                 <button
                   key={startTime}
                   type="button"
+                  aria-pressed={isMarked}
                   onClick={() => toggleSlot(startTime)}
                   className={cn(
-                    "flex items-center justify-between px-4 py-3 rounded-2xl border transition-all duration-150 select-none min-h-[56px] text-left touch-manipulation cursor-pointer active:scale-[0.98]",
+                    "group flex min-h-[60px] cursor-pointer touch-manipulation select-none items-center gap-3 rounded-2xl border px-4 text-left transition-all duration-150 active:scale-[0.98]",
                     isMarked
-                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100 ring-2 ring-emerald-500/30 shadow-xs"
-                      : "border-border/80 bg-background/60 hover:bg-muted/60 hover:border-border text-foreground",
+                      ? "border-emerald-500/60 bg-emerald-500/[0.08] shadow-xs"
+                      : "border-border/80 bg-background hover:border-foreground/20 hover:bg-muted/40",
                   )}
                 >
-                  <span className="flex flex-col">
-                    <span className="text-xs sm:text-sm font-semibold tracking-tight">
-                      {formattedStart} → {formattedEnd}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {formatDuration(
-                        toMinutes(endTime) - toMinutes(startTime),
-                      )}
-                    </span>
-                  </span>
-
-                  <div
+                  <span
                     className={cn(
-                      "size-6 rounded-full flex items-center justify-center transition-colors shrink-0",
+                      "flex size-6 shrink-0 items-center justify-center rounded-lg border transition-all",
                       isMarked
-                        ? "bg-emerald-600 text-white"
-                        : "bg-muted border border-border/80 text-transparent",
+                        ? "border-emerald-600 bg-emerald-600 text-white"
+                        : "border-border bg-card text-transparent group-hover:border-foreground/30",
                     )}
                   >
                     <HugeiconsIcon
@@ -486,13 +467,28 @@ export function WeeklyTimetable({
                       size={14}
                       strokeWidth={3}
                     />
-                  </div>
+                  </span>
+
+                  <span className="min-w-0 flex-1 whitespace-nowrap text-sm font-semibold tracking-tight tabular-nums text-foreground">
+                    {formatTimeSlot(startTime)} → {formatTimeSlot(endTime)}
+                  </span>
+
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
+                      isMarked
+                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {formatDuration(toMinutes(endTime) - toMinutes(startTime))}
+                  </span>
                 </button>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* ─── Floating Dynamic Save Island (Visible only on unsaved changes) ────── */}
       <div
