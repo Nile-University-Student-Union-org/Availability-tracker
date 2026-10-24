@@ -33,6 +33,7 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/status-pill";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import dynamic from "next/dynamic";
 import {
@@ -417,7 +418,7 @@ export function AdminLayoutShell({
         {/* Inset Main Layout Container */}
         <SidebarInset className="flex min-w-0 flex-1 flex-col bg-background/50">
           {/* Top Navbar */}
-          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
+          <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="cursor-pointer" />
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -445,6 +446,7 @@ export function AdminLayoutShell({
                 <span>Live Schedule</span>
               </Link>
             </div>
+            <StatusPill />
           </header>
 
           {/* Main Content Area */}

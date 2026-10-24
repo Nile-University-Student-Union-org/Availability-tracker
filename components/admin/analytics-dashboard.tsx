@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -736,7 +736,9 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                               <Check className="size-3 stroke-[2.5]" />
                             )}
                           </div>
-                          <span className="truncate text-left block flex-1 font-medium">{c}</span>
+                          <span className="truncate text-left block flex-1 font-medium">
+                            {c}
+                          </span>
                         </div>
                         <span className="text-[10px] text-muted-foreground/80 font-mono shrink-0 whitespace-nowrap pl-1">
                           {memberCount}{" "}

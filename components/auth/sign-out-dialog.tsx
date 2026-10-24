@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/drawer";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Logout02Icon } from "@hugeicons/core-free-icons";
-import { toast } from "sonner";
+import { toast } from "@/lib/notify";
 
 interface SignOutDialogProps {
   open: boolean;
