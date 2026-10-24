@@ -141,12 +141,15 @@ model ScheduleConfig {
   slotMode              String           @default("fixed") // "fixed" | "free"
   dateScheduleActive    Boolean          @default(true)
   weeklyScheduleActive  Boolean          @default(true)
+  // Legacy: only read when no weekly slots exist.
   weeklyIncludeSaturday Boolean          @default(false)
+  weeklyDays            Int[]            @default([0, 1, 2, 3, 4])
   dateScheduleTitle     String           @default("Specific Date Availability")
   weeklyScheduleTitle   String           @default("Semester Availability")
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
   timeSlots             TimeSlotConfig[]
+  weeklySlots           WeeklySlotConfig[]
 
   @@map("schedule_config")
 }
@@ -162,4 +165,18 @@ model TimeSlotConfig {
   @@unique([scheduleConfigId, startTime])
   @@index([scheduleConfigId])
   @@map("time_slot_config")
+}
+
+model WeeklySlotConfig {
+  id               String         @id @default(cuid())
+  scheduleConfigId String
+  scheduleConfig   ScheduleConfig @relation(fields: [scheduleConfigId], references: [id], onDelete: Cascade)
+  dayOfWeek        Int
+  startTime        String         // "HH:mm"
+  endTime          String         // "HH:mm"
+  createdAt        DateTime       @default(now())
+
+  @@unique([scheduleConfigId, dayOfWeek, startTime])
+  @@index([scheduleConfigId])
+  @@map("weekly_slot_config")
 }

@@ -16,6 +16,13 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
+import {
+  DAY_OF_WEEK_MAP,
+  legacyWeeklySchedule,
+  validateWeeklySlots,
+  type WeeklySlot,
+} from "@/lib/weekly-slots";
+import { WeeklySlotsEditor } from "@/components/admin/weekly-slots-editor";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Calendar03Icon,
@@ -33,7 +40,8 @@ export type ScheduleConfigData = {
   timeSlots: string[];
   dateScheduleActive?: boolean;
   weeklyScheduleActive?: boolean;
-  weeklyIncludeSaturday?: boolean;
+  weeklyDays?: number[];
+  weeklySlots?: WeeklySlot[];
   dateScheduleTitle?: string;
   weeklyScheduleTitle?: string;
 };
@@ -187,7 +195,9 @@ export function ScheduleConfigPanel({
     timeSlots: initialConfig?.timeSlots ?? [],
     dateScheduleActive: initialConfig?.dateScheduleActive ?? true,
     weeklyScheduleActive: initialConfig?.weeklyScheduleActive ?? true,
-    weeklyIncludeSaturday: initialConfig?.weeklyIncludeSaturday ?? false,
+    weeklyDays: initialConfig?.weeklyDays ?? legacyWeeklySchedule().weeklyDays,
+    weeklySlots:
+      initialConfig?.weeklySlots ?? legacyWeeklySchedule().weeklySlots,
     dateScheduleTitle:
       initialConfig?.dateScheduleTitle ?? "Specific Date Availability",
     weeklyScheduleTitle:
@@ -217,7 +227,8 @@ export function ScheduleConfigPanel({
           timeSlots: data.timeSlots ?? [],
           dateScheduleActive: data.dateScheduleActive ?? true,
           weeklyScheduleActive: data.weeklyScheduleActive ?? true,
-          weeklyIncludeSaturday: data.weeklyIncludeSaturday ?? false,
+          weeklyDays: data.weeklyDays ?? [],
+          weeklySlots: data.weeklySlots ?? [],
           dateScheduleTitle:
             data.dateScheduleTitle || "Specific Date Availability",
           weeklyScheduleTitle:
@@ -252,12 +263,23 @@ export function ScheduleConfigPanel({
       return;
     }
 
+    const weeklyDays = config.weeklyDays ?? [];
+    // Slots of closed days stay in local state but are not saved
+    const weeklySlots = (config.weeklySlots ?? []).filter((s) =>
+      weeklyDays.includes(s.dayOfWeek),
+    );
+    const weeklyError = validateWeeklySlots(weeklyDays, weeklySlots);
+    if (weeklyError) {
+      setError(`Semester timetable: ${weeklyError}`);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await fetch("/api/admin/schedule-config", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify({ ...config, weeklySlots }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
@@ -276,6 +298,18 @@ export function ScheduleConfigPanel({
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function toggleWeeklyDay(day: number) {
+    setConfig((prev) => {
+      const days = prev.weeklyDays ?? [];
+      return {
+        ...prev,
+        weeklyDays: days.includes(day)
+          ? days.filter((d) => d !== day)
+          : [...days, day].sort((a, b) => a - b),
+      };
+    });
   }
 
   function addTimeSlot() {
@@ -529,19 +563,36 @@ export function ScheduleConfigPanel({
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-background/40 px-3 py-1.5">
-              <span className="text-xs font-semibold text-foreground">
-                Include Saturdays (6-day week)
-              </span>
-              <Switch
-                checked={config.weeklyIncludeSaturday ?? false}
-                onCheckedChange={(checked) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    weeklyIncludeSaturday: checked,
-                  }))
-                }
-              />
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Open Days
+              </Label>
+              <div
+                role="group"
+                aria-label="Open days"
+                className="grid grid-cols-7 gap-1"
+              >
+                {DAY_OF_WEEK_MAP.map(({ day, short, label }) => {
+                  const isOpen = config.weeklyDays?.includes(day) ?? false;
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      aria-pressed={isOpen}
+                      aria-label={label}
+                      onClick={() => toggleWeeklyDay(day)}
+                      className={cn(
+                        "min-h-[44px] min-w-0 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer touch-manipulation active:scale-[0.97] md:min-h-9",
+                        isOpen
+                          ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                          : "border-border/60 bg-background/40 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+                      )}
+                    >
+                      {short}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -718,7 +769,9 @@ export function ScheduleConfigPanel({
             <div className="flex size-8.5 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/20 shrink-0">
               <HugeiconsIcon icon={Clock01Icon} size={18} />
             </div>
-            <h2 className="text-sm font-bold tracking-tight">Time Slots</h2>
+            <h2 className="text-sm font-bold tracking-tight">
+              Date Poll Time Slots
+            </h2>
           </div>
 
           <div className="flex items-center gap-1 p-0.5 rounded-xl bg-muted/60 border border-border/60">
@@ -856,7 +909,16 @@ export function ScheduleConfigPanel({
         )}
       </div>
 
-      {/* ─── 4. Save Action Bar ──────────────────────────────────────────────── */}
+      {/* ─── 4. Semester Time Slots ─────────────────────────────────────────── */}
+      <WeeklySlotsEditor
+        days={config.weeklyDays ?? []}
+        slots={config.weeklySlots ?? []}
+        onChange={(weeklySlots) =>
+          setConfig((prev) => ({ ...prev, weeklySlots }))
+        }
+      />
+
+      {/* ─── 5. Save Action Bar ──────────────────────────────────────────────── */}
       {error && (
         <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive font-medium">
           {error}

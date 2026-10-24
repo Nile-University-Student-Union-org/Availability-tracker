@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "react";
+import { legacyWeeklySchedule, type WeeklySlot } from "@/lib/weekly-slots";
+export { DAY_OF_WEEK_MAP, formatTimeSlot } from "@/lib/weekly-slots";
 
 export type ScheduleConfig = {
   startDate: string;
@@ -9,20 +11,11 @@ export type ScheduleConfig = {
   dates: string[];
   dateScheduleActive: boolean;
   weeklyScheduleActive: boolean;
-  weeklyIncludeSaturday: boolean;
+  weeklyDays: number[];
+  weeklySlots: WeeklySlot[];
   dateScheduleTitle: string;
   weeklyScheduleTitle: string;
 };
-
-export const DAY_OF_WEEK_MAP = [
-  { day: 0, label: "Sunday", short: "Sun" },
-  { day: 1, label: "Monday", short: "Mon" },
-  { day: 2, label: "Tuesday", short: "Tue" },
-  { day: 3, label: "Wednesday", short: "Wed" },
-  { day: 4, label: "Thursday", short: "Thu" },
-  { day: 5, label: "Friday", short: "Fri" },
-  { day: 6, label: "Saturday", short: "Sat" },
-] as const;
 
 /**
  * Loads the active schedule config from the DB.
@@ -33,7 +26,10 @@ export const getScheduleConfig = cache(
   async (): Promise<ScheduleConfig | null> => {
     const config = await prisma.scheduleConfig.findUnique({
       where: { id: "default" },
-      include: { timeSlots: { orderBy: { startTime: "asc" } } },
+      include: {
+        timeSlots: { orderBy: { startTime: "asc" } },
+        weeklySlots: { orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] },
+      },
     });
 
     if (!config) return null;
@@ -58,7 +54,21 @@ export const getScheduleConfig = cache(
       dates,
       dateScheduleActive: config.dateScheduleActive ?? true,
       weeklyScheduleActive: config.weeklyScheduleActive ?? true,
-      weeklyIncludeSaturday: config.weeklyIncludeSaturday ?? false,
+      ...(config.weeklySlots.length === 0
+        ? legacyWeeklySchedule(
+            config.weeklyIncludeSaturday,
+            config.timeSlots.map((s) => s.startTime),
+          )
+        : {
+            weeklyDays: [...config.weeklyDays].sort((a, b) => a - b),
+            weeklySlots: config.weeklySlots.map(
+              ({ dayOfWeek, startTime, endTime }) => ({
+                dayOfWeek,
+                startTime,
+                endTime,
+              }),
+            ),
+          }),
       dateScheduleTitle:
         config.dateScheduleTitle || "Specific Date Availability",
       weeklyScheduleTitle:
@@ -66,13 +76,3 @@ export const getScheduleConfig = cache(
     };
   },
 );
-
-/**
- * Formats "HH:mm" to a human-readable label like "8:30 AM".
- */
-export function formatTimeSlot(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
-}

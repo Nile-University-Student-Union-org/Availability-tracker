@@ -31,6 +31,7 @@ export default async function AdminPage() {
     users: [],
     days: [0, 1, 2, 3, 4],
     timeSlots: [],
+    weeklySlots: [],
     recommendations: [],
   };
 

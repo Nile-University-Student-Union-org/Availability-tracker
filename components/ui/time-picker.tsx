@@ -107,7 +107,7 @@ export function TimePicker({
   }
 
   const hours = [8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7];
-  const minutes = [0, 15, 30, 45];
+  const minutes = Array.from({ length: 12 }, (_, i) => i * 5);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -231,14 +231,14 @@ export function TimePicker({
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase">
                     Minute
                   </span>
-                  <div className="space-y-1">
+                  <div className="grid max-h-36 grid-cols-2 gap-1 overflow-y-auto pr-0.5">
                     {minutes.map((m) => (
                       <button
                         key={m}
                         type="button"
                         onClick={() => setSelectedMinute(m)}
                         className={cn(
-                          "w-full rounded-md py-1 text-xs font-medium transition-colors",
+                          "rounded-md py-1 text-xs font-medium transition-colors",
                           selectedMinute === m
                             ? "bg-primary font-semibold text-primary-foreground"
                             : "bg-muted/40 text-foreground hover:bg-muted",
