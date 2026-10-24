@@ -15,12 +15,13 @@ import {
 } from "@hugeicons/core-free-icons";
 import { Sun, Moon, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/status-pill";
 import {
   executeThemeTransition,
   THEME_BEAM_EVENT,
 } from "@/components/theme-beam";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
-import { toast } from "sonner";
+import { toast } from "@/lib/notify";
 
 export interface NavbarProps {
   dateScheduleTitle?: string;
@@ -691,6 +692,7 @@ export function Navbar({
               </div>
             </div>
           )}
+          <StatusPill />
         </header>
       </div>
 

@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { toast } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 import { COMMITTEES } from "@/lib/constants";
 
@@ -418,7 +418,10 @@ export function AdminMembersPanel({
           >
             <SelectTrigger className="h-10 w-full sm:w-[185px] text-xs sm:text-sm">
               <div className="flex items-center gap-1.5 truncate">
-                <HugeiconsIcon icon={FilterIcon} className="size-3.5 shrink-0" />
+                <HugeiconsIcon
+                  icon={FilterIcon}
+                  className="size-3.5 shrink-0"
+                />
                 <SelectValue placeholder="Committee" />
               </div>
             </SelectTrigger>
