@@ -73,7 +73,10 @@ export async function PUT(request: NextRequest) {
     const weeklySlots = body.weeklySlots.filter(
       (slot) => !slot || body.weeklyDays.includes(slot.dayOfWeek),
     );
-    const weeklyError = validateWeeklySlots(body.weeklyDays, weeklySlots);
+    // A closed timetable keeps its saved days, slots and member marks untouched
+    const weeklyError = weeklyScheduleActive
+      ? validateWeeklySlots(body.weeklyDays, weeklySlots)
+      : null;
     if (weeklyError)
       return NextResponse.json({ error: weeklyError }, { status: 400 });
     const weeklyDays = [...body.weeklyDays].sort((a, b) => a - b);
@@ -103,7 +106,7 @@ export async function PUT(request: NextRequest) {
           slotMode: body.slotMode,
           dateScheduleActive,
           weeklyScheduleActive,
-          weeklyDays,
+          ...(weeklyScheduleActive ? { weeklyDays } : {}),
           dateScheduleTitle,
           weeklyScheduleTitle,
         },
@@ -133,30 +136,32 @@ export async function PUT(request: NextRequest) {
         }
       }
 
-      await tx.weeklySlotConfig.deleteMany({
-        where: { scheduleConfigId: "default" },
-      });
-      await tx.weeklySlotConfig.createMany({
-        data: sortSlots(weeklySlots).map(
-          ({ dayOfWeek, startTime, endTime }) => ({
-            scheduleConfigId: "default",
-            dayOfWeek,
-            startTime,
-            endTime,
-          }),
-        ),
-      });
-      // Drop member marks for weekly slots that no longer exist
-      await tx.recurringAvailability.deleteMany({
-        where: {
-          NOT: {
-            OR: weeklySlots.map(({ dayOfWeek, startTime }) => ({
+      if (weeklyScheduleActive) {
+        await tx.weeklySlotConfig.deleteMany({
+          where: { scheduleConfigId: "default" },
+        });
+        await tx.weeklySlotConfig.createMany({
+          data: sortSlots(weeklySlots).map(
+            ({ dayOfWeek, startTime, endTime }) => ({
+              scheduleConfigId: "default",
               dayOfWeek,
               startTime,
-            })),
+              endTime,
+            }),
+          ),
+        });
+        // Drop member marks for weekly slots that no longer exist
+        await tx.recurringAvailability.deleteMany({
+          where: {
+            NOT: {
+              OR: weeklySlots.map(({ dayOfWeek, startTime }) => ({
+                dayOfWeek,
+                startTime,
+              })),
+            },
           },
-        },
-      });
+        });
+      }
 
       // Also clean up any availability records that fall outside the new date range
       await tx.availability.deleteMany({
