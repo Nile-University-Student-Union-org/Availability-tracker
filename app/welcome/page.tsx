@@ -34,7 +34,7 @@ export default async function WelcomePage() {
       </div>
       <div className="flex w-full max-w-md flex-col items-center gap-8 px-6">
         <NusuLogo size="lg" />
-        <div className="w-full rounded-3xl border bg-card p-5 shadow-sm sm:p-7">
+        <div className="motion-card w-full rounded-3xl border bg-card p-5 shadow-sm sm:p-7">
           <ProfileCompletion
             name={user.name}
             email={user.email}

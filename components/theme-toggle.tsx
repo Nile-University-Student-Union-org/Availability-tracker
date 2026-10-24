@@ -56,10 +56,10 @@ export function ThemeToggle() {
           <HugeiconsIcon
             icon={Sun03Icon}
             className={cn(
-              "size-4.5 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+              "size-4.5 transition-[scale,rotate,opacity] duration-300 ease-[var(--ease-out)]",
               resolvedTheme === "dark"
                 ? "scale-100 rotate-0 text-amber-400 opacity-100 drop-shadow-[0_0_8px_rgba(251,191,36,0.45)]"
-                : "absolute scale-0 -rotate-90 opacity-0 pointer-events-none",
+                : "absolute scale-50 -rotate-90 opacity-0 pointer-events-none",
             )}
             strokeWidth={1.75}
           />
@@ -67,10 +67,10 @@ export function ThemeToggle() {
           <HugeiconsIcon
             icon={Moon02Icon}
             className={cn(
-              "size-4.5 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]",
+              "size-4.5 transition-[scale,rotate,opacity] duration-300 ease-[var(--ease-out)]",
               resolvedTheme === "light"
                 ? "scale-100 rotate-0 text-sky-600 opacity-100 drop-shadow-[0_0_8px_rgba(2,132,199,0.35)]"
-                : "absolute scale-0 rotate-90 opacity-0 pointer-events-none",
+                : "absolute scale-50 rotate-90 opacity-0 pointer-events-none",
             )}
             strokeWidth={1.75}
           />
