@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  RefreshSpinIcon,
+  useRefreshSpin,
+} from "@/components/admin/refresh-spin";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
@@ -11,8 +15,6 @@ import { useLivePoll } from "@/hooks/use-live-poll";
 import { AnimatedNumber } from "@/components/admin/animated-number";
 import { HeatmapPulse } from "@/components/admin/heatmap-pulse";
 import { LiveIndicator } from "@/components/admin/live-indicator";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { RefreshIcon } from "@hugeicons/core-free-icons";
 
 import {
   Download,
@@ -221,6 +223,7 @@ export function AnalyticsDashboard({
     status,
     refresh,
   } = useLivePoll(fetchDateAnalytics, 10000, initialData);
+  const { spinKey, spin } = useRefreshSpin();
   const { slotMatrix, users, dates, timeSlots } = data;
   const [activeCell, setActiveCell] = useState<{
     date: string;
@@ -963,15 +966,14 @@ export function AnalyticsDashboard({
               type="button"
               variant="outline"
               size="sm"
-              onClick={refresh}
+              onClick={() => {
+                spin();
+                refresh();
+              }}
               className="min-h-[44px] rounded-xl px-3 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.97]"
               title="Refresh availability table data"
             >
-              <HugeiconsIcon
-                icon={RefreshIcon}
-                className="size-3.5"
-                strokeWidth={2}
-              />
+              <RefreshSpinIcon spinKey={spinKey} size={14} />
               Refresh Table
             </Button>
           </div>
