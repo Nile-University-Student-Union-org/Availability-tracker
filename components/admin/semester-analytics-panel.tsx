@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +36,10 @@ import type {
   RecurringSlotEntry,
 } from "@/lib/semester-analytics";
 import { cn } from "@/lib/utils";
+import { useLivePoll } from "@/hooks/use-live-poll";
+import { AnimatedNumber } from "@/components/admin/animated-number";
+import { HeatmapPulse } from "@/components/admin/heatmap-pulse";
+import { LiveIndicator } from "@/components/admin/live-indicator";
 
 interface SemesterAnalyticsPanelProps {
   initialData: SemesterAnalyticsData;
@@ -67,11 +70,9 @@ function cellStyle(count: number, max: number): string {
 export function SemesterAnalyticsPanel({
   initialData,
 }: SemesterAnalyticsPanelProps) {
-  const [data, setData] = React.useState<SemesterAnalyticsData>(initialData);
   const [committee, setCommittee] = React.useState<string>("all");
   const [availableCommittees, setAvailableCommittees] =
     React.useState<string[]>(COMMITTEES);
-  const [isLoading, setIsLoading] = React.useState(false);
 
   React.useEffect(() => {
     fetch("/api/committees")
@@ -85,38 +86,42 @@ export function SemesterAnalyticsPanel({
   }, []);
 
   // Dialog inspection state
-  const [selectedSlot, setSelectedSlot] =
+  const [inspectedSlot, setSelectedSlot] =
     React.useState<RecurringSlotEntry | null>(null);
   const [dialogTab, setDialogTab] = React.useState<"available" | "missing">(
     "available",
   );
 
-  // Fetch updated analytics when committee filter changes
-  const fetchAnalytics = React.useCallback(async (comm: string) => {
-    setIsLoading(true);
-    try {
+  const fetchAnalytics = React.useCallback(
+    async (signal: AbortSignal) => {
       const url =
-        comm === "all"
+        committee === "all"
           ? "/api/admin/recurring-analytics"
-          : `/api/admin/recurring-analytics?committee=${encodeURIComponent(comm)}`;
-      const res = await fetch(url);
+          : `/api/admin/recurring-analytics?committee=${encodeURIComponent(committee)}`;
+      const res = await fetch(url, { signal, cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load semester analytics");
-      const result = (await res.json()) as SemesterAnalyticsData;
-      setData(result);
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to load analytics";
-      toast.error(msg);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      return (await res.json()) as SemesterAnalyticsData;
+    },
+    [committee],
+  );
+  const {
+    data = initialData,
+    lastUpdated,
+    status,
+    refresh,
+  } = useLivePoll(fetchAnalytics, 10000, initialData);
 
   const handleCommitteeChange = (newComm: string | null) => {
-    const val = newComm ?? "all";
-    setCommittee(val);
-    void fetchAnalytics(val);
+    setCommittee(newComm ?? "all");
   };
+
+  const selectedSlot = inspectedSlot
+    ? (data.slotMatrix.find(
+        (slot) =>
+          slot.dayOfWeek === inspectedSlot.dayOfWeek &&
+          slot.startTime === inspectedSlot.startTime,
+      ) ?? inspectedSlot)
+    : null;
 
   // Calculate missing members for the currently selected inspected slot
   const missingMembersForSlot = React.useMemo(() => {
@@ -149,9 +154,9 @@ export function SemesterAnalyticsPanel({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-64 shrink-0">
           <Select value={committee} onValueChange={handleCommitteeChange}>
-            <SelectTrigger className="h-9 w-full sm:w-[200px] text-xs font-semibold bg-background/60">
+            <SelectTrigger className="min-h-[44px] min-w-0 flex-1 text-xs font-semibold bg-background/60">
               <SelectValue placeholder="All Committees" />
             </SelectTrigger>
             <SelectContent>
@@ -169,17 +174,15 @@ export function SemesterAnalyticsPanel({
           <Button
             variant="outline"
             size="icon"
-            className="size-9 shrink-0 cursor-pointer"
-            onClick={() => fetchAnalytics(committee)}
-            disabled={isLoading}
+            className="size-11 shrink-0 cursor-pointer touch-manipulation active:scale-[0.97]"
+            onClick={refresh}
             title="Refresh analytics"
           >
-            <HugeiconsIcon
-              icon={RefreshIcon}
-              size={15}
-              className={cn(isLoading && "animate-spin")}
-            />
+            <HugeiconsIcon icon={RefreshIcon} size={15} />
           </Button>
+          <div className="w-full">
+            <LiveIndicator lastUpdated={lastUpdated} status={status} />
+          </div>
         </div>
       </div>
 
@@ -195,7 +198,7 @@ export function SemesterAnalyticsPanel({
                 Participating Members
               </p>
               <p className="text-xl font-bold tracking-tight mt-0.5">
-                {data.totalUsers}
+                <AnimatedNumber value={data.totalUsers} />
               </p>
             </div>
           </CardContent>
@@ -211,7 +214,7 @@ export function SemesterAnalyticsPanel({
                 Total Weekly Slots Marked
               </p>
               <p className="text-xl font-bold tracking-tight mt-0.5">
-                {data.totalSlots}
+                <AnimatedNumber value={data.totalSlots} />
               </p>
             </div>
           </CardContent>
@@ -227,7 +230,9 @@ export function SemesterAnalyticsPanel({
                 Peak Slot Consensus
               </p>
               <p className="text-xl font-bold tracking-tight mt-0.5">
-                {data.maxCount} members ({peakConsensusPercentage}%)
+                <AnimatedNumber value={data.maxCount} /> members (
+                <AnimatedNumber value={peakConsensusPercentage} />
+                %)
               </p>
             </div>
           </CardContent>
@@ -439,10 +444,11 @@ export function SemesterAnalyticsPanel({
                             type="button"
                             onClick={() => setSelectedSlot(cell)}
                             className={cn(
-                              "h-12 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-150 cursor-pointer select-none active:scale-[0.97]",
+                              "relative min-h-[56px] rounded-xl flex items-center justify-center font-bold text-xs transition-[background-color,color,scale] duration-150 cursor-pointer touch-manipulation select-none active:scale-[0.97]",
                               cellStyle(count, data.maxCount),
                             )}
                           >
+                            <HeatmapPulse count={count} />
                             {count > 0 ? count : "—"}
                           </button>
                         );
