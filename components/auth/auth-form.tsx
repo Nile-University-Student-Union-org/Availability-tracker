@@ -13,6 +13,7 @@ import {
   ViewOffIcon,
   Mail01Icon,
   LockPasswordIcon,
+  ArrowLeft01Icon,
   ArrowRight01Icon,
   Shield01Icon,
   CheckmarkCircle02Icon,
@@ -279,7 +280,8 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
         onClick={() => setShowPasswordLogin(false)}
         className="inline-flex min-h-[44px] cursor-pointer touch-manipulation items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
       >
-        ← Back to Microsoft sign-in
+        <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+        Back to Microsoft sign-in
       </button>
       {resetMode ? (
         /* RESET PASSWORD FORM (Admin Triggered) */
