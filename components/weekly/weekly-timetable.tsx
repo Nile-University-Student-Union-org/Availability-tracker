@@ -308,7 +308,7 @@ export function WeeklyTimetable({
                 aria-label={`${meta?.label}, ${dayCount} selected`}
                 onClick={() => setSelectedDay(dayNum)}
                 className={cn(
-                  "relative flex min-h-[48px] min-w-0 cursor-pointer touch-manipulation select-none flex-col items-center justify-center gap-0.5 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-[0.97]",
+                  "relative flex min-h-[48px] min-w-0 cursor-pointer touch-manipulation select-none flex-col items-center justify-center gap-0.5 rounded-xl text-sm font-semibold transition-press active:scale-[0.97]",
                   isSelected
                     ? "bg-card text-foreground shadow-sm ring-1 ring-border/60"
                     : "text-muted-foreground hover:text-foreground",
@@ -317,8 +317,10 @@ export function WeeklyTimetable({
                 {meta?.short}
                 <span
                   className={cn(
-                    "h-1.5 w-1.5 rounded-full transition-colors",
-                    dayCount > 0 ? "bg-emerald-500" : "bg-transparent",
+                    "h-1.5 w-1.5 rounded-full bg-emerald-500 transition-[scale,opacity] duration-200 ease-[var(--ease-out)]",
+                    dayCount > 0
+                      ? "scale-100 opacity-100"
+                      : "scale-50 opacity-0",
                   )}
                 />
               </button>
@@ -363,8 +365,8 @@ export function WeeklyTimetable({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            {selectedDaySlots.map(({ startTime, endTime }) => {
+          <div key={selectedDay} className="motion-stagger flex flex-col gap-2">
+            {selectedDaySlots.map(({ startTime, endTime }, index) => {
               const isMarked = activeDaySlots.has(startTime);
 
               return (
@@ -373,8 +375,9 @@ export function WeeklyTimetable({
                   type="button"
                   aria-pressed={isMarked}
                   onClick={() => toggleSlot(startTime)}
+                  style={{ "--i": index } as React.CSSProperties}
                   className={cn(
-                    "group flex min-h-[60px] cursor-pointer touch-manipulation select-none items-center gap-3 rounded-2xl border px-4 text-left transition-all duration-150 active:scale-[0.98]",
+                    "group flex min-h-[60px] cursor-pointer touch-manipulation select-none items-center gap-3 rounded-2xl border px-4 text-left transition-press active:scale-[0.98]",
                     isMarked
                       ? "border-emerald-500/60 bg-emerald-500/[0.08] shadow-xs"
                       : "border-border/80 bg-background hover:border-foreground/20 hover:bg-muted/40",
@@ -382,7 +385,7 @@ export function WeeklyTimetable({
                 >
                   <span
                     className={cn(
-                      "flex size-6 shrink-0 items-center justify-center rounded-lg border transition-all",
+                      "flex size-6 shrink-0 items-center justify-center rounded-lg border transition-press",
                       isMarked
                         ? "border-emerald-600 bg-emerald-600 text-white"
                         : "border-border bg-card text-transparent group-hover:border-foreground/30",
@@ -392,6 +395,12 @@ export function WeeklyTimetable({
                       icon={Tick01Icon}
                       size={14}
                       strokeWidth={3}
+                      className={cn(
+                        "transition-[scale,opacity] duration-200 ease-[var(--ease-out)]",
+                        isMarked
+                          ? "scale-100 opacity-100"
+                          : "scale-50 opacity-0",
+                      )}
                     />
                   </span>
 
@@ -419,7 +428,7 @@ export function WeeklyTimetable({
       {/* ─── Floating Dynamic Save Island (Visible only on unsaved changes) ────── */}
       <div
         className={cn(
-          "fixed bottom-6 inset-x-0 mx-auto z-40 w-[calc(100%-2rem)] max-w-md transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)]",
+          "fixed bottom-6 inset-x-0 mx-auto z-40 w-[calc(100%-2rem)] max-w-md transition-[translate,scale,opacity] duration-250 ease-[var(--ease-out)]",
           hasChanges
             ? "translate-y-0 opacity-100 scale-100 pointer-events-auto"
             : "translate-y-10 opacity-0 scale-95 pointer-events-none",
@@ -449,7 +458,7 @@ export function WeeklyTimetable({
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="h-8 px-4 gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs cursor-pointer active:scale-95 transition-transform"
+              className="h-8 px-4 gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs cursor-pointer active:scale-[0.97] transition-transform"
             >
               {isSaving ? (
                 <>

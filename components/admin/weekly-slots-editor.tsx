@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,7 @@ function Chip({ active, disabled, onClick, children }: ChipProps) {
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "min-h-[44px] md:min-h-9 rounded-xl border px-2.5 text-[11px] font-semibold transition-all cursor-pointer touch-manipulation active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40",
+        "min-h-[44px] md:min-h-9 rounded-xl border px-2.5 text-[11px] font-semibold transition-press cursor-pointer touch-manipulation active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40",
         active
           ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
           : "border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
@@ -196,7 +197,7 @@ export function WeeklySlotsEditor({
                   aria-label={`${meta?.label}, ${count} slots`}
                   onClick={() => pickDay(day)}
                   className={cn(
-                    "flex min-h-[48px] min-w-0 flex-col items-center justify-center rounded-2xl border px-1 transition-all cursor-pointer touch-manipulation active:scale-[0.97]",
+                    "flex min-h-[48px] min-w-0 flex-col items-center justify-center rounded-2xl border px-1 transition-press cursor-pointer touch-manipulation active:scale-[0.97]",
                     isSelected
                       ? "border-[#0F3056] bg-[#0F3056] text-white shadow-sm dark:border-[#2DB1FA]/50 dark:bg-[#18477D]"
                       : "border-border/70 bg-background/50 text-foreground hover:bg-accent/40",
@@ -408,10 +409,14 @@ export function WeeklySlotsEditor({
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
-                  {daySlots.map((slot) => (
+                <div
+                  key={selectedDay}
+                  className="motion-stagger grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2"
+                >
+                  {daySlots.map((slot, index) => (
                     <div
                       key={slot.startTime}
+                      style={{ "--i": index } as React.CSSProperties}
                       className="flex min-h-[52px] items-center justify-between gap-2 rounded-xl border border-border/70 bg-card px-3 py-2"
                     >
                       <div className="min-w-0">

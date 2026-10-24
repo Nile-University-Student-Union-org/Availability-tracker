@@ -345,3 +345,68 @@ html[data-theme-transition="active"]::view-transition-new(root) {
 }
 
 
+
+/* ─── Micro-interactions (issue #33) ─────────────────────────────────────── */
+
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Press/hover feedback: named properties only, never `all` */
+@utility transition-press {
+  /* Tailwind v4 scale and translate utilities set the standalone scale/translate properties */
+  transition-property: color, background-color, border-color, box-shadow,
+    opacity, transform, scale, translate;
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-out);
+}
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes enter-card {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Small element appearing (status text, list item) */
+.motion-enter {
+  animation: enter-up 200ms var(--ease-out) both;
+}
+
+/* Rare screens: sign-in / welcome card */
+.motion-card {
+  animation: enter-card 320ms var(--ease-out) both;
+}
+
+/* Children fade up one after another; set --i on each child */
+.motion-stagger > * {
+  animation: enter-up 200ms var(--ease-out) both;
+  animation-delay: calc(min(var(--i, 0), 10) * 30ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-enter,
+  .motion-card,
+  .motion-stagger > * {
+    animation-name: fade-in;
+    animation-delay: 0ms;
+  }
+  .transition-press {
+    transition-property: color, background-color, border-color, box-shadow,
+      opacity;
+  }
+}

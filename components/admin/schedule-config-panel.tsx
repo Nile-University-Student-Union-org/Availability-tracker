@@ -124,7 +124,7 @@ function DatePicker({
         <PopoverTrigger
           type="button"
           className={cn(
-            "group relative flex min-h-[46px] w-full items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/70 px-3 py-2 text-left text-sm font-medium shadow-2xs transition-all duration-200 outline-none hover:border-primary/50 hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
+            "group relative flex min-h-[46px] w-full items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/70 px-3 py-2 text-left text-sm font-medium shadow-2xs transition-press outline-none hover:border-primary/50 hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
             open && "border-primary ring-2 ring-primary/20 bg-accent/40",
             !value && "text-muted-foreground",
           )}
@@ -592,7 +592,7 @@ export function ScheduleConfigPanel({
                       aria-label={label}
                       onClick={() => toggleWeeklyDay(day)}
                       className={cn(
-                        "min-h-[44px] min-w-0 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer touch-manipulation active:scale-[0.97] md:min-h-9",
+                        "min-h-[44px] min-w-0 rounded-xl border text-[11px] font-semibold transition-press cursor-pointer touch-manipulation active:scale-[0.97] md:min-h-9",
                         isOpen
                           ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                           : "border-border/60 bg-background/40 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
@@ -663,7 +663,7 @@ export function ScheduleConfigPanel({
                   variant="outline"
                   size="xs"
                   onClick={() => setPresetRange(3)}
-                  className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-all active:scale-95"
+                  className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
                 >
                   3D
                 </Button>
@@ -672,7 +672,7 @@ export function ScheduleConfigPanel({
                   variant="outline"
                   size="xs"
                   onClick={() => setPresetRange(5)}
-                  className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-all active:scale-95"
+                  className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
                 >
                   5D
                 </Button>
@@ -681,7 +681,7 @@ export function ScheduleConfigPanel({
                   variant="outline"
                   size="xs"
                   onClick={() => setPresetRange(7)}
-                  className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-all active:scale-95"
+                  className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
                 >
                   7D
                 </Button>
@@ -690,7 +690,7 @@ export function ScheduleConfigPanel({
                   variant="outline"
                   size="xs"
                   onClick={() => setPresetRange(14)}
-                  className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-all active:scale-95"
+                  className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
                 >
                   14D
                 </Button>
@@ -700,7 +700,7 @@ export function ScheduleConfigPanel({
                     variant="ghost"
                     size="xs"
                     onClick={clearRange}
-                    className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all active:scale-95"
+                    className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-press active:scale-[0.97]"
                   >
                     Clear
                   </Button>
@@ -793,7 +793,7 @@ export function ScheduleConfigPanel({
                     setConfig((prev) => ({ ...prev, slotMode: "fixed" }))
                   }
                   className={cn(
-                    "px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer",
+                    "px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-press cursor-pointer",
                     config.slotMode === "fixed"
                       ? "bg-background text-foreground shadow-xs font-bold"
                       : "text-muted-foreground hover:text-foreground",
@@ -807,7 +807,7 @@ export function ScheduleConfigPanel({
                     setConfig((prev) => ({ ...prev, slotMode: "free" }))
                   }
                   className={cn(
-                    "px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer",
+                    "px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-press cursor-pointer",
                     config.slotMode === "free"
                       ? "bg-background text-foreground shadow-xs font-bold"
                       : "text-muted-foreground hover:text-foreground",
@@ -887,7 +887,7 @@ export function ScheduleConfigPanel({
                       {config.timeSlots.map((slot) => (
                         <div
                           key={slot}
-                          className="group flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 hover:bg-accent/30 transition-all"
+                          className="group flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 hover:bg-accent/30 transition-press"
                         >
                           <div className="min-w-0">
                             <p className="text-xs font-bold tracking-tight text-foreground truncate">
@@ -950,19 +950,27 @@ export function ScheduleConfigPanel({
             className="flex min-w-0 items-center gap-2 text-xs font-medium"
           >
             {saved ? (
-              <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+              <span
+                key="saved"
+                className="motion-enter flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"
+              >
                 <HugeiconsIcon icon={CheckmarkCircle02Icon} size={15} />
                 Saved
               </span>
             ) : isDirty ? (
-              <span className="flex items-center gap-2 text-foreground">
+              <span
+                key="dirty"
+                className="motion-enter flex items-center gap-2 text-foreground"
+              >
                 <span className="size-2 shrink-0 rounded-full bg-amber-500" />
                 <span className="whitespace-nowrap">
                   Unsaved<span className="hidden sm:inline"> changes</span>
                 </span>
               </span>
             ) : (
-              <span className="text-muted-foreground">No changes</span>
+              <span key="clean" className="motion-enter text-muted-foreground">
+                No changes
+              </span>
             )}
           </div>
 
@@ -983,7 +991,7 @@ export function ScheduleConfigPanel({
             <Button
               onClick={handleSave}
               disabled={!isDirty || isSaving}
-              className="min-h-[42px] cursor-pointer gap-2 rounded-xl px-5 text-xs font-semibold shadow-sm transition-all active:scale-95 sm:text-sm"
+              className="min-h-[42px] cursor-pointer gap-2 rounded-xl px-5 text-xs font-semibold shadow-sm transition-press active:scale-[0.97] sm:text-sm"
             >
               {isSaving ? (
                 <>
