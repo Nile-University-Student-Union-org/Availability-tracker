@@ -54,6 +54,26 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  socialProviders: {
+    microsoft: {
+      clientId: process.env.MICROSOFT_CLIENT_ID as string,
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET as string,
+      // Any work/school tenant; the @nu.edu.eg hook below rejects everyone else
+      tenantId: "organizations",
+      enabled: Boolean(process.env.MICROSOFT_CLIENT_ID),
+      // Work accounts without a mail attribute only expose the UPN
+      mapProfileToUser: (profile) => ({
+        email: profile.email || profile.preferred_username,
+      }),
+    },
+  },
+  account: {
+    accountLinking: {
+      enabled: true,
+      // Lets an existing email/password member sign in with Microsoft and keep their account
+      trustedProviders: ["microsoft"],
+    },
+  },
   user: {
     additionalFields: {
       nuId: {

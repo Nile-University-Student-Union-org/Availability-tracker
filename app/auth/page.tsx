@@ -11,15 +11,14 @@ import { getSafeCallbackUrl } from "@/lib/url-helpers";
 export const metadata: Metadata = {
   title: "Member Access | Nile University Student Union",
   description:
-    "Sign in or create a member account to mark your schedule availability.",
+    "Sign in with your Nile University Microsoft account to mark your schedule availability.",
 };
 
 export default async function AuthPage(props: {
-  searchParams: Promise<{ callbackUrl?: string; mode?: string }>;
+  searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   const searchParams = await props.searchParams;
   const callbackUrl = getSafeCallbackUrl(searchParams.callbackUrl, "/");
-  const mode = searchParams.mode === "signup" ? "signup" : "signin";
 
   // If the user is already signed in, send them straight to their destination
   const session = await auth.api.getSession({ headers: await headers() });
@@ -52,7 +51,7 @@ export default async function AuthPage(props: {
         </div>
 
         <div className="w-full rounded-3xl border bg-card/80 p-5 shadow-sm backdrop-blur-xs sm:p-7">
-          <AuthForm initialMode={mode} callbackUrl={callbackUrl} />
+          <AuthForm callbackUrl={callbackUrl} />
         </div>
       </div>
     </main>
