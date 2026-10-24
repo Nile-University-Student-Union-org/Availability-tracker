@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
-import { getScheduleConfig, DAY_OF_WEEK_MAP } from "@/lib/schedule";
+import { getScheduleConfig } from "@/lib/schedule";
+import {
+  DAY_OF_WEEK_MAP,
+  legacyWeeklySchedule,
+  type WeeklySlot,
+} from "@/lib/weekly-slots";
 
 export type RecurringSlotUser = {
   id: string;
@@ -12,6 +17,7 @@ export type RecurringSlotUser = {
 export type RecurringSlotEntry = {
   dayOfWeek: number;
   startTime: string;
+  endTime: string;
   count: number;
   users: RecurringSlotUser[];
 };
@@ -48,24 +54,16 @@ export type SemesterAnalyticsData = {
   users: RecurringUserEntry[];
   days: number[];
   timeSlots: string[];
+  weeklySlots: WeeklySlot[];
   recommendations: GoldenSlotRecommendation[];
 };
-
-function getEndTime(startTime: string): string {
-  const [h, m] = startTime.split(":").map(Number);
-  const endH = (h + 1) % 24;
-  return `${String(endH).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
 
 export async function getSemesterAnalytics(
   committeeFilter?: string | null,
 ): Promise<SemesterAnalyticsData> {
   const config = await getScheduleConfig();
 
-  // Nile University academic week: Sunday (0) to Thursday (4)
-  // Include Saturday (6) if enabled
-  const includeSaturday = config?.weeklyIncludeSaturday ?? false;
-  const days = includeSaturday ? [0, 1, 2, 3, 4, 6] : [0, 1, 2, 3, 4];
+  const { weeklyDays: days, weeklySlots } = config ?? legacyWeeklySchedule();
 
   const rawSlots = await prisma.recurringAvailability.findMany({
     where: {
@@ -119,34 +117,16 @@ export async function getSemesterAnalytics(
     },
   });
 
-  // Determine time slots
-  let timeSlots: string[] = [];
-  if (config?.slotMode === "fixed" && config.timeSlots.length > 0) {
-    timeSlots = config.timeSlots;
-  } else {
-    const fromBookings = Array.from(
-      new Set(rawSlots.map((s) => s.startTime)),
-    ).sort();
-    timeSlots =
-      fromBookings.length > 0
-        ? fromBookings
-        : [
-            "08:30",
-            "09:30",
-            "10:30",
-            "11:30",
-            "12:30",
-            "13:30",
-            "14:30",
-            "15:30",
-            "16:30",
-          ];
-  }
-
-  const relevantSlots =
-    config?.slotMode === "fixed" && config.timeSlots.length > 0
-      ? rawSlots.filter((s) => timeSlots.includes(s.startTime))
-      : rawSlots;
+  // Grid rows: every distinct start time across the open days
+  const timeSlots = Array.from(
+    new Set(weeklySlots.map((s) => s.startTime)),
+  ).sort();
+  const configured = new Set(
+    weeklySlots.map((s) => `${s.dayOfWeek}_${s.startTime}`),
+  );
+  const relevantSlots = rawSlots.filter((s) =>
+    configured.has(`${s.dayOfWeek}_${s.startTime}`),
+  );
 
   // Fast O(N) bucketing of slots by `${dayOfWeek}_${startTime}`
   const slotBuckets = new Map<string, typeof relevantSlots>();
@@ -186,26 +166,24 @@ export async function getSemesterAnalytics(
   const slotMatrix: RecurringSlotEntry[] = [];
   let maxCount = 0;
 
-  for (const day of days) {
-    for (const time of timeSlots) {
-      const key = `${day}_${time}`;
-      const matching = slotBuckets.get(key) ?? [];
-      const count = matching.length;
-      if (count > maxCount) maxCount = count;
+  for (const { dayOfWeek, startTime, endTime } of weeklySlots) {
+    const matching = slotBuckets.get(`${dayOfWeek}_${startTime}`) ?? [];
+    const count = matching.length;
+    if (count > maxCount) maxCount = count;
 
-      slotMatrix.push({
-        dayOfWeek: day,
-        startTime: time,
-        count,
-        users: matching.map((m) => ({
-          id: m.user.id,
-          name: m.user.name,
-          email: m.user.email,
-          image: m.user.image,
-          committee: m.user.committee,
-        })),
-      });
-    }
+    slotMatrix.push({
+      dayOfWeek,
+      startTime,
+      endTime,
+      count,
+      users: matching.map((m) => ({
+        id: m.user.id,
+        name: m.user.name,
+        email: m.user.email,
+        image: m.user.image,
+        committee: m.user.committee,
+      })),
+    });
   }
 
   const users = Array.from(userMap.values()).sort(
@@ -245,7 +223,7 @@ export async function getSemesterAnalytics(
         dayLabel,
         dayShort,
         startTime: slot.startTime,
-        endTime: getEndTime(slot.startTime),
+        endTime: slot.endTime,
         count: slot.count,
         totalEligible: totalEligibleCount,
         percentage,
@@ -262,6 +240,7 @@ export async function getSemesterAnalytics(
     users,
     days,
     timeSlots,
+    weeklySlots,
     recommendations,
   };
 }

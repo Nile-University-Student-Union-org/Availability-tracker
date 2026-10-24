@@ -6,6 +6,8 @@ import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { getScheduleConfig } from "@/lib/schedule";
 
+import { legacyWeeklySchedule } from "@/lib/weekly-slots";
+
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -44,10 +46,11 @@ export async function GET(request: NextRequest) {
     const slots = await prisma.recurringAvailability.findMany({
       where: {
         userId: user.id,
-        // If fixed mode with time slots configured, filter matching slots
-        ...(config && config.slotMode === "fixed" && config.timeSlots.length > 0
-          ? { startTime: { in: config.timeSlots } }
-          : {}),
+        OR: (config ?? legacyWeeklySchedule()).weeklySlots
+          .filter(
+            (slot) => !config || config.weeklyDays.includes(slot.dayOfWeek),
+          )
+          .map(({ dayOfWeek, startTime }) => ({ dayOfWeek, startTime })),
       },
       select: { dayOfWeek: true, startTime: true },
       orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
@@ -136,18 +139,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Validate slots format
-    const timeSlotRegex = /^\d{2}:\d{2}$/;
+    const allowed = new Set(
+      (config ?? legacyWeeklySchedule()).weeklySlots
+        .filter((slot) => !config || config.weeklyDays.includes(slot.dayOfWeek))
+        .map((slot) => `${slot.dayOfWeek}_${slot.startTime}`),
+    );
     const validSlots = (body.slots ?? []).filter(
-      (s) =>
-        typeof s.dayOfWeek === "number" &&
-        s.dayOfWeek >= 0 &&
-        s.dayOfWeek <= 6 &&
-        timeSlotRegex.test(s.startTime) &&
-        (!config ||
-          config.slotMode !== "fixed" ||
-          config.timeSlots.length === 0 ||
-          config.timeSlots.includes(s.startTime)),
+      (slot) => slot && allowed.has(`${slot.dayOfWeek}_${slot.startTime}`),
     );
 
     // Deduplicate slots by dayOfWeek-startTime

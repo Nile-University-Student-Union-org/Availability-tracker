@@ -5,6 +5,12 @@ import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 
+import {
+  validateWeeklySlots,
+  sortSlots,
+  type WeeklySlot,
+} from "@/lib/weekly-slots";
+
 export const dynamic = "force-dynamic";
 
 async function requireAdmin() {
@@ -29,7 +35,8 @@ export async function PUT(request: NextRequest) {
       timeSlots: string[];
       dateScheduleActive?: boolean;
       weeklyScheduleActive?: boolean;
-      weeklyIncludeSaturday?: boolean;
+      weeklyDays: number[];
+      weeklySlots: WeeklySlot[];
       dateScheduleTitle?: string;
       weeklyScheduleTitle?: string;
     };
@@ -57,7 +64,19 @@ export async function PUT(request: NextRequest) {
 
     const dateScheduleActive = body.dateScheduleActive ?? true;
     const weeklyScheduleActive = body.weeklyScheduleActive ?? true;
-    const weeklyIncludeSaturday = body.weeklyIncludeSaturday ?? false;
+    if (!Array.isArray(body.weeklyDays) || !Array.isArray(body.weeklySlots)) {
+      return NextResponse.json(
+        { error: "Provide open days and weekly slots." },
+        { status: 400 },
+      );
+    }
+    const weeklySlots = body.weeklySlots.filter(
+      (slot) => !slot || body.weeklyDays.includes(slot.dayOfWeek),
+    );
+    const weeklyError = validateWeeklySlots(body.weeklyDays, weeklySlots);
+    if (weeklyError)
+      return NextResponse.json({ error: weeklyError }, { status: 400 });
+    const weeklyDays = [...body.weeklyDays].sort((a, b) => a - b);
     const dateScheduleTitle =
       body.dateScheduleTitle?.trim() || "Specific Date Availability";
     const weeklyScheduleTitle =
@@ -74,7 +93,7 @@ export async function PUT(request: NextRequest) {
           slotMode: body.slotMode,
           dateScheduleActive,
           weeklyScheduleActive,
-          weeklyIncludeSaturday,
+          weeklyDays,
           dateScheduleTitle,
           weeklyScheduleTitle,
         },
@@ -84,7 +103,7 @@ export async function PUT(request: NextRequest) {
           slotMode: body.slotMode,
           dateScheduleActive,
           weeklyScheduleActive,
-          weeklyIncludeSaturday,
+          weeklyDays,
           dateScheduleTitle,
           weeklyScheduleTitle,
         },
@@ -111,14 +130,33 @@ export async function PUT(request: NextRequest) {
               startTime: { notIn: validSlots },
             },
           });
-          // Also prune recurring availability that doesn't match validSlots
-          await tx.recurringAvailability.deleteMany({
-            where: {
-              startTime: { notIn: validSlots },
-            },
-          });
         }
       }
+
+      await tx.weeklySlotConfig.deleteMany({
+        where: { scheduleConfigId: "default" },
+      });
+      await tx.weeklySlotConfig.createMany({
+        data: sortSlots(weeklySlots).map(
+          ({ dayOfWeek, startTime, endTime }) => ({
+            scheduleConfigId: "default",
+            dayOfWeek,
+            startTime,
+            endTime,
+          }),
+        ),
+      });
+      // Drop member marks for weekly slots that no longer exist
+      await tx.recurringAvailability.deleteMany({
+        where: {
+          NOT: {
+            OR: weeklySlots.map(({ dayOfWeek, startTime }) => ({
+              dayOfWeek,
+              startTime,
+            })),
+          },
+        },
+      });
 
       // Also clean up any availability records that fall outside the new date range
       await tx.availability.deleteMany({

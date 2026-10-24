@@ -24,7 +24,13 @@ import {
 } from "@hugeicons/core-free-icons";
 import { AlertCircle } from "lucide-react";
 import { COMMITTEES } from "@/lib/constants";
-import { DAY_OF_WEEK_MAP, formatTimeSlot } from "@/lib/schedule";
+import {
+  DAY_OF_WEEK_MAP,
+  formatDuration,
+  formatTimeSlot,
+  toMinutes,
+  type WeeklySlot,
+} from "@/lib/weekly-slots";
 import { cn } from "@/lib/utils";
 
 export interface WeeklyTimetableProps {
@@ -36,17 +42,9 @@ export interface WeeklyTimetableProps {
     image?: string | null;
     committee?: string | null;
   };
-  timeSlots: string[];
-  includeSaturday?: boolean;
+  weeklyDays: number[];
+  weeklySlots: WeeklySlot[];
   initialSlots?: { dayOfWeek: number; startTime: string }[];
-}
-
-function getEndTime(startTime: string): string {
-  const [h, m] = startTime.split(":").map(Number);
-  const endH = (h + 1) % 24;
-  const suffix = endH >= 12 ? "PM" : "AM";
-  const hour = endH % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -60,21 +58,21 @@ function getInitials(name?: string | null, email?: string | null): string {
 
 export function WeeklyTimetable({
   user,
-  timeSlots = [],
-  includeSaturday = false,
+  weeklyDays,
+  weeklySlots,
   initialSlots = [],
 }: WeeklyTimetableProps) {
   const { data: session } = authClient.useSession();
   const activeUser = session?.user ?? user;
 
-  // Days to show: Sunday (0) to Thursday (4), and Saturday (6) if enabled
-  const activeDays = React.useMemo(() => {
-    const base = [0, 1, 2, 3, 4];
-    if (includeSaturday) base.push(6);
-    return base;
-  }, [includeSaturday]);
+  const activeDays = weeklyDays;
 
-  const [selectedDay, setSelectedDay] = React.useState<number>(0);
+  const [selectedDay, setSelectedDay] = React.useState<number>(
+    weeklyDays[0] ?? 0,
+  );
+  const selectedDaySlots = weeklySlots.filter(
+    (s) => s.dayOfWeek === selectedDay,
+  );
   const [isSaving, setIsSaving] = React.useState(false);
   const [hasChanges, setHasChanges] = React.useState(false);
 
@@ -164,7 +162,7 @@ export function WeeklyTimetable({
   const selectAllDay = () => {
     setSlotMap((prev) => {
       const next = new Map(prev);
-      next.set(selectedDay, new Set(timeSlots));
+      next.set(selectedDay, new Set(selectedDaySlots.map((s) => s.startTime)));
       return next;
     });
     setHasChanges(true);
@@ -355,7 +353,8 @@ export function WeeklyTimetable({
             Academic Days
           </Label>
           <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-            {totalSlotsCount} total weekly hours selected
+            {totalSlotsCount} weekly {totalSlotsCount === 1 ? "slot" : "slots"}{" "}
+            selected
           </span>
         </div>
 
@@ -371,7 +370,7 @@ export function WeeklyTimetable({
                 type="button"
                 onClick={() => setSelectedDay(dayNum)}
                 className={cn(
-                  "flex-1 min-w-[72px] sm:min-w-[90px] flex flex-col items-center justify-center py-2.5 px-3 rounded-2xl border transition-all duration-200 select-none min-h-[52px] touch-manipulation cursor-pointer",
+                  "flex-1 min-w-[44px] sm:min-w-[90px] flex flex-col items-center justify-center py-2.5 px-1 sm:px-3 rounded-2xl border transition-all duration-200 select-none min-h-[52px] touch-manipulation cursor-pointer",
                   isSelected
                     ? "bg-[#0F3056] text-white border-[#0F3056] shadow-md ring-2 ring-[#0F3056]/20 dark:bg-[#18477D] dark:border-[#2DB1FA]/50 dark:text-white dark:ring-2 dark:ring-[#2DB1FA]/25 dark:shadow-md"
                     : "bg-card/70 border-border/80 text-foreground hover:bg-muted/80 hover:border-border",
@@ -389,7 +388,7 @@ export function WeeklyTimetable({
                         : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
                     )}
                   >
-                    {dayCount} {dayCount === 1 ? "hr" : "hrs"}
+                    {dayCount}
                   </span>
                 )}
               </button>
@@ -446,10 +445,10 @@ export function WeeklyTimetable({
 
           {/* Time Slots Touch Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-            {timeSlots.map((startTime) => {
+            {selectedDaySlots.map(({ startTime, endTime }) => {
               const isMarked = activeDaySlots.has(startTime);
               const formattedStart = formatTimeSlot(startTime);
-              const formattedEnd = getEndTime(startTime);
+              const formattedEnd = formatTimeSlot(endTime);
 
               return (
                 <button
@@ -463,8 +462,15 @@ export function WeeklyTimetable({
                       : "border-border/80 bg-background/60 hover:bg-muted/60 hover:border-border text-foreground",
                   )}
                 >
-                  <span className="text-xs sm:text-sm font-semibold tracking-tight">
-                    {formattedStart} → {formattedEnd}
+                  <span className="flex flex-col">
+                    <span className="text-xs sm:text-sm font-semibold tracking-tight">
+                      {formattedStart} → {formattedEnd}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {formatDuration(
+                        toMinutes(endTime) - toMinutes(startTime),
+                      )}
+                    </span>
                   </span>
 
                   <div
@@ -501,7 +507,7 @@ export function WeeklyTimetable({
           <div className="flex items-center gap-2 min-w-0 pl-1">
             <span className="text-xs font-semibold tracking-tight truncate text-foreground">
               Unsaved changes ({totalSlotsCount}{" "}
-              {totalSlotsCount === 1 ? "hr" : "hrs"})
+              {totalSlotsCount === 1 ? "slot" : "slots"})
             </span>
           </div>
 

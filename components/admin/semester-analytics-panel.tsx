@@ -31,10 +31,10 @@ import {
   Calendar03Icon,
 } from "@hugeicons/core-free-icons";
 import { COMMITTEES } from "@/lib/constants";
-import { DAY_OF_WEEK_MAP, formatTimeSlot } from "@/lib/schedule";
+import { DAY_OF_WEEK_MAP, formatTimeSlot } from "@/lib/weekly-slots";
 import type {
   SemesterAnalyticsData,
-  RecurringSlotUser,
+  RecurringSlotEntry,
 } from "@/lib/semester-analytics";
 import { cn } from "@/lib/utils";
 
@@ -49,14 +49,6 @@ function getInitials(name?: string | null, email?: string | null): string {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
   return email?.slice(0, 2).toUpperCase() ?? "NU";
-}
-
-function getEndTime(startTime: string): string {
-  const [h, m] = startTime.split(":").map(Number);
-  const endH = (h + 1) % 24;
-  const suffix = endH >= 12 ? "PM" : "AM";
-  const hour = endH % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
 function cellStyle(count: number, max: number): string {
@@ -93,12 +85,8 @@ export function SemesterAnalyticsPanel({
   }, []);
 
   // Dialog inspection state
-  const [selectedSlot, setSelectedSlot] = React.useState<{
-    dayOfWeek: number;
-    startTime: string;
-    count: number;
-    users: RecurringSlotUser[];
-  } | null>(null);
+  const [selectedSlot, setSelectedSlot] =
+    React.useState<RecurringSlotEntry | null>(null);
   const [dialogTab, setDialogTab] = React.useState<"available" | "missing">(
     "available",
   );
@@ -220,10 +208,10 @@ export function SemesterAnalyticsPanel({
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground">
-                Total Weekly Hours Marked
+                Total Weekly Slots Marked
               </p>
               <p className="text-xl font-bold tracking-tight mt-0.5">
-                {data.totalSlots} hrs
+                {data.totalSlots}
               </p>
             </div>
           </CardContent>
@@ -297,7 +285,8 @@ export function SemesterAnalyticsPanel({
                           {rec.dayLabel}s
                         </h3>
                         <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                          {formatTimeSlot(rec.startTime)} → {rec.endTime}
+                          {formatTimeSlot(rec.startTime)} →{" "}
+                          {formatTimeSlot(rec.endTime)}
                         </p>
                       </div>
 
@@ -328,6 +317,7 @@ export function SemesterAnalyticsPanel({
                           setSelectedSlot({
                             dayOfWeek: rec.dayOfWeek,
                             startTime: rec.startTime,
+                            endTime: rec.endTime,
                             count: rec.count,
                             users: rec.availableUsers,
                           })
@@ -400,8 +390,15 @@ export function SemesterAnalyticsPanel({
               {/* Table Rows: Time Slots */}
               <div className="flex flex-col gap-1.5">
                 {data.timeSlots.map((time) => {
+                  const ends = new Set(
+                    data.slotMatrix
+                      .filter((s) => s.startTime === time)
+                      .map((s) => s.endTime),
+                  );
                   const formattedStart = formatTimeSlot(time);
-                  const formattedEnd = getEndTime(time);
+                  // Mixed lengths across days: each cell's drill-down shows its own end
+                  const formattedEnd =
+                    ends.size === 1 ? formatTimeSlot([...ends][0]) : null;
 
                   return (
                     <div
@@ -413,9 +410,11 @@ export function SemesterAnalyticsPanel({
                     >
                       <div className="text-right pr-2 text-xs font-semibold text-muted-foreground leading-tight">
                         <div>{formattedStart}</div>
-                        <div className="text-[10px] opacity-70">
-                          to {formattedEnd}
-                        </div>
+                        {formattedEnd && (
+                          <div className="text-[10px] opacity-70">
+                            to {formattedEnd}
+                          </div>
+                        )}
                       </div>
 
                       {data.days.map((dayNum) => {
@@ -424,18 +423,21 @@ export function SemesterAnalyticsPanel({
                         );
                         const count = cell?.count ?? 0;
 
+                        if (!cell) {
+                          return (
+                            <div
+                              key={`${dayNum}_${time}`}
+                              aria-hidden
+                              className="h-12 rounded-xl border border-dashed border-border/50"
+                            />
+                          );
+                        }
+
                         return (
                           <button
                             key={`${dayNum}_${time}`}
                             type="button"
-                            onClick={() =>
-                              setSelectedSlot({
-                                dayOfWeek: dayNum,
-                                startTime: time,
-                                count,
-                                users: cell?.users ?? [],
-                              })
-                            }
+                            onClick={() => setSelectedSlot(cell)}
                             className={cn(
                               "h-12 rounded-xl flex items-center justify-center font-bold text-xs transition-all duration-150 cursor-pointer select-none active:scale-[0.97]",
                               cellStyle(count, data.maxCount),
@@ -502,7 +504,7 @@ export function SemesterAnalyticsPanel({
                       variant="outline"
                       className="text-xs font-bold border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                     >
-                      {u.totalSlots} hrs / wk
+                      {u.totalSlots} slots / wk
                     </Badge>
                   </div>
                 </div>
@@ -534,7 +536,7 @@ export function SemesterAnalyticsPanel({
                   </Badge>
                   <span className="text-xs font-semibold text-muted-foreground">
                     {formatTimeSlot(selectedSlot.startTime)} →{" "}
-                    {getEndTime(selectedSlot.startTime)}
+                    {formatTimeSlot(selectedSlot.endTime)}
                   </span>
                 </div>
                 <DialogTitle className="text-xl font-bold tracking-tight mt-1">
