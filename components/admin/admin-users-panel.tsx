@@ -1,19 +1,22 @@
 "use client";
 
+import {
+  RefreshSpinIcon,
+  useRefreshSpin,
+} from "@/components/admin/refresh-spin";
 import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Shield01Icon,
   UserAdd01Icon,
   Delete02Icon,
-  RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
+import { toast } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 import type { AdminUserInfo } from "@/lib/admin";
 
@@ -24,6 +27,7 @@ interface AdminUsersPanelProps {
 export function AdminUsersPanel({
   initialAdmins = [],
 }: AdminUsersPanelProps = {}) {
+  const { spinKey, spin } = useRefreshSpin();
   const [admins, setAdmins] = React.useState<AdminUserInfo[]>(initialAdmins);
   const [loading, setLoading] = React.useState(initialAdmins.length === 0);
   const [newEmail, setNewEmail] = React.useState("");
@@ -188,16 +192,15 @@ export function AdminUsersPanel({
           <Button
             variant="ghost"
             size="sm"
-            onClick={fetchAdmins}
+            onClick={() => {
+              spin();
+              void fetchAdmins();
+            }}
             disabled={loading}
             className="size-9 rounded-xl p-0"
             title="Refresh admin list"
           >
-            <HugeiconsIcon
-              icon={RefreshIcon}
-              size={16}
-              className={loading ? "animate-spin" : ""}
-            />
+            <RefreshSpinIcon spinKey={spinKey} size={16} />
           </Button>
         </div>
 

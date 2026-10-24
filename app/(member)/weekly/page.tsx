@@ -112,10 +112,6 @@ export default async function WeeklyTimetablePage() {
         <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
           {formTitle}
         </h1>
-        <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
-          Mark your recurring weekly timetable to find the best standing meeting
-          time for your committee.
-        </p>
       </div>
 
       <WeeklyTimetable

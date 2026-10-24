@@ -50,7 +50,7 @@ export default async function AuthPage(props: {
           </p>
         </div>
 
-        <div className="w-full rounded-3xl border bg-card/80 p-5 shadow-sm backdrop-blur-xs sm:p-7">
+        <div className="motion-card w-full rounded-3xl border bg-card/80 p-5 shadow-sm backdrop-blur-xs sm:p-7">
           <AuthForm callbackUrl={callbackUrl} />
         </div>
       </div>

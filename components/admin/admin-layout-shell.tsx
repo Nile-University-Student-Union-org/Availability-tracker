@@ -33,6 +33,7 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/status-pill";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import dynamic from "next/dynamic";
 import {
@@ -136,7 +137,6 @@ interface AdminLayoutShellProps {
   };
   analytics: AnalyticsData;
   semesterAnalytics: SemesterAnalyticsData;
-  dateRangeLabel: string;
   initialTab?: AdminTab;
   initialConfig?: ScheduleConfigData | null;
   initialAdmins?: AdminUserInfo[];
@@ -146,7 +146,6 @@ export function AdminLayoutShell({
   session,
   analytics,
   semesterAnalytics,
-  dateRangeLabel,
   initialTab = "specific-analytics",
   initialConfig = null,
   initialAdmins = [],
@@ -419,7 +418,7 @@ export function AdminLayoutShell({
         {/* Inset Main Layout Container */}
         <SidebarInset className="flex min-w-0 flex-1 flex-col bg-background/50">
           {/* Top Navbar */}
-          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
+          <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="cursor-pointer" />
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -447,6 +446,7 @@ export function AdminLayoutShell({
                 <span>Live Schedule</span>
               </Link>
             </div>
+            <StatusPill />
           </header>
 
           {/* Main Content Area */}
@@ -468,21 +468,6 @@ export function AdminLayoutShell({
                   {activeTab === "members" && "Union Members Directory"}
                   {activeTab === "committees" && "Union Committees Management"}
                 </h1>
-                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                  {(activeTab === "specific-analytics" ||
-                    activeTab === "analytics") &&
-                    `Campaign heatmap and member booking analytics · ${dateRangeLabel}`}
-                  {activeTab === "semester-analytics" &&
-                    "Standing weekly timetable heatmap and Golden Slot meeting recommendations."}
-                  {activeTab === "schedule" &&
-                    "Configure availability mode toggles, active date boundaries, and slot intervals."}
-                  {activeTab === "admins" &&
-                    "Authorize university emails with administrative privileges to manage the Union Tracker."}
-                  {activeTab === "members" &&
-                    "Directory of all registered Union members. Copy student IDs, reset member passwords, or delete accounts."}
-                  {activeTab === "committees" &&
-                    "Create, view, and manage Nile University Student Union committees and monitor active member assignments."}
-                </p>
               </div>
             </div>
 

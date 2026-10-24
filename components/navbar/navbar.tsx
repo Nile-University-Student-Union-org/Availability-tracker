@@ -15,12 +15,13 @@ import {
 } from "@hugeicons/core-free-icons";
 import { Sun, Moon, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "@/components/status-pill";
 import {
   executeThemeTransition,
   THEME_BEAM_EVENT,
 } from "@/components/theme-beam";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
-import { toast } from "sonner";
+import { toast } from "@/lib/notify";
 
 export interface NavbarProps {
   dateScheduleTitle?: string;
@@ -356,15 +357,15 @@ export function Navbar({
 
   return (
     <>
-      {/* Pure Blur Ambient Backdrop Overlay when mobile menu is open (No dark overlay) */}
+      {/* Dimmed scrim behind the open mobile menu: page reads as covered, menu stands out */}
       <div
         onClick={() => setMobileOpen(false)}
         aria-hidden="true"
         className={cn(
-          "fixed inset-0 z-40 bg-transparent transition-all duration-300 md:hidden",
+          "fixed inset-0 z-40 bg-slate-950/25 backdrop-blur-[3px] transition-opacity duration-200 ease-[var(--ease-out)] md:hidden dark:bg-black/55",
           mobileOpen
-            ? "pointer-events-auto opacity-100 backdrop-blur-md supports-backdrop-filter:backdrop-blur-xl"
-            : "pointer-events-none opacity-0 backdrop-blur-none",
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0",
         )}
       />
 
@@ -384,8 +385,8 @@ export function Navbar({
             isScrolled && "liquid-glass-bar-scrolled scale-[0.99]",
             mobileOpen &&
               (isDark
-                ? "!bg-[#0a1120]/80 shadow-2xl ring-1 ring-white/20 !backdrop-blur-3xl"
-                : "!bg-white/80 shadow-2xl ring-1 ring-black/10 !backdrop-blur-3xl"),
+                ? "!rounded-3xl !bg-[#0f1a30] shadow-[0_16px_48px_-12px_rgb(0_0_0/0.6)] ring-1 ring-white/10"
+                : "!rounded-3xl !bg-white shadow-[0_16px_48px_-12px_rgb(15_23_42/0.3)] ring-1 ring-black/[0.06]"),
           )}
         >
           {/* Specular Caustic Glass Refraction Sweep - Permanently mounted in DOM */}
@@ -691,6 +692,7 @@ export function Navbar({
               </div>
             </div>
           )}
+          <StatusPill />
         </header>
       </div>
 

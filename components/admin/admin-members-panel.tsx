@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  RefreshSpinIcon,
+  useRefreshSpin,
+} from "@/components/admin/refresh-spin";
 import * as React from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -7,7 +11,6 @@ import {
   Search01Icon,
   Delete02Icon,
   LockPasswordIcon,
-  RefreshIcon,
   Copy01Icon,
   Shield01Icon,
   AlertCircleIcon,
@@ -46,7 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
+import { toast } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 import { COMMITTEES } from "@/lib/constants";
 
@@ -75,6 +78,7 @@ export function AdminMembersPanel({
   currentUserId,
   currentUserEmail,
 }: AdminMembersPanelProps) {
+  const { spinKey, spin } = useRefreshSpin();
   const [members, setMembers] = React.useState<MemberData[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -418,7 +422,10 @@ export function AdminMembersPanel({
           >
             <SelectTrigger className="h-10 w-full sm:w-[185px] text-xs sm:text-sm">
               <div className="flex items-center gap-1.5 truncate">
-                <HugeiconsIcon icon={FilterIcon} className="size-3.5 shrink-0" />
+                <HugeiconsIcon
+                  icon={FilterIcon}
+                  className="size-3.5 shrink-0"
+                />
                 <SelectValue placeholder="Committee" />
               </div>
             </SelectTrigger>
@@ -450,15 +457,15 @@ export function AdminMembersPanel({
           <Button
             variant="outline"
             size="icon"
-            onClick={fetchMembers}
+            onClick={() => {
+              spin();
+              void fetchMembers();
+            }}
             disabled={loading}
             className="h-10 w-10 shrink-0 cursor-pointer rounded-xl"
             title="Refresh members directory"
           >
-            <HugeiconsIcon
-              icon={RefreshIcon}
-              className={cn("size-4", loading && "animate-spin")}
-            />
+            <RefreshSpinIcon spinKey={spinKey} size={16} />
           </Button>
         </div>
       </div>

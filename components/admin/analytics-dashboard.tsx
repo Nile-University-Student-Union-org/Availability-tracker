@@ -1,15 +1,20 @@
 "use client";
 
-import { useCallback, useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import {
+  RefreshSpinIcon,
+  useRefreshSpin,
+} from "@/components/admin/refresh-spin";
+import { useState, useEffect, useMemo } from "react";
+import { toast } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { RefreshIcon, Tick01Icon } from "@hugeicons/core-free-icons";
+import { useLivePoll } from "@/hooks/use-live-poll";
+import { AnimatedNumber } from "@/components/admin/animated-number";
+import { HeatmapPulse } from "@/components/admin/heatmap-pulse";
+import { LiveIndicator } from "@/components/admin/live-indicator";
 
 import {
   Download,
@@ -141,11 +146,13 @@ function MetricCard({
   value,
   sub,
   accent = false,
+  decimals = 0,
 }: {
   label: string;
   value: string | number;
   sub: string;
   accent?: boolean;
+  decimals?: number;
 }) {
   return (
     <div
@@ -163,7 +170,11 @@ function MetricCard({
           accent && "text-primary",
         )}
       >
-        {value}
+        {typeof value === "number" ? (
+          <AnimatedNumber value={value} decimals={decimals} />
+        ) : (
+          value
+        )}
       </p>
       <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>
     </div>
@@ -191,8 +202,28 @@ function UserAvatar({
   );
 }
 
+async function fetchDateAnalytics(signal: AbortSignal): Promise<AnalyticsData> {
+  const response = await fetch("/api/admin/analytics", {
+    signal,
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error("Failed to load date analytics");
+  return response.json();
+}
+
 // ─── Main dashboard ───────────────────────────────────────────────────────────
-export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
+export function AnalyticsDashboard({
+  data: initialData,
+}: {
+  data: AnalyticsData;
+}) {
+  const {
+    data = initialData,
+    lastUpdated,
+    status,
+    refresh,
+  } = useLivePoll(fetchDateAnalytics, 10000, initialData);
+  const { spinKey, spin } = useRefreshSpin();
   const { slotMatrix, users, dates, timeSlots } = data;
   const [activeCell, setActiveCell] = useState<{
     date: string;
@@ -266,37 +297,6 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
     setSelectedCommittees([]);
   };
 
-  // Matrix live-refresh state with tactile animation
-  const router = useRouter();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [justRefreshed, setJustRefreshed] = useState(false);
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
-
-  const handleRefresh = useCallback(() => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    setJustRefreshed(false);
-
-    router.refresh();
-
-    setTimeout(() => {
-      setIsRefreshing(false);
-      setJustRefreshed(true);
-      setLastRefreshedAt(new Date());
-      toast.success("Availability table refreshed", {
-        description: "Latest member bookings and slot counts synchronized.",
-      });
-      setTimeout(() => {
-        setJustRefreshed(false);
-      }, 2000);
-    }, 250);
-  }, [isRefreshing, router]);
-
-  const lastUpdatedTime = lastRefreshedAt.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
   const filteredUsers = useMemo(() => {
     if (selectedCommittees.length === 0) return users;
     const selectedSet = new Set(selectedCommittees);
@@ -334,9 +334,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
   );
 
   const avgSlots =
-    filteredUsers.length > 0
-      ? (filteredTotalSlots / filteredUsers.length).toFixed(1)
-      : "—";
+    filteredUsers.length > 0 ? filteredTotalSlots / filteredUsers.length : "—";
 
   const activeCellData = activeCell
     ? (filteredSlotMatrix.find(
@@ -736,7 +734,9 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                               <Check className="size-3 stroke-[2.5]" />
                             )}
                           </div>
-                          <span className="truncate text-left block flex-1 font-medium">{c}</span>
+                          <span className="truncate text-left block flex-1 font-medium">
+                            {c}
+                          </span>
                         </div>
                         <span className="text-[10px] text-muted-foreground/80 font-mono shrink-0 whitespace-nowrap pl-1">
                           {memberCount}{" "}
@@ -772,6 +772,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             </Popover>
           </div>
 
+          <LiveIndicator lastUpdated={lastUpdated} status={status} />
           {/* Interactive Selected Committee Pills / Badges */}
           {selectedCommittees.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 pt-0.5 max-w-full">
@@ -875,6 +876,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         <MetricCard
           label="Avg / User"
           value={avgSlots}
+          decimals={1}
           sub="slots per member"
         />
       </div>
@@ -959,56 +961,20 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
             </p>
           </div>
 
-          {/* Minimalist animated refresh action */}
           <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0">
-            <span className="hidden md:inline-block text-[11px] font-medium text-muted-foreground/70">
-              Synced {lastUpdatedTime}
-            </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className={cn(
-                "group relative h-9 overflow-hidden rounded-xl border border-border/80 bg-background/80 px-3 text-xs font-semibold shadow-2xs transition-all duration-300 hover:border-primary/50 hover:bg-accent/40 active:scale-95 cursor-pointer touch-manipulation",
-                isRefreshing &&
-                  "border-primary/60 bg-primary/5 text-primary shadow-xs",
-                justRefreshed &&
-                  "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-              )}
+              onClick={() => {
+                spin();
+                refresh();
+              }}
+              className="min-h-[44px] rounded-xl px-3 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.97]"
               title="Refresh availability table data"
             >
-              {justRefreshed ? (
-                <HugeiconsIcon
-                  icon={Tick01Icon}
-                  className="size-3.5 text-emerald-500 animate-in zoom-in-50 duration-200"
-                  strokeWidth={2}
-                />
-              ) : (
-                <HugeiconsIcon
-                  icon={RefreshIcon}
-                  className={cn(
-                    "size-3.5 transition-transform duration-500 ease-out",
-                    isRefreshing
-                      ? "animate-spin text-primary"
-                      : "group-hover:rotate-180 text-muted-foreground group-hover:text-foreground",
-                  )}
-                  strokeWidth={2}
-                />
-              )}
-              <span>
-                {isRefreshing
-                  ? "Refreshing..."
-                  : justRefreshed
-                    ? "Updated!"
-                    : "Refresh Table"}
-              </span>
-
-              {/* Minimalist animated glint beam while refreshing */}
-              {isRefreshing && (
-                <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-primary/20 to-transparent animate-shimmer" />
-              )}
+              <RefreshSpinIcon spinKey={spinKey} size={14} />
+              Refresh Table
             </Button>
           </div>
         </div>
@@ -1022,12 +988,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
         ) : (
           <>
             <div className="overflow-x-auto p-4">
-              <table
-                className={cn(
-                  "w-full min-w-90 text-xs transition-opacity duration-200",
-                  isRefreshing && "opacity-60",
-                )}
-              >
+              <table className="w-full min-w-90 text-xs">
                 <thead>
                   <tr>
                     <th className="w-20 pr-3 pb-2 text-left text-[11px] font-medium text-muted-foreground" />
@@ -1066,7 +1027,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                               }
                               disabled={count === 0}
                               className={cn(
-                                "h-8 w-full rounded-lg text-xs font-semibold transition-all",
+                                "relative min-h-[56px] w-full rounded-lg text-xs font-semibold transition-[background-color,color,scale] touch-manipulation active:scale-[0.97] md:h-8 md:min-h-0",
                                 cellStyle(count, filteredMaxCount),
                                 count > 0 && "cursor-pointer hover:opacity-75",
                                 count === 0 && "cursor-default",
@@ -1074,6 +1035,7 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                                   "ring-2 ring-primary ring-offset-1 ring-offset-card",
                               )}
                             >
+                              <HeatmapPulse count={count} />
                               {count > 0 ? count : "·"}
                             </button>
                           </td>
@@ -1326,12 +1288,13 @@ export function AnalyticsDashboard({ data }: { data: AnalyticsData }) {
                     <td key={d.date} className="py-2 text-center">
                       <span
                         className={cn(
-                          "inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px]",
+                          "relative inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px]",
                           d.count > 0
                             ? "bg-emerald-500/15 font-bold text-emerald-700"
                             : "text-muted-foreground/30",
                         )}
                       >
+                        <HeatmapPulse count={d.count} />
                         {d.count > 0 ? d.count : "0"}
                       </span>
                     </td>
