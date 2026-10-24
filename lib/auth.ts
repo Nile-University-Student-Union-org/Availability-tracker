@@ -60,6 +60,8 @@ export const auth = betterAuth({
       clientSecret: process.env.MICROSOFT_CLIENT_SECRET as string,
       // Any work/school tenant; the @nu.edu.eg hook below rejects everyone else
       tenantId: "organizations",
+      // Photos are stored inline as ~2.6 KB base64 and bloat every analytics payload
+      disableProfilePhoto: true,
       enabled: Boolean(process.env.MICROSOFT_CLIENT_ID),
       // Work accounts without a mail attribute only expose the UPN
       mapProfileToUser: (profile) => ({
@@ -102,9 +104,16 @@ export const auth = betterAuth({
   },
   databaseHooks: {
     user: {
+      update: {
+        before: async (user) => {
+          // Never store inline base64 photos (see disableProfilePhoto above)
+          if (user.image?.startsWith("data:")) user.image = null;
+        },
+      },
       create: {
         before: async (user) => {
           user.email = user.email.trim().toLowerCase();
+          if (user.image?.startsWith("data:")) user.image = null;
           if (!user.email.endsWith("@nu.edu.eg")) {
             throw new APIError("BAD_REQUEST", {
               message: "Only @nu.edu.eg emails are allowed",
