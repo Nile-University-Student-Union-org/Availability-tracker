@@ -136,7 +136,6 @@ interface AdminLayoutShellProps {
   };
   analytics: AnalyticsData;
   semesterAnalytics: SemesterAnalyticsData;
-  dateRangeLabel: string;
   initialTab?: AdminTab;
   initialConfig?: ScheduleConfigData | null;
   initialAdmins?: AdminUserInfo[];
@@ -146,7 +145,6 @@ export function AdminLayoutShell({
   session,
   analytics,
   semesterAnalytics,
-  dateRangeLabel,
   initialTab = "specific-analytics",
   initialConfig = null,
   initialAdmins = [],
@@ -468,21 +466,6 @@ export function AdminLayoutShell({
                   {activeTab === "members" && "Union Members Directory"}
                   {activeTab === "committees" && "Union Committees Management"}
                 </h1>
-                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                  {(activeTab === "specific-analytics" ||
-                    activeTab === "analytics") &&
-                    `Campaign heatmap and member booking analytics · ${dateRangeLabel}`}
-                  {activeTab === "semester-analytics" &&
-                    "Standing weekly timetable heatmap and Golden Slot meeting recommendations."}
-                  {activeTab === "schedule" &&
-                    "Configure availability mode toggles, active date boundaries, and slot intervals."}
-                  {activeTab === "admins" &&
-                    "Authorize university emails with administrative privileges to manage the Union Tracker."}
-                  {activeTab === "members" &&
-                    "Directory of all registered Union members. Copy student IDs, reset member passwords, or delete accounts."}
-                  {activeTab === "committees" &&
-                    "Create, view, and manage Nile University Student Union committees and monitor active member assignments."}
-                </p>
               </div>
             </div>
 

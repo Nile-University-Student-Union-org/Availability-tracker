@@ -113,10 +113,6 @@ export default async function SpecificDatePage() {
         <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl">
           {formTitle}
         </h1>
-        <p className="mt-2 text-xs text-muted-foreground sm:text-sm">
-          Select dates and mark your available meeting intervals for upcoming
-          union campaigns.
-        </p>
       </div>
 
       <AvailabilityCalendar
