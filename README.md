@@ -2,7 +2,7 @@
 
 A modern, mobile-first web application designed for the **Nile University Student Union (NUSU)** to streamline member availability tracking and identify optimal meeting times across committees and leadership teams.
 
-Built with **Next.js 16**, **React 19**, **Turbopack**, **Tailwind CSS v4**, **Better Auth**, and **Prisma ORM 6** backed by **PostgreSQL** on **Supabase**.
+Built with **Next.js 16**, **React 19**, **Turbopack**, **Tailwind CSS v4**, **Better Auth**, and **Prisma ORM 6** backed by **PostgreSQL** on **Neon**.
 
 ---
 
@@ -53,7 +53,7 @@ Built with **Next.js 16**, **React 19**, **Turbopack**, **Tailwind CSS v4**, **B
 | **Icons**            | [HugeIcons](https://hugeicons.com/) & [Lucide React](https://lucide.dev/)                                          |
 | **Authentication**   | [Better Auth](https://www.better-auth.com/) (Email/Password & Google OAuth)                                        |
 | **ORM**              | [Prisma 6](https://www.prisma.io/) (`@prisma/client` 6.19.3)                                                       |
-| **Database**         | PostgreSQL 17 Alpine ([Supabase](https://supabase.com) with Supavisor IPv4 Pooler)                                 |
+| **Database**         | PostgreSQL ([Neon](https://neon.com) via the Vercel Marketplace, pooled connections)                               |
 | **Package Manager**  | [pnpm](https://pnpm.io/)                                                                                           |
 
 ---
@@ -152,7 +152,7 @@ erDiagram
 
 - **Node.js** 20+ installed
 - **pnpm** installed globally (`npm install -g pnpm`)
-- **PostgreSQL Database**: Supabase instance or local Docker container
+- **PostgreSQL Database**: Neon database or a local PostgreSQL instance
 
 ### 1. Clone & Install Dependencies
 
@@ -172,9 +172,11 @@ BETTER_AUTH_SECRET="your-random-32-byte-secret"
 BETTER_AUTH_URL="http://localhost:3000"
 BETTER_AUTH_TRUSTED_ORIGINS="http://localhost:3000,https://nusu-availability-tracker.vercel.app"
 
-# Supabase PostgreSQL Connection Strings (IPv4 Pooler recommended)
-DATABASE_URL="postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/postgres?sslmode=require"
-DIRECT_URL="postgresql://postgres.<project-ref>:<password>@<pooler-host>:5432/postgres?sslmode=require"
+# Neon PostgreSQL connection strings
+# DATABASE_URL: pooled host (contains "-pooler"), used by the app at runtime
+# DIRECT_URL: direct host, used by Prisma for `db push` / migrations
+DATABASE_URL="postgresql://<user>:<password>@<endpoint>-pooler.<region>.aws.neon.tech/neondb?sslmode=require"
+DIRECT_URL="postgresql://<user>:<password>@<endpoint>.<region>.aws.neon.tech/neondb?sslmode=require"
 
 # Initial Admin Credentials
 ADMIN_EMAILS="admin@nu.edu.eg"
@@ -278,12 +280,13 @@ Availability-tracker/
 
 ---
 
-## Deployment (Vercel & Supabase)
+## Deployment (Vercel & Neon)
 
-### 1. Database on Supabase
+### 1. Database on Neon
 
-- Use the **Supavisor IPv4 Pooler** endpoint on port `5432` (`aws-1-<region>.pooler.supabase.com:5432`) to ensure compatibility with IPv4 networks and Vercel serverless environments.
-- Username format: `postgres.<project-ref>`
+- The database is a Neon project (`nusu-availability-tracker`, `aws-us-east-1`) provisioned through the Vercel Marketplace, so it lives in the Vercel-managed Neon organization. Create or manage it from Vercel (Storage) or `vercel integration`, not `neonctl projects create`.
+- `us-east-1` matches the Vercel function region (`iad1`).
+- Get connection strings with `npx neonctl connection-string --project-id <id>` (add `--pooled` for `DATABASE_URL`).
 
 ### 2. Deployment on Vercel
 

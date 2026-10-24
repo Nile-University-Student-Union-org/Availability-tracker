@@ -10,7 +10,7 @@ This document serves as the operational guide and behavioral protocol for AI pai
 - **Framework**: Next.js 16 (App Router, Server Components, Turbopack, React 19).
 - **Styling**: Tailwind CSS v4 (`@tailwindcss/postcss`), shadcn/ui (Base UI primitives + Vaul Drawer), HugeIcons, and Lucide React.
 - **Database & Persistence**:
-  - PostgreSQL 17 Alpine via Docker (`nusu-postgres` container on port 5432)
+  - Production: Neon PostgreSQL (Vercel Marketplace, `aws-us-east-1`); local: PostgreSQL 17 Alpine via Docker (`nusu-postgres` container on port 5432)
   - Dedicated database: `availability_tracker`
   - Prisma ORM 6 (`prisma/schema.prisma` with `@prisma/client`)
 - **Authentication**: Better Auth (`lib/auth.ts`, `lib/auth-client.ts`) with Email/Password & Google OAuth support.
