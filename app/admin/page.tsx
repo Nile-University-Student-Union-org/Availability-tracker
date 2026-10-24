@@ -85,8 +85,6 @@ export default async function AdminPage() {
     timeSlots: [],
   };
 
-  let dateRangeLabel = "No schedule configured";
-
   if (config) {
     try {
       const { dates, timeSlots } = config;
@@ -198,26 +196,8 @@ export default async function AdminPage() {
         dates,
         timeSlots: allTimeSlots,
       };
-
-      const startLabel = new Date(
-        config.startDate + "T00:00:00.000Z",
-      ).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        timeZone: "UTC",
-      });
-      const endLabel = new Date(
-        config.endDate + "T00:00:00.000Z",
-      ).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        timeZone: "UTC",
-      });
-      dateRangeLabel = `${startLabel}–${endLabel} · Admin view`;
     } catch (err) {
       console.error("Failed to load admin analytics data:", err);
-      dateRangeLabel = "Error loading schedule data";
     }
   }
 
@@ -226,7 +206,6 @@ export default async function AdminPage() {
       session={session}
       analytics={analytics}
       semesterAnalytics={semesterAnalytics}
-      dateRangeLabel={dateRangeLabel}
       initialConfig={config}
       initialAdmins={[]}
     />
