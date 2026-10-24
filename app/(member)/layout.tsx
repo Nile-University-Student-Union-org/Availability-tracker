@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getCachedSession } from "@/lib/session";
 import { isAdminEmail } from "@/lib/admin";
 import { getScheduleConfig } from "@/lib/schedule";
@@ -20,6 +21,14 @@ export default async function MemberLayout({
     } catch {
       // ignore
     }
+  }
+
+  const user = session?.user as
+    | { nuId?: string | null; committee?: string | null }
+    | undefined;
+  // Members (e.g. first Microsoft sign-in) must set NU ID + committee before using the calendars
+  if (user && !isAdmin && (!user.nuId || !user.committee)) {
+    redirect("/welcome");
   }
 
   return (

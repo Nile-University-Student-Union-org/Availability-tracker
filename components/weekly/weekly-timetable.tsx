@@ -3,24 +3,14 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { authClient } from "@/lib/auth-client";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Tick01Icon,
   Delete02Icon,
   CheckmarkCircle02Icon,
 } from "@hugeicons/core-free-icons";
-import { AlertCircle } from "lucide-react";
-import { COMMITTEES } from "@/lib/constants";
 import {
   DAY_OF_WEEK_MAP,
   formatDuration,
@@ -90,20 +80,6 @@ export function WeeklyTimetable({
       user?.committee ??
       "",
   );
-  const [availableCommittees, setAvailableCommittees] =
-    React.useState<string[]>(COMMITTEES);
-
-  React.useEffect(() => {
-    fetch("/api/committees")
-      .then((res) => res.json())
-      .then((d) => {
-        if (Array.isArray(d?.committees) && d.committees.length > 0) {
-          setAvailableCommittees(d.committees);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   React.useEffect(() => {
     const savedName = localStorage.getItem("memberName");
     const savedEmail = localStorage.getItem("memberEmail");
@@ -289,56 +265,6 @@ export function WeeklyTimetable({
                 ID: {memberId}
               </span>
             )}
-          </div>
-        )}
-
-        {(!memberCommittee || !memberId) && (
-          <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
-            <div className="flex items-center gap-1.5 font-semibold">
-              <AlertCircle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-              <span>Complete Your Profile</span>
-            </div>
-            <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400">
-              Please enter your 9-digit NU ID and select your committee to
-              submit availability.
-            </p>
-            <div className="mt-2 space-y-2">
-              {!memberId && (
-                <Input
-                  placeholder="9-digit NU ID (e.g. 211100000)"
-                  maxLength={9}
-                  value={memberId}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    setMemberId(val);
-                    localStorage.setItem("memberId", val);
-                  }}
-                  className="h-8 text-xs bg-background/80"
-                />
-              )}
-              {!memberCommittee && (
-                <Select
-                  value={memberCommittee}
-                  onValueChange={(val) => {
-                    if (val) {
-                      setMemberCommittee(val);
-                      localStorage.setItem("memberCommittee", val);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="h-8.5 text-xs bg-background/80">
-                    <SelectValue placeholder="Select Committee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCommittees.map((c) => (
-                      <SelectItem key={c} value={c} className="text-xs">
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
           </div>
         )}
       </div>
