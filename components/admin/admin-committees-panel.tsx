@@ -10,6 +10,7 @@ import {
   Add01Icon,
   AlertCircleIcon,
   Briefcase01Icon,
+  DragDropVerticalIcon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,88 @@ export function AdminCommitteesPanel() {
   const [committeeToDelete, setCommitteeToDelete] =
     React.useState<CommitteeData | null>(null);
   const [deleting, setDeleting] = React.useState(false);
+
+  // Drag-to-reorder state
+  const listRef = React.useRef<HTMLDivElement>(null);
+  const [draggingId, setDraggingId] = React.useState<string | null>(null);
+  const orderBeforeDrag = React.useRef<CommitteeData[] | null>(null);
+
+  async function saveOrder(next: CommitteeData[], previous: CommitteeData[]) {
+    try {
+      const res = await fetch("/api/admin/committees", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: next.map((c) => c.id) }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to save order");
+      }
+      toast.success("Committee order saved", { id: "committee-order" });
+    } catch (err: unknown) {
+      setCommittees(previous);
+      toast.error(err instanceof Error ? err.message : "Failed to save order");
+    }
+  }
+
+  function moveTo(id: string, index: number, list: CommitteeData[]) {
+    const item = list.find((c) => c.id === id);
+    if (!item) return list;
+    const rest = list.filter((c) => c.id !== id);
+    rest.splice(Math.max(0, Math.min(index, rest.length)), 0, item);
+    return rest;
+  }
+
+  function handleDragStart(e: React.PointerEvent, id: string) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    orderBeforeDrag.current = committees;
+    setDraggingId(id);
+  }
+
+  function handleDragMove(e: React.PointerEvent) {
+    if (!draggingId || !listRef.current) return;
+    // Insert position = how many other rows have their midpoint above the pointer
+    const others = [
+      ...listRef.current.querySelectorAll<HTMLElement>("[data-committee-id]"),
+    ].filter((row) => row.dataset.committeeId !== draggingId);
+    const index = others.filter((row) => {
+      const box = row.getBoundingClientRect();
+      return box.top + box.height / 2 < e.clientY;
+    }).length;
+    setCommittees((prev) => {
+      const next = moveTo(draggingId, index, prev);
+      return next.every((c, i) => c.id === prev[i].id) ? prev : next;
+    });
+  }
+
+  function handleDragEnd() {
+    if (!draggingId) return;
+    const previous = orderBeforeDrag.current ?? committees;
+    setDraggingId(null);
+    orderBeforeDrag.current = null;
+    if (committees.some((c, i) => c.id !== previous[i]?.id)) {
+      void saveOrder(committees, previous);
+    }
+  }
+
+  function handleKeyMove(e: React.KeyboardEvent, id: string) {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    const from = committees.findIndex((c) => c.id === id);
+    const to = from + (e.key === "ArrowUp" ? -1 : 1);
+    if (to < 0 || to >= committees.length) return;
+    const next = moveTo(id, to, committees);
+    setCommittees(next);
+    void saveOrder(next, committees);
+    requestAnimationFrame(() =>
+      listRef.current
+        ?.querySelector<HTMLElement>(
+          `[data-committee-id="${id}"] [data-drag-handle]`,
+        )
+        ?.focus(),
+    );
+  }
 
   const fetchCommittees = React.useCallback(async () => {
     try {
@@ -304,14 +387,43 @@ export function AdminCommitteesPanel() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border/40">
+          <div ref={listRef} className="divide-y divide-border/40">
             {filteredCommittees.map((committee) => (
               <div
                 key={committee.id}
-                className="flex items-center justify-between p-4 transition-colors hover:bg-muted/30 sm:px-6"
+                data-committee-id={committee.id}
+                className={cn(
+                  "relative flex items-center justify-between gap-2 py-3 pr-2 pl-1.5 transition-[background-color,box-shadow] sm:p-4 sm:px-6",
+                  draggingId === committee.id
+                    ? "z-10 rounded-2xl bg-card shadow-lg ring-1 ring-border"
+                    : "hover:bg-muted/30",
+                )}
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                <div className="flex items-center gap-2 min-w-0 sm:gap-3">
+                  {!searchQuery && (
+                    <button
+                      type="button"
+                      data-drag-handle
+                      aria-label={`Reorder ${committee.name}. Drag, or use arrow up and down keys.`}
+                      onPointerDown={(e) => handleDragStart(e, committee.id)}
+                      onPointerMove={handleDragMove}
+                      onPointerUp={handleDragEnd}
+                      onPointerCancel={handleDragEnd}
+                      onKeyDown={(e) => handleKeyMove(e, committee.id)}
+                      className={cn(
+                        "flex size-11 shrink-0 touch-none items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none sm:size-9",
+                        draggingId === committee.id
+                          ? "cursor-grabbing text-foreground"
+                          : "cursor-grab",
+                      )}
+                    >
+                      <HugeiconsIcon
+                        icon={DragDropVerticalIcon}
+                        className="size-4.5"
+                      />
+                    </button>
+                  )}
+                  <div className="hidden size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20 sm:flex">
                     <HugeiconsIcon
                       icon={Briefcase01Icon}
                       className="size-4.5"

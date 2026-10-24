@@ -3,13 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { COMMITTEES as DEFAULT_COMMITTEES } from "@/lib/constants";
 
 /**
- * Returns all active committees ordered by name.
+ * Returns all active committees in the admin-defined order (then by name).
  * If no committees are in the database yet, auto-seeds the default NUSU committees.
  */
 export const getCommittees = cache(async (): Promise<string[]> => {
   try {
     const existing = await prisma.committee.findMany({
-      orderBy: { name: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { name: true },
     });
 

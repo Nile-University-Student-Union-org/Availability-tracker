@@ -42,6 +42,7 @@ model AdminEmail {
 model Committee {
   id        String   @id @default(cuid())
   name      String   @unique
+  sortOrder Int      @default(0) // admin-defined display order
   createdAt DateTime @default(now())
 
   @@map("committee")

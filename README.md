@@ -60,7 +60,7 @@ Built with **Next.js 16**, **React 19**, **Turbopack**, **Tailwind CSS v4**, **B
 
 ## Brand & Design System (OKLCH Palettes)
 
-The design system pairs deep **Nile Midnight Navy** with **Availability Emerald** and vibrant **Interactive Cyan** highlights. Both palettes utilize high-fidelity OKLCH color spaces for perceptual uniformity.
+The design system pairs deep **Nile Midnight Navy** with **Availability Emerald** and vibrant **NUSU Blue** (`#068DCE`, from the logo) for focus rings and accents. Both palettes utilize high-fidelity OKLCH color spaces for perceptual uniformity.
 
 ### Light Mode Palette
 
@@ -70,7 +70,7 @@ The design system pairs deep **Nile Midnight Navy** with **Availability Emerald*
 | `--foreground`           | `oklch(0.145 0.03 250)`  | `#0F172A`   | Deep navy slate text & headings                |
 | `--card`                 | `oklch(1 0 0)`           | `#FFFFFF`   | Surface cards, dialogs, and popover menus      |
 | `--card-foreground`      | `oklch(0.145 0.03 250)`  | `#0F172A`   | Primary card copy                              |
-| `--primary`              | `oklch(0.50 0.16 200)`   | `#0284C7`   | Primary buttons, links, active rings           |
+| `--primary`              | `oklch(0.322 0.076 254)` | `#143459`   | Logo navy: primary buttons, links              |
 | `--primary-foreground`   | `oklch(0.99 0.002 240)`  | `#FFFFFF`   | Contrast text on primary buttons               |
 | `--secondary`            | `oklch(0.95 0.01 240)`   | `#F1F5F9`   | Secondary pill buttons and subtle chips        |
 | `--muted`                | `oklch(0.95 0.01 240)`   | `#F1F5F9`   | Hover fills and disabled slots                 |
@@ -86,7 +86,7 @@ The design system pairs deep **Nile Midnight Navy** with **Availability Emerald*
 | `--foreground`           | `oklch(0.97 0.008 240)`  | `#F1F5F9`   | High-contrast heading and body text         |
 | `--card`                 | `oklch(0.185 0.028 250)` | `#151F38`   | Elevated Nile Slate cards, modals, sheets   |
 | `--card-foreground`      | `oklch(0.97 0.008 240)`  | `#F1F5F9`   | Card body copy                              |
-| `--primary`              | `oklch(0.70 0.15 198)`   | `#38BDF8`   | Luminous Nile Cyan interactive highlights   |
+| `--primary`              | `oklch(0.728 0.135 234)` | `#38B4EE`   | Light logo blue: interactive highlights     |
 | `--primary-foreground`   | `oklch(0.12 0.03 250)`   | `#090E1A`   | Dark text on luminous primary buttons       |
 | `--secondary`            | `oklch(0.23 0.025 250)`  | `#1C2744`   | Secondary button surfaces and badges        |
 | `--muted`                | `oklch(0.22 0.022 250)`  | `#1A243F`   | Muted fills, unselected slot cells          |

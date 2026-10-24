@@ -17,7 +17,7 @@ export async function GET() {
 
   try {
     let committees = await prisma.committee.findMany({
-      orderBy: { name: "asc" },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     });
 
     // Auto-seed default committees if empty
@@ -27,7 +27,7 @@ export async function GET() {
         skipDuplicates: true,
       });
       committees = await prisma.committee.findMany({
-        orderBy: { name: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       });
     }
 
@@ -107,8 +107,11 @@ export async function POST(req: Request) {
       );
     }
 
+    const last = await prisma.committee.aggregate({
+      _max: { sortOrder: true },
+    });
     const newCommittee = await prisma.committee.create({
-      data: { name },
+      data: { name, sortOrder: (last._max.sortOrder ?? -1) + 1 },
     });
 
     return NextResponse.json({
@@ -178,6 +181,48 @@ export async function DELETE(req: Request) {
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Failed to delete committee";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/admin/committees
+ * Saves the display order. Body: { ids: string[] } listing every committee once.
+ */
+export async function PATCH(req: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  try {
+    const body = await req.json();
+    const ids: unknown = body?.ids;
+    const existing = await prisma.committee.findMany({ select: { id: true } });
+    const known = new Set(existing.map((c) => c.id));
+
+    if (
+      !Array.isArray(ids) ||
+      ids.length !== known.size ||
+      new Set(ids).size !== ids.length ||
+      !ids.every((id) => typeof id === "string" && known.has(id))
+    ) {
+      return NextResponse.json(
+        { error: "Order must list every committee exactly once" },
+        { status: 400 },
+      );
+    }
+
+    await prisma.$transaction(
+      (ids as string[]).map((id, sortOrder) =>
+        prisma.committee.update({ where: { id }, data: { sortOrder } }),
+      ),
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Failed to reorder committees";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
