@@ -39,7 +39,8 @@ export interface CommitteeData {
   createdAt: string;
 }
 
-export function AdminCommitteesPanel() {
+/** canManage: only superadmins add, reorder or delete committees */
+export function AdminCommitteesPanel({ canManage = false }: { canManage?: boolean }) {
   const { spinKey, spin } = useRefreshSpin();
   const [committees, setCommittees] = React.useState<CommitteeData[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -311,6 +312,7 @@ export function AdminCommitteesPanel() {
       </div>
 
       {/* Add Committee Bar */}
+      {canManage && (
       <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-xs backdrop-blur-sm sm:p-5">
         <h2 className="text-sm font-semibold text-foreground font-heading">
           Create New Committee
@@ -349,6 +351,7 @@ export function AdminCommitteesPanel() {
           </Button>
         </form>
       </div>
+      )}
 
       {/* Committees Directory Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -448,7 +451,7 @@ export function AdminCommitteesPanel() {
                 )}
               >
                 <div className="flex items-center gap-2 min-w-0 sm:gap-3">
-                  {!searchQuery && (
+                  {canManage && !searchQuery && (
                     <button
                       type="button"
                       data-drag-handle
@@ -505,6 +508,7 @@ export function AdminCommitteesPanel() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  {canManage && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -515,6 +519,7 @@ export function AdminCommitteesPanel() {
                     <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
                     <span className="hidden sm:inline">Delete</span>
                   </Button>
+                  )}
                 </div>
               </div>
             ))}

@@ -22,10 +22,13 @@ import type { AdminUserInfo } from "@/lib/admin";
 
 interface AdminUsersPanelProps {
   initialAdmins?: AdminUserInfo[];
+  /** Only superadmins grant or revoke admin access */
+  canManage?: boolean;
 }
 
 export function AdminUsersPanel({
   initialAdmins = [],
+  canManage = false,
 }: AdminUsersPanelProps = {}) {
   const { spinKey, spin } = useRefreshSpin();
   const [admins, setAdmins] = React.useState<AdminUserInfo[]>(initialAdmins);
@@ -133,6 +136,7 @@ export function AdminUsersPanel({
   return (
     <div className="space-y-6">
       {/* Grant Access Card */}
+      {canManage && (
       <div className="rounded-2xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-sm sm:p-6">
         <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -176,6 +180,7 @@ export function AdminUsersPanel({
           </Button>
         </form>
       </div>
+      )}
 
       {/* Admin List Card */}
       <div className="rounded-2xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-sm sm:p-6">
@@ -315,7 +320,7 @@ export function AdminUsersPanel({
                       <span className="px-2 py-1 text-[11px] text-muted-foreground/70 italic">
                         System Protected
                       </span>
-                    ) : (
+                    ) : !canManage ? null : (
                       <Button
                         variant="ghost"
                         size="sm"

@@ -205,12 +205,42 @@ function Reveal({
   );
 }
 
+/** Returns the first problem with one form's settings, or null when valid */
+export function validateScheduleConfig(
+  config: ScheduleConfigData,
+  mode: "date" | "weekly",
+): string | null {
+  if (mode === "date") {
+    if (!config.startDate || !config.endDate) {
+      return "Please set both start and end dates.";
+    }
+    if (config.startDate > config.endDate) {
+      return "Start date must be before or equal to end date.";
+    }
+    if (config.slotMode === "fixed" && config.timeSlots.length === 0) {
+      return "Please add at least one time slot for fixed mode.";
+    }
+    return null;
+  }
+  const weeklyDays = config.weeklyDays ?? [];
+  const weeklySlots = (config.weeklySlots ?? []).filter((s) =>
+    weeklyDays.includes(s.dayOfWeek),
+  );
+  const weeklyError = validateWeeklySlots(weeklyDays, weeklySlots);
+  return weeklyError ? `Semester timetable: ${weeklyError}` : null;
+}
+
 interface ScheduleConfigPanelProps {
   initialConfig?: ScheduleConfigData | null;
+  /** Edit a single poll's schedule; the caller owns naming, status and saving */
+  mode?: "date" | "weekly";
+  onConfigChange?: (config: ScheduleConfigData) => void;
 }
 
 export function ScheduleConfigPanel({
   initialConfig = null,
+  mode,
+  onConfigChange,
 }: ScheduleConfigPanelProps = {}) {
   const router = useRouter();
   const [config, setConfig] = useState<ScheduleConfigData>(() => ({
@@ -231,7 +261,7 @@ export function ScheduleConfigPanel({
   // Last saved/loaded config, to know whether there is anything to save
   const [savedJson, setSavedJson] = useState(() => JSON.stringify(config));
   const isDirty = JSON.stringify(config) !== savedJson;
-  const [isLoading, setIsLoading] = useState(!initialConfig);
+  const [isLoading, setIsLoading] = useState(!initialConfig && !mode);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -271,29 +301,26 @@ export function ScheduleConfigPanel({
   }, []);
 
   useEffect(() => {
-    if (!initialConfig) {
+    if (!initialConfig && !mode) {
       void fetchConfig();
     }
-  }, [fetchConfig, initialConfig]);
+  }, [fetchConfig, initialConfig, mode]);
+
+  useEffect(() => {
+    onConfigChange?.(config);
+  }, [config, onConfigChange]);
 
   async function handleSave() {
     setError(null);
     setSaved(false);
 
     // Closed forms keep their settings as they are, so only check open ones
-    if (config.dateScheduleActive) {
-      if (!config.startDate || !config.endDate) {
-        setError("Please set both start and end dates.");
-        return;
-      }
-      if (config.startDate > config.endDate) {
-        setError("Start date must be before or equal to end date.");
-        return;
-      }
-      if (config.slotMode === "fixed" && config.timeSlots.length === 0) {
-        setError("Please add at least one time slot for fixed mode.");
-        return;
-      }
+    const problem =
+      (config.dateScheduleActive && validateScheduleConfig(config, "date")) ||
+      (config.weeklyScheduleActive && validateScheduleConfig(config, "weekly"));
+    if (problem) {
+      setError(problem);
+      return;
     }
 
     const weeklyDays = config.weeklyDays ?? [];
@@ -301,13 +328,6 @@ export function ScheduleConfigPanel({
     const weeklySlots = (config.weeklySlots ?? []).filter((s) =>
       weeklyDays.includes(s.dayOfWeek),
     );
-    const weeklyError = config.weeklyScheduleActive
-      ? validateWeeklySlots(weeklyDays, weeklySlots)
-      : null;
-    if (weeklyError) {
-      setError(`Semester timetable: ${weeklyError}`);
-      return;
-    }
 
     setIsSaving(true);
     try {
@@ -493,6 +513,40 @@ export function ScheduleConfigPanel({
     return new Date();
   }, [config.startDate]);
 
+  const openDaysPicker = (
+    <div className="space-y-1">
+      <Label className="text-xs font-semibold text-foreground/80">
+        Open Days
+      </Label>
+      <div
+        role="group"
+        aria-label="Open days"
+        className="grid grid-cols-7 gap-1"
+      >
+        {DAY_OF_WEEK_MAP.map(({ day, short, label }) => {
+          const isOpen = config.weeklyDays?.includes(day) ?? false;
+          return (
+            <button
+              key={day}
+              type="button"
+              aria-pressed={isOpen}
+              aria-label={label}
+              onClick={() => toggleWeeklyDay(day)}
+              className={cn(
+                "min-h-[44px] min-w-0 rounded-xl border text-[11px] font-semibold transition-press cursor-pointer touch-manipulation active:scale-[0.97] md:min-h-9",
+                isOpen
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "border-border/60 bg-background/40 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+              )}
+            >
+              {short}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="flex min-h-[360px] w-full flex-col items-center justify-center rounded-3xl border border-border/80 bg-card p-8 shadow-xs">
@@ -504,6 +558,7 @@ export function ScheduleConfigPanel({
   return (
     <div className="flex flex-col gap-5 pb-8">
       {/* ─── 1. Channel Controls (2-Column Grid) ─────────────────────────────── */}
+      {!mode && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Specific Date Polls Card */}
         <div className="rounded-3xl border border-border/70 bg-card/60 backdrop-blur-xl p-5 shadow-xs flex flex-col justify-between">
@@ -598,37 +653,7 @@ export function ScheduleConfigPanel({
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Open Days
-              </Label>
-              <div
-                role="group"
-                aria-label="Open days"
-                className="grid grid-cols-7 gap-1"
-              >
-                {DAY_OF_WEEK_MAP.map(({ day, short, label }) => {
-                  const isOpen = config.weeklyDays?.includes(day) ?? false;
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      aria-pressed={isOpen}
-                      aria-label={label}
-                      onClick={() => toggleWeeklyDay(day)}
-                      className={cn(
-                        "min-h-[44px] min-w-0 rounded-xl border text-[11px] font-semibold transition-press cursor-pointer touch-manipulation active:scale-[0.97] md:min-h-9",
-                        isOpen
-                          ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                          : "border-border/60 bg-background/40 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
-                      )}
-                    >
-                      {short}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            {openDaysPicker}
 
             <div className="space-y-1">
               <Label className="text-xs font-semibold text-foreground/80">
@@ -649,8 +674,11 @@ export function ScheduleConfigPanel({
           </div>
         </div>
       </div>
+      )}
 
-      <Reveal open={Boolean(config.dateScheduleActive)}>
+      <Reveal
+        open={mode ? mode === "date" : Boolean(config.dateScheduleActive)}
+      >
         {/* ─── 2. Apple-Grade Interactive Date Range Studio ────────────────────── */}
         <div className="rounded-3xl border border-border/70 bg-card/60 backdrop-blur-2xl p-5 sm:p-6 shadow-sm space-y-4">
           {/* Header with Title and Segmented Presets */}
@@ -947,7 +975,14 @@ export function ScheduleConfigPanel({
       </Reveal>
 
       {/* ─── 4. Semester Time Slots ─────────────────────────────────────────── */}
-      <Reveal open={Boolean(config.weeklyScheduleActive)}>
+      <Reveal
+        open={mode ? mode === "weekly" : Boolean(config.weeklyScheduleActive)}
+      >
+        {mode === "weekly" && (
+          <div className="rounded-3xl border border-border/70 bg-card/60 p-5 shadow-xs">
+            {openDaysPicker}
+          </div>
+        )}
         <WeeklySlotsEditor
           days={config.weeklyDays ?? []}
           slots={config.weeklySlots ?? []}
@@ -958,6 +993,7 @@ export function ScheduleConfigPanel({
       </Reveal>
 
       {/* ─── 5. Sticky Save Bar ─────────────────────────────────────────────── */}
+      {!mode && (
       <div className="sticky bottom-3 z-30 space-y-2">
         {error && (
           <div
@@ -1035,6 +1071,7 @@ export function ScheduleConfigPanel({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

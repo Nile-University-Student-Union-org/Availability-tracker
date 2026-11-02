@@ -4,7 +4,7 @@ import {
   RefreshSpinIcon,
   useRefreshSpin,
 } from "@/components/admin/refresh-spin";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -202,21 +202,25 @@ function UserAvatar({
   );
 }
 
-async function fetchDateAnalytics(signal: AbortSignal): Promise<AnalyticsData> {
-  const response = await fetch("/api/admin/analytics", {
-    signal,
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error("Failed to load date analytics");
-  return response.json();
-}
-
 // ─── Main dashboard ───────────────────────────────────────────────────────────
 export function AnalyticsDashboard({
   data: initialData,
+  pollId,
 }: {
   data: AnalyticsData;
+  pollId: string;
 }) {
+  const fetchDateAnalytics = useCallback(
+    async (signal: AbortSignal): Promise<AnalyticsData> => {
+      const response = await fetch(
+        `/api/admin/analytics?pollId=${encodeURIComponent(pollId)}`,
+        { signal, cache: "no-store" },
+      );
+      if (!response.ok) throw new Error("Failed to load date analytics");
+      return response.json();
+    },
+    [pollId],
+  );
   const {
     data = initialData,
     lastUpdated,

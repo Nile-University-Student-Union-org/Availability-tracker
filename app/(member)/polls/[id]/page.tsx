@@ -8,6 +8,11 @@ import { WeeklyTimetable } from "@/components/weekly/weekly-timetable";
 import { ScheduleInactiveNotice } from "@/components/schedule-inactive-notice";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const poll = await getPollConfig((await params).id);
+  return { title: `${poll?.name ?? "Poll"} | Nile University Student Union` };
+}
 export default async function PollPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getCachedSession();
   if (!session) redirect("/auth?mode=signin");

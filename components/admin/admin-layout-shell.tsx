@@ -29,7 +29,15 @@ import {
   Logout02Icon,
   ArrowRight01Icon,
   Briefcase01Icon,
+  InboxIcon,
 } from "@hugeicons/core-free-icons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -41,7 +49,7 @@ import {
   type AnalyticsData,
 } from "@/components/admin/analytics-dashboard";
 import type { SemesterAnalyticsData } from "@/lib/semester-analytics";
-import type { ScheduleConfigData } from "@/components/admin/schedule-config-panel";
+import type { PollViewer } from "@/components/admin/polls-panel";
 import type { AdminUserInfo } from "@/lib/admin";
 import { NusuLogo } from "@/components/nusu-logo";
 
@@ -59,10 +67,21 @@ const SemesterAnalyticsPanel = dynamic(
   },
 );
 
-const ScheduleConfigPanel = dynamic(
+const PollsPanel = dynamic(
+  () => import("@/components/admin/polls-panel").then((m) => m.PollsPanel),
+  {
+    loading: () => (
+      <div className="flex h-40 items-center justify-center">
+        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    ),
+  },
+);
+
+const PollRequestsPanel = dynamic(
   () =>
-    import("@/components/admin/schedule-config-panel").then(
-      (m) => m.ScheduleConfigPanel,
+    import("@/components/admin/poll-requests-panel").then(
+      (m) => m.PollRequestsPanel,
     ),
   {
     loading: () => (
@@ -119,10 +138,73 @@ export type AdminTab =
   | "specific-analytics"
   | "semester-analytics"
   | "analytics"
-  | "schedule"
+  | "polls"
+  | "requests"
   | "admins"
   | "members"
   | "committees";
+
+const ADMIN_TABS: AdminTab[] = [
+  "specific-analytics",
+  "semester-analytics",
+  "analytics",
+  "polls",
+  "requests",
+  "admins",
+  "members",
+  "committees",
+];
+
+/** Reads ?tab=, keeping old "schedule" links working */
+function parseTab(value: string | null): AdminTab | null {
+  if (value === "schedule") return "polls";
+  return ADMIN_TABS.includes(value as AdminTab) ? (value as AdminTab) : null;
+}
+
+export type AnalyticsPollOption = { id: string; name: string };
+
+/** Switches which poll an analytics tab shows; the server reloads the data */
+function PollPicker({
+  tab,
+  polls,
+  value,
+}: {
+  tab: AdminTab;
+  polls: AnalyticsPollOption[];
+  value: string | null;
+}) {
+  const router = useRouter();
+  if (polls.length < 2) return null;
+  return (
+    <Select
+      value={value}
+      items={polls.map((p) => ({ value: p.id, label: p.name }))}
+      onValueChange={(id) => id && router.push(`/admin?tab=${tab}&poll=${id}`)}
+    >
+      <SelectTrigger
+        aria-label="Poll"
+        className="mb-5 min-h-[44px] w-full max-w-sm bg-background/60 text-sm font-semibold"
+      >
+        <SelectValue placeholder="Choose a poll" />
+      </SelectTrigger>
+      <SelectContent>
+        {polls.map((p) => (
+          <SelectItem key={p.id} value={p.id} className="text-sm">
+            {p.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function NoPolls() {
+  return (
+    <div className="rounded-3xl border border-dashed border-border px-6 py-14 text-center text-sm text-muted-foreground">
+      No polls of this type you can see results for yet.
+    </div>
+  );
+}
 
 interface AdminLayoutShellProps {
   session: {
@@ -138,8 +220,14 @@ interface AdminLayoutShellProps {
   analytics: AnalyticsData;
   semesterAnalytics: SemesterAnalyticsData;
   initialTab?: AdminTab;
-  initialConfig?: ScheduleConfigData | null;
   initialAdmins?: AdminUserInfo[];
+  viewer: PollViewer;
+  committees: string[];
+  pendingCount: number;
+  datePolls: AnalyticsPollOption[];
+  weeklyPolls: AnalyticsPollOption[];
+  datePollId: string | null;
+  weeklyPollId: string | null;
 }
 
 export function AdminLayoutShell({
@@ -147,29 +235,28 @@ export function AdminLayoutShell({
   analytics,
   semesterAnalytics,
   initialTab = "specific-analytics",
-  initialConfig = null,
   initialAdmins = [],
+  viewer,
+  committees,
+  pendingCount: initialPendingCount,
+  datePolls,
+  weeklyPolls,
+  datePollId,
+  weeklyPollId,
 }: AdminLayoutShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tabParam = (searchParams.get("tab") as AdminTab) || initialTab;
+  const tabParam = parseTab(searchParams.get("tab")) ?? initialTab;
   const [activeTab, setActiveTab] = React.useState<AdminTab>(tabParam);
+  const [pendingCount, setPendingCount] = React.useState(initialPendingCount);
 
   React.useEffect(() => {
-    const qTab = searchParams.get("tab") as AdminTab;
-    if (
-      qTab &&
-      [
-        "specific-analytics",
-        "semester-analytics",
-        "analytics",
-        "schedule",
-        "admins",
-        "members",
-      ].includes(qTab)
-    ) {
-      setActiveTab(qTab);
-    }
+    setPendingCount(initialPendingCount);
+  }, [initialPendingCount]);
+
+  React.useEffect(() => {
+    const qTab = parseTab(searchParams.get("tab"));
+    if (qTab) setActiveTab(qTab);
   }, [searchParams]);
 
   const setTab = (tab: AdminTab) => {
@@ -279,9 +366,9 @@ export function AdminLayoutShell({
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      tooltip="Schedule Configuration"
-                      isActive={activeTab === "schedule"}
-                      onClick={() => setTab("schedule")}
+                      tooltip="Polls"
+                      isActive={activeTab === "polls"}
+                      onClick={() => setTab("polls")}
                       className="cursor-pointer font-medium"
                     >
                       <HugeiconsIcon
@@ -289,9 +376,39 @@ export function AdminLayoutShell({
                         size={16}
                         strokeWidth={2}
                       />
-                      <span>Schedule Config</span>
+                      <span>Polls</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+
+                  {viewer.isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        tooltip={
+                          pendingCount
+                            ? `Requests (${pendingCount} waiting)`
+                            : "Requests"
+                        }
+                        isActive={activeTab === "requests"}
+                        onClick={() => setTab("requests")}
+                        className="cursor-pointer font-medium"
+                      >
+                        <HugeiconsIcon
+                          icon={InboxIcon}
+                          size={16}
+                          strokeWidth={2}
+                        />
+                        <span>Requests</span>
+                        {pendingCount > 0 && (
+                          <span
+                            aria-label={`${pendingCount} waiting`}
+                            className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold tabular-nums text-amber-950 group-data-[collapsible=icon]:hidden"
+                          >
+                            {pendingCount}
+                          </span>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -427,8 +544,12 @@ export function AdminLayoutShell({
                 </span>
                 <span>/</span>
                 <span className="capitalize">
-                  {activeTab === "analytics" && "Availability Analytics"}
-                  {activeTab === "schedule" && "Schedule Configuration"}
+                  {(activeTab === "analytics" ||
+                    activeTab === "specific-analytics") &&
+                    "Specific Date Analytics"}
+                  {activeTab === "semester-analytics" && "Semester Analytics"}
+                  {activeTab === "polls" && "Polls"}
+                  {activeTab === "requests" && "Requests"}
                   {activeTab === "admins" && "Admin Access & Roles"}
                   {activeTab === "members" && "Members Directory"}
                   {activeTab === "committees" && "Committees Management"}
@@ -463,7 +584,8 @@ export function AdminLayoutShell({
                     "Specific Date Analytics"}
                   {activeTab === "semester-analytics" &&
                     "Semester Availability Analytics"}
-                  {activeTab === "schedule" && "Schedule Configuration"}
+                  {activeTab === "polls" && "Polls"}
+                  {activeTab === "requests" && "Poll Requests"}
                   {activeTab === "admins" && "Administrator Management"}
                   {activeTab === "members" && "Union Members Directory"}
                   {activeTab === "committees" && "Union Committees Management"}
@@ -474,20 +596,56 @@ export function AdminLayoutShell({
             {/* Dynamic Tab Body */}
             <div>
               {(activeTab === "specific-analytics" ||
-                activeTab === "analytics") && (
-                <AnalyticsDashboard data={analytics} />
-              )}
-              {activeTab === "semester-analytics" && (
-                <SemesterAnalyticsPanel initialData={semesterAnalytics} />
-              )}
-              {activeTab === "schedule" && (
+                activeTab === "analytics") &&
+                (datePollId ? (
+                  <>
+                    <PollPicker
+                      tab="specific-analytics"
+                      polls={datePolls}
+                      value={datePollId}
+                    />
+                    <AnalyticsDashboard
+                      key={datePollId}
+                      data={analytics}
+                      pollId={datePollId}
+                    />
+                  </>
+                ) : (
+                  <NoPolls />
+                ))}
+              {activeTab === "semester-analytics" &&
+                (weeklyPollId ? (
+                  <>
+                    <PollPicker
+                      tab="semester-analytics"
+                      polls={weeklyPolls}
+                      value={weeklyPollId}
+                    />
+                    <SemesterAnalyticsPanel
+                      key={weeklyPollId}
+                      initialData={semesterAnalytics}
+                      pollId={weeklyPollId}
+                    />
+                  </>
+                ) : (
+                  <NoPolls />
+                ))}
+              {activeTab === "polls" && (
                 <div className="max-w-2xl">
-                  <ScheduleConfigPanel initialConfig={initialConfig} />
+                  <PollsPanel viewer={viewer} committees={committees} />
+                </div>
+              )}
+              {activeTab === "requests" && viewer.isSuperAdmin && (
+                <div className="max-w-2xl">
+                  <PollRequestsPanel onCountChange={setPendingCount} />
                 </div>
               )}
               {activeTab === "admins" && (
                 <div className="max-w-3xl">
-                  <AdminUsersPanel initialAdmins={initialAdmins} />
+                  <AdminUsersPanel
+                    initialAdmins={initialAdmins}
+                    canManage={viewer.isSuperAdmin}
+                  />
                 </div>
               )}
               {activeTab === "members" && (
@@ -496,7 +654,9 @@ export function AdminLayoutShell({
                   currentUserEmail={session.user.email}
                 />
               )}
-              {activeTab === "committees" && <AdminCommitteesPanel />}
+              {activeTab === "committees" && (
+                <AdminCommitteesPanel canManage={viewer.isSuperAdmin} />
+              )}
             </div>
           </main>
         </SidebarInset>
