@@ -22,7 +22,6 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Calendar03Icon,
-  Clock01Icon,
   Shield01Icon,
   UserGroupIcon,
   Home01Icon,
@@ -30,42 +29,18 @@ import {
   ArrowRight01Icon,
   Briefcase01Icon,
   InboxIcon,
+  DashboardSquare01Icon,
 } from "@hugeicons/core-free-icons";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/status-pill";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import dynamic from "next/dynamic";
-import {
-  AnalyticsDashboard,
-  type AnalyticsData,
-} from "@/components/admin/analytics-dashboard";
-import type { SemesterAnalyticsData } from "@/lib/semester-analytics";
-import type { PollViewer } from "@/components/admin/polls-panel";
+import type { AdminPoll, PollViewer } from "@/components/admin/poll-badges";
+import { AdminOverview } from "@/components/admin/admin-overview";
 import type { AdminUserInfo } from "@/lib/admin";
 import { NusuLogo } from "@/components/nusu-logo";
-
-const SemesterAnalyticsPanel = dynamic(
-  () =>
-    import("@/components/admin/semester-analytics-panel").then(
-      (m) => m.SemesterAnalyticsPanel,
-    ),
-  {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
-  },
-);
 
 const PollsPanel = dynamic(
   () => import("@/components/admin/polls-panel").then((m) => m.PollsPanel),
@@ -135,9 +110,7 @@ const AdminCommitteesPanel = dynamic(
 );
 
 export type AdminTab =
-  | "specific-analytics"
-  | "semester-analytics"
-  | "analytics"
+  | "overview"
   | "polls"
   | "requests"
   | "admins"
@@ -145,9 +118,7 @@ export type AdminTab =
   | "committees";
 
 const ADMIN_TABS: AdminTab[] = [
-  "specific-analytics",
-  "semester-analytics",
-  "analytics",
+  "overview",
   "polls",
   "requests",
   "admins",
@@ -155,56 +126,27 @@ const ADMIN_TABS: AdminTab[] = [
   "committees",
 ];
 
-/** Reads ?tab=, keeping old "schedule" links working */
+// Old links: the schedule page and the per-type analytics pages now live in Polls
+const LEGACY_TABS: Record<string, AdminTab> = {
+  schedule: "polls",
+  analytics: "polls",
+  "specific-analytics": "polls",
+  "semester-analytics": "polls",
+};
+
 function parseTab(value: string | null): AdminTab | null {
-  if (value === "schedule") return "polls";
+  if (value && LEGACY_TABS[value]) return LEGACY_TABS[value];
   return ADMIN_TABS.includes(value as AdminTab) ? (value as AdminTab) : null;
 }
 
-export type AnalyticsPollOption = { id: string; name: string };
-
-/** Switches which poll an analytics tab shows; the server reloads the data */
-function PollPicker({
-  tab,
-  polls,
-  value,
-}: {
-  tab: AdminTab;
-  polls: AnalyticsPollOption[];
-  value: string | null;
-}) {
-  const router = useRouter();
-  if (polls.length < 2) return null;
-  return (
-    <Select
-      value={value}
-      items={polls.map((p) => ({ value: p.id, label: p.name }))}
-      onValueChange={(id) => id && router.push(`/admin?tab=${tab}&poll=${id}`)}
-    >
-      <SelectTrigger
-        aria-label="Poll"
-        className="mb-5 min-h-[44px] w-full max-w-sm bg-background/60 text-sm font-semibold"
-      >
-        <SelectValue placeholder="Choose a poll" />
-      </SelectTrigger>
-      <SelectContent>
-        {polls.map((p) => (
-          <SelectItem key={p.id} value={p.id} className="text-sm">
-            {p.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function NoPolls() {
-  return (
-    <div className="rounded-3xl border border-dashed border-border px-6 py-14 text-center text-sm text-muted-foreground">
-      No polls of this type you can see results for yet.
-    </div>
-  );
-}
+const TAB_TITLES: Record<AdminTab, string> = {
+  overview: "Overview",
+  polls: "Polls",
+  requests: "Poll Requests",
+  admins: "Administrator Management",
+  members: "Union Members Directory",
+  committees: "Union Committees Management",
+};
 
 interface AdminLayoutShellProps {
   session: {
@@ -217,32 +159,23 @@ interface AdminLayoutShellProps {
       role?: string | null;
     };
   };
-  analytics: AnalyticsData;
-  semesterAnalytics: SemesterAnalyticsData;
   initialTab?: AdminTab;
   initialAdmins?: AdminUserInfo[];
   viewer: PollViewer;
   committees: string[];
   pendingCount: number;
-  datePolls: AnalyticsPollOption[];
-  weeklyPolls: AnalyticsPollOption[];
-  datePollId: string | null;
-  weeklyPollId: string | null;
+  /** Visible polls with response counts, for the overview */
+  overviewPolls: AdminPoll[];
 }
 
 export function AdminLayoutShell({
   session,
-  analytics,
-  semesterAnalytics,
-  initialTab = "specific-analytics",
+  initialTab = "overview",
   initialAdmins = [],
   viewer,
   committees,
   pendingCount: initialPendingCount,
-  datePolls,
-  weeklyPolls,
-  datePollId,
-  weeklyPollId,
+  overviewPolls,
 }: AdminLayoutShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -259,10 +192,17 @@ export function AdminLayoutShell({
     if (qTab) setActiveTab(qTab);
   }, [searchParams]);
 
-  const setTab = (tab: AdminTab) => {
+  /** Switch section; extra params (a poll to open) replace the old ones */
+  // Bumped on every navigation so a section reopens at its start (e.g. Polls list)
+  const [navKey, setNavKey] = React.useState(0);
+  const setTab = (tab: AdminTab, params: Record<string, string> = {}) => {
     setActiveTab(tab);
+    setNavKey((k) => k + 1);
     const url = new URL(window.location.href);
+    url.search = "";
     url.searchParams.set("tab", tab);
+    for (const [key, value] of Object.entries(params))
+      url.searchParams.set(key, value);
     window.history.replaceState({}, "", url.toString());
   };
 
@@ -292,7 +232,7 @@ export function AdminLayoutShell({
                 <SidebarMenuButton
                   size="lg"
                   tooltip="NUSU Admin Console"
-                  onClick={() => setTab("analytics")}
+                  onClick={() => setTab("overview")}
                   className="cursor-pointer"
                 >
                   <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#0F3056] to-[#018BCE] text-white shadow-xs">
@@ -318,52 +258,25 @@ export function AdminLayoutShell({
           {/* Navigation Groups */}
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Availability & Intelligence</SidebarGroupLabel>
+              <SidebarGroupLabel>Workspace</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      tooltip="Specific Date Analytics"
-                      isActive={
-                        activeTab === "specific-analytics" ||
-                        activeTab === "analytics"
-                      }
-                      onClick={() => setTab("specific-analytics")}
+                      tooltip="Overview"
+                      isActive={activeTab === "overview"}
+                      onClick={() => setTab("overview")}
                       className="cursor-pointer font-medium"
                     >
                       <HugeiconsIcon
-                        icon={Calendar03Icon}
+                        icon={DashboardSquare01Icon}
                         size={16}
                         strokeWidth={2}
                       />
-                      <span>Specific Date Analytics</span>
+                      <span>Overview</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      tooltip="Semester Availability Analytics"
-                      isActive={activeTab === "semester-analytics"}
-                      onClick={() => setTab("semester-analytics")}
-                      className="cursor-pointer font-medium"
-                    >
-                      <HugeiconsIcon
-                        icon={Clock01Icon}
-                        size={16}
-                        strokeWidth={2}
-                        className="text-emerald-500"
-                      />
-                      <span>Semester Analytics</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Schedule Settings</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       tooltip="Polls"
@@ -543,16 +456,8 @@ export function AdminLayoutShell({
                   Admin Console
                 </span>
                 <span>/</span>
-                <span className="capitalize">
-                  {(activeTab === "analytics" ||
-                    activeTab === "specific-analytics") &&
-                    "Specific Date Analytics"}
-                  {activeTab === "semester-analytics" && "Semester Analytics"}
-                  {activeTab === "polls" && "Polls"}
-                  {activeTab === "requests" && "Requests"}
-                  {activeTab === "admins" && "Admin Access & Roles"}
-                  {activeTab === "members" && "Members Directory"}
-                  {activeTab === "committees" && "Committees Management"}
+                <span>
+                  {TAB_TITLES[activeTab].replace(/^Union | Management$/g, "")}
                 </span>
               </div>
             </div>
@@ -579,61 +484,34 @@ export function AdminLayoutShell({
                   NUSU Administration
                 </p>
                 <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-                  {(activeTab === "specific-analytics" ||
-                    activeTab === "analytics") &&
-                    "Specific Date Analytics"}
-                  {activeTab === "semester-analytics" &&
-                    "Semester Availability Analytics"}
-                  {activeTab === "polls" && "Polls"}
-                  {activeTab === "requests" && "Poll Requests"}
-                  {activeTab === "admins" && "Administrator Management"}
-                  {activeTab === "members" && "Union Members Directory"}
-                  {activeTab === "committees" && "Union Committees Management"}
+                  {TAB_TITLES[activeTab]}
                 </h1>
               </div>
             </div>
 
             {/* Dynamic Tab Body */}
             <div>
-              {(activeTab === "specific-analytics" ||
-                activeTab === "analytics") &&
-                (datePollId ? (
-                  <>
-                    <PollPicker
-                      tab="specific-analytics"
-                      polls={datePolls}
-                      value={datePollId}
-                    />
-                    <AnalyticsDashboard
-                      key={datePollId}
-                      data={analytics}
-                      pollId={datePollId}
-                    />
-                  </>
-                ) : (
-                  <NoPolls />
-                ))}
-              {activeTab === "semester-analytics" &&
-                (weeklyPollId ? (
-                  <>
-                    <PollPicker
-                      tab="semester-analytics"
-                      polls={weeklyPolls}
-                      value={weeklyPollId}
-                    />
-                    <SemesterAnalyticsPanel
-                      key={weeklyPollId}
-                      initialData={semesterAnalytics}
-                      pollId={weeklyPollId}
-                    />
-                  </>
-                ) : (
-                  <NoPolls />
-                ))}
+              {activeTab === "overview" && (
+                <AdminOverview
+                  viewer={viewer}
+                  polls={overviewPolls}
+                  pendingCount={pendingCount}
+                  onOpenPoll={(id, view) =>
+                    setTab("polls", {
+                      poll: id,
+                      ...(view === "settings" ? { view } : {}),
+                    })
+                  }
+                  onOpenRequests={() => setTab("requests")}
+                  onNewPoll={() => setTab("polls", { new: "1" })}
+                />
+              )}
               {activeTab === "polls" && (
-                <div className="max-w-2xl">
-                  <PollsPanel viewer={viewer} committees={committees} />
-                </div>
+                <PollsPanel
+                  key={navKey}
+                  viewer={viewer}
+                  committees={committees}
+                />
               )}
               {activeTab === "requests" && viewer.isSuperAdmin && (
                 <div className="max-w-2xl">

@@ -145,22 +145,8 @@ export function SemesterAnalyticsPanel({
   return (
     <div className="flex flex-col gap-8 pb-16">
       {/* ─── Header & Controls ────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl flex items-center gap-2.5">
-            <HugeiconsIcon
-              icon={Clock01Icon}
-              size={28}
-              className="text-emerald-500"
-            />
-            <span>Semester Availability Analytics</span>
-          </h1>
-          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-            Permanent weekly recurring schedule intelligence across academic
-            days.
-          </p>
-        </div>
-
+      {/* The poll page above already names the poll, so only controls here */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-64 shrink-0">
           <Select value={committee} onValueChange={handleCommitteeChange}>
             <SelectTrigger className="min-h-[44px] min-w-0 flex-1 text-xs font-semibold bg-background/60">

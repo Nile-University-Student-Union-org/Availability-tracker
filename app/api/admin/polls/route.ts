@@ -7,6 +7,7 @@ import { createAudience, canCreatePoll } from "@/lib/poll-access";
 import { validateWeeklySlots, sortSlots, parseDateSlots, type WeeklySlot } from "@/lib/weekly-slots";
 import { sendMail } from "@/lib/mail";
 import { pollRequestEmail } from "@/lib/emails/poll-request";
+import { getAdminOverview } from "@/lib/admin-polls";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -25,24 +26,10 @@ export async function GET() {
   const ctx = await context();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const whereClause = ctx.superAdmin
-    ? {}
-    : {
-        OR: [
-          { createdById: ctx.user.id },
-          { allCommittees: true },
-          ...(ctx.user.committee ? [{ committees: { has: ctx.user.committee } }] : []),
-        ],
-      };
-
-  const polls = await prisma.poll.findMany({
-    where: whereClause,
-    include: {
-      createdBy: {
-        select: { name: true, email: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
+  const polls = await getAdminOverview({
+    id: ctx.user.id,
+    committee: ctx.user.committee,
+    superAdmin: ctx.superAdmin,
   });
 
   return NextResponse.json(
