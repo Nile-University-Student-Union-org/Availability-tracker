@@ -1,7 +1,14 @@
-type Mail = { to: string[]; subject: string; html: string };
+type InlineImage = { cid: string; contentType: string; base64: string };
+type Mail = {
+  to: string[];
+  subject: string;
+  html: string;
+  /** Images the HTML references as cid:<cid>, sent as inline attachments */
+  inlineImages?: InlineImage[];
+};
 let warned = false;
 
-export async function sendMail({ to, subject, html }: Mail) {
+export async function sendMail({ to, subject, html, inlineImages = [] }: Mail) {
   const { MS_GRAPH_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MAIL_SENDER } = process.env;
   if (!MS_GRAPH_TENANT_ID || !MICROSOFT_CLIENT_ID || !MICROSOFT_CLIENT_SECRET || !MAIL_SENDER) {
     if (!warned) {
@@ -37,6 +44,14 @@ export async function sendMail({ to, subject, html }: Mail) {
           subject,
           body: { contentType: "HTML", content: html },
           toRecipients: to.map((address) => ({ emailAddress: { address } })),
+          attachments: inlineImages.map((img) => ({
+            "@odata.type": "#microsoft.graph.fileAttachment",
+            name: `${img.cid}.png`,
+            contentType: img.contentType,
+            contentBytes: img.base64,
+            contentId: img.cid,
+            isInline: true,
+          })),
         },
         saveToSentItems: false,
       }),

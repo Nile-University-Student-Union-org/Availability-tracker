@@ -1,5 +1,6 @@
 import { escapeHtml as esc } from "@/lib/mail";
 import { POLL_TYPE_LABEL, pollSummary, type PollType } from "@/lib/poll-display";
+import { NUSU_EMBLEM } from "@/lib/emails/nusu-emblem";
 
 export type PollRequestEmail = {
   pollName: string;
@@ -20,7 +21,9 @@ export type PollRequestEmail = {
   reviewUrl: string;
 };
 
-const NAVY = "#0F3056";
+// NUSU brand: navy and cyan from components/nusu-logo.tsx
+const NAVY = "#143459";
+const CYAN = "#068DCE";
 const EMERALD = "#047857";
 const AMBER_BG = "#FEF3C7";
 const AMBER_TEXT = "#92400E";
@@ -81,9 +84,20 @@ export function pollRequestEmail(p: PollRequestEmail) {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:24px 12px">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:16px;border:1px solid ${BORDER};overflow:hidden">
-        <tr><td style="background:${NAVY};padding:18px 28px">
-          <span style="color:#FFFFFF;font-size:15px;font-weight:700;letter-spacing:2px">NUSU</span>
-          <span style="color:#7DD3FC;font-size:11px;font-weight:600;letter-spacing:1.5px;padding-left:8px">AVAILABILITY TRACKER</span>
+        <tr><td style="height:4px;background:${CYAN};font-size:0;line-height:0">&nbsp;</td></tr>
+        <tr><td style="padding:20px 28px;border-bottom:1px solid ${BORDER}">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td style="vertical-align:middle;padding-right:12px">
+              <img src="cid:${NUSU_EMBLEM.cid}" width="40" height="47" alt="NUSU" style="display:block;border:0;outline:none">
+            </td>
+            <td style="vertical-align:middle;padding-right:16px">
+              <div style="font-size:22px;line-height:22px;font-weight:900;color:${NAVY};letter-spacing:-0.5px">NUSU</div>
+              <div style="margin-top:3px;font-size:10px;line-height:12px;font-weight:700;color:${CYAN};letter-spacing:1.5px">STUDENT UNION</div>
+            </td>
+            <td style="vertical-align:middle;padding-left:16px;border-left:1px solid ${BORDER}">
+              <div style="margin-left:16px;font-size:12px;line-height:16px;color:${MUTED}">Availability<br>Tracker</div>
+            </td>
+          </tr></table>
         </td></tr>
         <tr><td style="padding:28px 28px 8px">
           <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:${AMBER_BG};color:${AMBER_TEXT};font-size:12px;font-weight:700">Waiting for your approval</span>
@@ -110,5 +124,5 @@ export function pollRequestEmail(p: PollRequestEmail) {
 </body>
 </html>`;
 
-  return { subject, html };
+  return { subject, html, inlineImages: [NUSU_EMBLEM] };
 }
