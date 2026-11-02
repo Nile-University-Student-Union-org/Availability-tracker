@@ -68,6 +68,8 @@ interface AvailabilityDialogProps {
   memberCommittee: string;
   slotMode: "fixed" | "free";
   timeSlots: string[];
+  /** start → end for custom-length slots; missing ends are one hour */
+  slotEnds?: Record<string, string>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: (date: string, slots: string[]) => void;
@@ -85,6 +87,7 @@ export function AvailabilityDialog({
   memberId,
   memberCommittee,
   timeSlots,
+  slotEnds,
   open,
   onOpenChange,
   onSaved,
@@ -457,7 +460,7 @@ export function AvailabilityDialog({
       <div className="grid grid-cols-2 gap-2">
         {effectiveSlots.map((slot) => {
           const isSelected = selectedSlots.has(slot);
-          const endTime = getSlotEndTime(slot);
+          const endTime = slotEnds?.[slot] ?? getSlotEndTime(slot);
 
           return (
             <div

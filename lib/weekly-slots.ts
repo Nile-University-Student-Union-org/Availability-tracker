@@ -135,3 +135,41 @@ export function legacyWeeklySchedule(
     ),
   };
 }
+
+/**
+ * Reads the date-poll slots sent by the admin UI: start times plus an
+ * optional start → end map. Missing ends default to one hour.
+ * Returns an error message instead of slots when an end isn't after its start.
+ */
+export function parseDateSlots(
+  timeSlots: unknown,
+  slotEnds: unknown,
+): { slots: { startTime: string; endTime: string }[] } | { error: string } {
+  const ends =
+    slotEnds && typeof slotEnds === "object"
+      ? (slotEnds as Record<string, unknown>)
+      : {};
+  const starts = Array.isArray(timeSlots)
+    ? Array.from(
+        new Set(
+          timeSlots.filter(
+            (s): s is string => typeof s === "string" && TIME_PATTERN.test(s),
+          ),
+        ),
+      ).sort()
+    : [];
+  const slots = starts.map((startTime) => {
+    const end = ends[startTime];
+    return {
+      startTime,
+      endTime:
+        typeof end === "string" && TIME_PATTERN.test(end)
+          ? end
+          : fromMinutes(Math.min(toMinutes(startTime) + 60, 1439)),
+    };
+  });
+  const bad = slots.find((s) => s.endTime <= s.startTime);
+  return bad
+    ? { error: `The slot starting ${formatTimeSlot(bad.startTime)} must end after it starts.` }
+    : { slots };
+}

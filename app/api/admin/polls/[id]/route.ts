@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { isAdminEmail, isSuperAdmin, getSuperAdminEmails } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { canSeeResults, canEditOrDeletePoll, editAudience } from "@/lib/poll-access";
-import { validateWeeklySlots, sortSlots, type WeeklySlot } from "@/lib/weekly-slots";
+import { validateWeeklySlots, sortSlots, parseDateSlots, type WeeklySlot } from "@/lib/weekly-slots";
 import { getPollConfig } from "@/lib/schedule";
 import { escapeHtml, sendMail } from "@/lib/mail";
 
@@ -99,15 +99,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (error) return NextResponse.json({ error }, { status: 400 });
     }
 
-    const timeSlots: string[] = Array.isArray(b.timeSlots)
-      ? Array.from(
-          new Set<string>(
-            (b.timeSlots as unknown[]).filter(
-              (s): s is string => typeof s === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s),
-            ),
-          ),
-        )
-      : poll.timeSlots.map((s) => s.startTime);
+    // Slots are only replaced when the editor sends them
+    const parsedSlots = parseDateSlots(b.timeSlots, b.slotEnds);
+    if (poll.type === "date" && b.timeSlots && "error" in parsedSlots) {
+      return NextResponse.json({ error: parsedSlots.error }, { status: 400 });
+    }
+    const timeSlots = "slots" in parsedSlots ? parsedSlots.slots : [];
 
     const pendingCommittees = audience?.requestedCommittees ?? poll.requestedCommittees;
 
@@ -133,7 +130,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (poll.type === "date" && b.timeSlots) {
         await tx.pollTimeSlot.deleteMany({ where: { pollId: id } });
         await tx.pollTimeSlot.createMany({
-          data: timeSlots.map((startTime) => ({ pollId: id, startTime })),
+          data: timeSlots.map((slot) => ({ pollId: id, ...slot })),
         });
       }
       if (poll.type === "weekly" && b.weeklySlots) {
@@ -159,7 +156,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to edit poll" }, { status: 400 });
+    console.error("PATCH /api/admin/polls/[id] failed:", e);
+    return NextResponse.json({ error: "Could not save the poll. Please try again." }, { status: 500 });
   }
 }
 

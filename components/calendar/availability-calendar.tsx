@@ -25,6 +25,7 @@ type ScheduleConfig = {
   endDate: string;
   slotMode: "fixed" | "free";
   timeSlots: string[];
+  slotEnds?: Record<string, string>;
   dates: string[];
 };
 
@@ -582,6 +583,7 @@ export function AvailabilityCalendar({
           memberCommittee={memberCommittee}
           slotMode={config.slotMode}
           timeSlots={config.timeSlots}
+          slotEnds={config.slotEnds}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           onSaved={handleSaved}

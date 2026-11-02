@@ -92,6 +92,8 @@ export type AnalyticsData = {
   users: UserEntry[];
   dates: string[];
   timeSlots: string[];
+  /** start → end for custom-length slots; missing means one hour */
+  slotEnds?: Record<string, string>;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -228,7 +230,18 @@ export function AnalyticsDashboard({
     refresh,
   } = useLivePoll(fetchDateAnalytics, 10000, initialData);
   const { spinKey, spin } = useRefreshSpin();
-  const { slotMatrix, users, dates, timeSlots } = data;
+  const { slotMatrix, users, dates, timeSlots, slotEnds } = data;
+  const slotMinutes = (start: string) => {
+    const end = slotEnds?.[start];
+    if (!end) return 60;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    return eh * 60 + em - (sh * 60 + sm);
+  };
+  const slotLabel = (start: string) =>
+    slotEnds?.[start]
+      ? `${formatTime(start)} → ${formatTime(slotEnds[start])}`
+      : formatTime(start);
   const [activeCell, setActiveCell] = useState<{
     date: string;
     startTime: string;
@@ -374,7 +387,7 @@ export function AnalyticsDashboard({
   const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null;
 
   function handleExportSlotIcs(slot: SlotEntry) {
-    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime);
+    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime, slotMinutes(slot.startTime));
     const attendeeList = slot.users
       .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
       .join("\n");
@@ -394,7 +407,7 @@ export function AnalyticsDashboard({
   }
 
   function handleOpenSlotGoogleCalendar(slot: SlotEntry) {
-    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime);
+    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime, slotMinutes(slot.startTime));
     const attendeeList = slot.users
       .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
       .join(", ");
@@ -435,7 +448,7 @@ export function AnalyticsDashboard({
     const rows: string[] = [csvHeaders.join(",")];
 
     for (const slot of validSlots) {
-      const { endDate } = slotToDateRange(slot.date, slot.startTime);
+      const { endDate } = slotToDateRange(slot.date, slot.startTime, slotMinutes(slot.startTime));
       const endH = String(endDate.getHours()).padStart(2, "0");
       const endM = String(endDate.getMinutes()).padStart(2, "0");
       const endTimeStr = formatTime(`${endH}:${endM}`);
@@ -447,7 +460,7 @@ export function AnalyticsDashboard({
           escapeCsvCell(slot.date),
           escapeCsvCell(formatTime(slot.startTime)),
           escapeCsvCell(endTimeStr),
-          escapeCsvCell("60 mins"),
+          escapeCsvCell(`${slotMinutes(slot.startTime)} mins`),
           escapeCsvCell(
             selectedCommittees.length === 0
               ? "All Committees"
@@ -1073,7 +1086,7 @@ export function AnalyticsDashboard({
             <p className="text-sm font-medium">
               {formatDayFull(activeCellData.date)}
               {" · "}
-              {formatTime(activeCellData.startTime)}
+              {slotLabel(activeCellData.startTime)}
               <span className="ml-2 text-muted-foreground">
                 — {activeCellData.count}{" "}
                 {activeCellData.count === 1 ? "user" : "users"} available
@@ -1175,7 +1188,7 @@ export function AnalyticsDashboard({
                       {formatDayFull(slot.date)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatTime(slot.startTime)}
+                      {slotLabel(slot.startTime)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">

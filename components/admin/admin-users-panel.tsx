@@ -277,7 +277,7 @@ export function AdminUsersPanel({
                             variant="outline"
                             className="border-primary/40 bg-primary/5 px-2 py-0 text-[10px] text-primary"
                           >
-                            System Super-Admin
+                            HARAM
                           </Badge>
                         ) : (
                           <Badge
