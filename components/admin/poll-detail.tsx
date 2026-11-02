@@ -23,7 +23,9 @@ export type PollDetailTab = "results" | "settings";
 
 /** Loads one poll's results from the matching analytics API */
 function PollResults({ poll }: { poll: AdminPoll }) {
-  const [data, setData] = React.useState<AnalyticsData | SemesterAnalyticsData | null>(null);
+  const [data, setData] = React.useState<
+    AnalyticsData | SemesterAnalyticsData | null
+  >(null);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -33,7 +35,11 @@ function PollResults({ poll }: { poll: AdminPoll }) {
         ? `/api/admin/analytics?pollId=${encodeURIComponent(poll.id)}`
         : `/api/admin/recurring-analytics?pollId=${encodeURIComponent(poll.id)}`;
     fetch(url, { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Could not load results"))))
+      .then((res) =>
+        res.ok
+          ? res.json()
+          : Promise.reject(new Error("Could not load results")),
+      )
       .then((json) => !cancelled && setData(json))
       .catch((err: Error) => !cancelled && setError(err.message));
     return () => {
@@ -43,7 +49,10 @@ function PollResults({ poll }: { poll: AdminPoll }) {
 
   if (error) {
     return (
-      <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+      <div
+        role="alert"
+        className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+      >
         {error}
       </div>
     );
@@ -53,7 +62,10 @@ function PollResults({ poll }: { poll: AdminPoll }) {
       <div className="flex flex-col gap-3" aria-hidden>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-2xl border border-border/60 bg-card/60" />
+            <div
+              key={i}
+              className="h-20 animate-pulse rounded-2xl border border-border/60 bg-card/60"
+            />
           ))}
         </div>
         <div className="h-72 animate-pulse rounded-3xl border border-border/60 bg-card/60" />
@@ -61,9 +73,17 @@ function PollResults({ poll }: { poll: AdminPoll }) {
     );
   }
   return poll.type === "date" ? (
-    <AnalyticsDashboard data={data as AnalyticsData} pollId={poll.id} />
+    <AnalyticsDashboard
+      data={data as AnalyticsData}
+      pollId={poll.id}
+      pollCommittees={poll.allCommittees ? undefined : poll.committees}
+    />
   ) : (
-    <SemesterAnalyticsPanel initialData={data as SemesterAnalyticsData} pollId={poll.id} />
+    <SemesterAnalyticsPanel
+      initialData={data as SemesterAnalyticsData}
+      pollId={poll.id}
+      pollCommittees={poll.allCommittees ? undefined : poll.committees}
+    />
   );
 }
 
@@ -78,7 +98,14 @@ interface PollDetailProps {
 }
 
 /** One poll: its results first, its settings one tap away */
-export function PollDetail({ poll, tab, canEdit, onTabChange, onBack, settings }: PollDetailProps) {
+export function PollDetail({
+  poll,
+  tab,
+  canEdit,
+  onTabChange,
+  onBack,
+  settings,
+}: PollDetailProps) {
   const shownTab = canEdit ? tab : "results";
   return (
     <div className="flex flex-col gap-5">
@@ -96,12 +123,16 @@ export function PollDetail({ poll, tab, canEdit, onTabChange, onBack, settings }
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-heading text-xl font-bold tracking-tight text-balance">{poll.name}</h2>
+            <h2 className="font-heading text-xl font-bold tracking-tight text-balance">
+              {poll.name}
+            </h2>
             <StatusPill poll={poll} />
           </div>
           <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
             <span>{POLL_TYPE_LABEL[poll.type]}</span>
-            <span className="whitespace-nowrap tabular-nums">· {pollSummary(poll)}</span>
+            <span className="whitespace-nowrap tabular-nums">
+              · {pollSummary(poll)}
+            </span>
           </p>
           <div className="flex flex-wrap gap-1.5">
             <CommitteeChips poll={poll} />
