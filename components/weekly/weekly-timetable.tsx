@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export interface WeeklyTimetableProps {
+  pollId?: string;
   user: {
     id: string;
     name: string | null;
@@ -44,6 +45,7 @@ function getInitials(name?: string | null, email?: string | null): string {
 }
 
 export function WeeklyTimetable({
+  pollId = "legacy-weekly",
   user,
   weeklyDays,
   weeklySlots,
@@ -197,6 +199,7 @@ export function WeeklyTimetable({
           name: memberName.trim(),
           nuId: memberId.trim() || undefined,
           committee: memberCommittee,
+          pollId,
           slots: slotsPayload,
         }),
       });

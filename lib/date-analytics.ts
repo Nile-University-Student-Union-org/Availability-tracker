@@ -1,13 +1,13 @@
 import { prisma } from "@/lib/prisma";
-import { getScheduleConfig } from "@/lib/schedule";
+import { getPollConfig } from "@/lib/schedule";
 import type {
   AnalyticsData,
   SlotEntry,
   UserEntry,
 } from "@/components/admin/analytics-dashboard";
 
-export async function getDateAnalytics(): Promise<AnalyticsData> {
-  const config = await getScheduleConfig();
+export async function getDateAnalytics(pollId = "legacy-date"): Promise<AnalyticsData> {
+  const config = await getPollConfig(pollId);
   if (!config) {
     return {
       totalUsers: 0,
@@ -21,9 +21,12 @@ export async function getDateAnalytics(): Promise<AnalyticsData> {
   }
 
   const { dates, timeSlots } = config;
+  const poll = await prisma.poll.findUnique({ where: { id: pollId }, select: { committees: true, allCommittees: true } });
 
   const rawSlots = await prisma.availability.findMany({
     where: {
+      pollId,
+      ...(poll && !poll.allCommittees ? { user: { committee: { in: poll.committees } } } : {}),
       date: {
         gte: new Date(config.startDate + "T00:00:00.000Z"),
         lte: new Date(config.endDate + "T00:00:00.000Z"),

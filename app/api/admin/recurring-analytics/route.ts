@@ -1,7 +1,9 @@
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdminEmail, isSuperAdmin } from "@/lib/admin";
+import { prisma } from "@/lib/prisma";
+import { canSeeResults } from "@/lib/poll-access";
 import { getSemesterAnalytics } from "@/lib/semester-analytics";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +17,13 @@ export async function GET(request: NextRequest) {
     }
 
     const committee = request.nextUrl.searchParams.get("committee") ?? null;
-    const analytics = await getSemesterAnalytics(committee);
+    const pollId = request.nextUrl.searchParams.get("pollId") ?? "legacy-weekly";
+    const [user, poll] = await Promise.all([
+      prisma.user.findUnique({ where: { email: session.user.email.toLowerCase() }, select: { id: true, committee: true } }),
+      prisma.poll.findUnique({ where: { id: pollId }, select: { committees: true, requestedCommittees: true, allCommittees: true, createdById: true } }),
+    ]);
+    if (!user || !poll || !canSeeResults(poll, user.id, user.committee, true, isSuperAdmin(session.user.email))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const analytics = await getSemesterAnalytics(committee, pollId);
 
     return NextResponse.json(analytics, {
       headers: {

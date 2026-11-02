@@ -46,6 +46,7 @@ import { LiveIndicator } from "@/components/admin/live-indicator";
 
 interface SemesterAnalyticsPanelProps {
   initialData: SemesterAnalyticsData;
+  pollId: string;
 }
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -72,6 +73,7 @@ function cellStyle(count: number, max: number): string {
 
 export function SemesterAnalyticsPanel({
   initialData,
+  pollId,
 }: SemesterAnalyticsPanelProps) {
   const [committee, setCommittee] = React.useState<string>("all");
   const [availableCommittees, setAvailableCommittees] =
@@ -97,15 +99,16 @@ export function SemesterAnalyticsPanel({
 
   const fetchAnalytics = React.useCallback(
     async (signal: AbortSignal) => {
-      const url =
-        committee === "all"
-          ? "/api/admin/recurring-analytics"
-          : `/api/admin/recurring-analytics?committee=${encodeURIComponent(committee)}`;
-      const res = await fetch(url, { signal, cache: "no-store" });
+      const params = new URLSearchParams({ pollId });
+      if (committee !== "all") params.set("committee", committee);
+      const res = await fetch(`/api/admin/recurring-analytics?${params}`, {
+        signal,
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error("Failed to load semester analytics");
       return (await res.json()) as SemesterAnalyticsData;
     },
-    [committee],
+    [committee, pollId],
   );
   const {
     data = initialData,

@@ -45,7 +45,7 @@ export default function AdminLoading() {
                 Analytics
               </span>
               <span className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
-                Schedule
+                Polls
               </span>
               <span className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
                 Admins

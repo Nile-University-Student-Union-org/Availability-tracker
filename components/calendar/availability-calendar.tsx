@@ -55,6 +55,7 @@ function getInitials(name?: string | null, email?: string | null): string {
 }
 
 interface AvailabilityCalendarProps {
+  pollId?: string;
   user?: {
     id?: string;
     name?: string | null;
@@ -68,6 +69,7 @@ interface AvailabilityCalendarProps {
 }
 
 export function AvailabilityCalendar({
+  pollId = "legacy-date",
   user,
   initialConfig = null,
   initialAvailability = [],
@@ -130,7 +132,7 @@ export function AvailabilityCalendar({
       try {
         setIsAvailabilityLoading(true);
         const availRes = await fetch(
-          `/api/availability?email=${encodeURIComponent(memberEmail)}&_t=${Date.now()}`,
+          `/api/availability?pollId=${encodeURIComponent(pollId)}&email=${encodeURIComponent(memberEmail)}&_t=${Date.now()}`,
           {
             cache: "no-store",
             headers: {
@@ -161,13 +163,13 @@ export function AvailabilityCalendar({
         setIsAvailabilityLoading(false);
       }
     },
-    [memberEmail, memberSaved, config],
+    [memberEmail, memberSaved, config, pollId],
   );
 
   const fetchConfig = useCallback(async () => {
     try {
       setIsConfigLoading(true);
-      const configRes = await fetch(`/api/schedule-config?_t=${Date.now()}`, {
+      const configRes = await fetch(`/api/polls/${encodeURIComponent(pollId)}?_t=${Date.now()}`, {
         cache: "no-store",
         headers: {
           Pragma: "no-cache",
@@ -190,7 +192,7 @@ export function AvailabilityCalendar({
     } finally {
       setIsConfigLoading(false);
     }
-  }, [memberEmail, memberSaved, fetchAvailability]);
+  }, [memberEmail, memberSaved, fetchAvailability, pollId]);
 
   useEffect(() => {
     if (activeUser) {
@@ -298,6 +300,7 @@ export function AvailabilityCalendar({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          pollId,
           date,
           slots: [],
           memberName,
@@ -570,6 +573,7 @@ export function AvailabilityCalendar({
 
       {dialogDate !== null && config && (
         <AvailabilityDialog
+          pollId={pollId}
           date={dialogDate}
           initialSlots={Array.from(availability.get(dialogDate) ?? [])}
           memberName={memberName}

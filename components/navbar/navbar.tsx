@@ -11,7 +11,7 @@ import {
   DashboardSquare02Icon,
   Logout02Icon,
   Calendar03Icon,
-  Clock01Icon,
+
 } from "@hugeicons/core-free-icons";
 import { Sun, Moon, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -39,10 +39,10 @@ export interface NavbarProps {
 let globalAdminCache: { email: string; isAdmin: boolean } | null = null;
 
 export function Navbar({
-  dateScheduleTitle,
-  weeklyScheduleTitle,
-  dateScheduleActive = true,
-  weeklyScheduleActive = true,
+
+
+
+
   initialUser,
   initialIsAdmin = false,
 }: NavbarProps = {}) {
@@ -217,9 +217,7 @@ export function Navbar({
 
   const isActiveRoute = React.useCallback(
     (href: string) => {
-      if (href === "/specific")
-        return pathname === "/specific" || pathname === "/";
-      if (href === "/weekly") return pathname.startsWith("/weekly");
+      if (href === "/polls") return pathname.startsWith("/polls") || pathname === "/";
       if (href === "/admin") return pathname.startsWith("/admin");
       return pathname === href;
     },
@@ -243,9 +241,6 @@ export function Navbar({
       icon: Parameters<typeof HugeiconsIcon>[0]["icon"];
     }[] = [];
 
-    const specificLabel = dateScheduleTitle?.trim() || "Specific Date";
-    const weeklyLabel = weeklyScheduleTitle?.trim() || "Semester Availability";
-
     if (isSpecialAdmin) {
       links.push({
         label: "Admin Panel",
@@ -253,47 +248,21 @@ export function Navbar({
         icon: DashboardSquare02Icon,
       });
     } else if (isAdmin) {
-      if (dateScheduleActive) {
-        links.push({
-          label: specificLabel,
-          href: "/specific",
-          icon: Calendar03Icon,
-        });
-      }
-      if (weeklyScheduleActive) {
-        links.push({
-          label: weeklyLabel,
-          href: "/weekly",
-          icon: Clock01Icon,
-        });
-      }
+      links.push({ label: "Availability polls", href: "/polls", icon: Calendar03Icon });
       links.push({
         label: "Admin Panel",
         href: "/admin",
         icon: DashboardSquare02Icon,
       });
     } else if (currentUser) {
-      if (dateScheduleActive) {
-        links.push({
-          label: specificLabel,
-          href: "/specific",
-          icon: Calendar03Icon,
-        });
-      }
-      if (weeklyScheduleActive) {
-        links.push({
-          label: weeklyLabel,
-          href: "/weekly",
-          icon: Clock01Icon,
-        });
-      }
+      links.push({ label: "Availability polls", href: "/polls", icon: Calendar03Icon });
     }
     return links;
   }, [
-    dateScheduleTitle,
-    weeklyScheduleTitle,
-    dateScheduleActive,
-    weeklyScheduleActive,
+
+
+
+
     isSpecialAdmin,
     isAdmin,
     currentUser,

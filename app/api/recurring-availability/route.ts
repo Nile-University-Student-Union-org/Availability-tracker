@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { getScheduleConfig } from "@/lib/schedule";
+import { getPollConfig } from "@/lib/schedule";
+import { canSeePoll } from "@/lib/poll-access";
 
 import { legacyWeeklySchedule } from "@/lib/weekly-slots";
 
@@ -33,19 +34,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const config = await getScheduleConfig();
+    const pollId = request.nextUrl.searchParams.get("pollId") ?? "";
+    const config = await getPollConfig(pollId);
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true },
+      select: { id: true, committee: true },
     });
 
     if (!user) {
       return NextResponse.json([]);
     }
+    const poll = await prisma.poll.findUnique({ where: { id: pollId }, select: { active: true, allCommittees: true, committees: true } });
+    if (!poll || !canSeePoll(poll, { id: user.id, committee: user.committee })) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
 
     const slots = await prisma.recurringAvailability.findMany({
       where: {
         userId: user.id,
+        pollId,
         OR: (config ?? legacyWeeklySchedule()).weeklySlots
           .filter(
             (slot) => !config || config.weeklyDays.includes(slot.dayOfWeek),
@@ -92,8 +97,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config = await getScheduleConfig();
-    if (config && !config.weeklyScheduleActive) {
+    const body = (await request.json()) as { pollId?: string; name?: string; nuId?: string; committee?: string; slots: { dayOfWeek: number; startTime: string }[] };
+    const pollId = body.pollId ?? "";
+    const config = await getPollConfig(pollId);
+    if (!config?.active) {
       return NextResponse.json(
         {
           error:
@@ -103,12 +110,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as {
-      name?: string;
-      nuId?: string;
-      committee?: string;
-      slots: { dayOfWeek: number; startTime: string }[];
-    };
+    const poll = await prisma.poll.findUnique({ where: { id: pollId }, select: { active: true, allCommittees: true, committees: true } });
+    const currentUser = await prisma.user.findUnique({ where: { email: session.user.email.toLowerCase() }, select: { id: true, committee: true } });
+    if (!poll || !currentUser || !canSeePoll(poll, { id: currentUser.id, committee: currentUser.committee })) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
 
     const userEmail = session.user.email.toLowerCase();
     const user = await prisma.user.findUnique({
@@ -162,13 +166,14 @@ export async function POST(request: NextRequest) {
     // Atomically replace the user's recurring availability records
     await prisma.$transaction(async (tx) => {
       await tx.recurringAvailability.deleteMany({
-        where: { userId: user.id },
+        where: { userId: user.id, pollId },
       });
 
       if (dedupedSlots.length > 0) {
         await tx.recurringAvailability.createMany({
           data: dedupedSlots.map((s) => ({
             userId: user.id,
+            pollId,
             dayOfWeek: s.dayOfWeek,
             startTime: s.startTime,
           })),

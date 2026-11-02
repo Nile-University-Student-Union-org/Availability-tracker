@@ -1,78 +1,26 @@
-import { prisma } from "@/lib/prisma";
 import { cache } from "react";
-import { legacyWeeklySchedule, type WeeklySlot } from "@/lib/weekly-slots";
+import { prisma } from "@/lib/prisma";
+import type { WeeklySlot } from "@/lib/weekly-slots";
 export { DAY_OF_WEEK_MAP, formatTimeSlot } from "@/lib/weekly-slots";
 
-export type ScheduleConfig = {
-  startDate: string;
-  endDate: string;
-  slotMode: "fixed" | "free";
-  timeSlots: string[];
-  dates: string[];
-  dateScheduleActive: boolean;
-  weeklyScheduleActive: boolean;
-  weeklyDays: number[];
-  weeklySlots: WeeklySlot[];
-  dateScheduleTitle: string;
-  weeklyScheduleTitle: string;
+export type PollConfig = {
+  id: string; name: string; type: string; active: boolean; startDate: string | null; endDate: string | null;
+  slotMode: "fixed" | "free"; timeSlots: string[]; dates: string[]; weeklyDays: number[]; weeklySlots: WeeklySlot[];
 };
+export type ScheduleConfig = Omit<PollConfig, "startDate" | "endDate"> & { startDate: string; endDate: string; dateScheduleActive: boolean; weeklyScheduleActive: boolean; dateScheduleTitle: string; weeklyScheduleTitle: string };
 
-/**
- * Loads the active schedule config from the DB.
- * Uses React cache() to deduplicate requests within the same render cycle.
- * Returns null if no config exists yet (admin hasn't set one up).
- */
-export const getScheduleConfig = cache(
-  async (): Promise<ScheduleConfig | null> => {
-    const config = await prisma.scheduleConfig.findUnique({
-      where: { id: "default" },
-      include: {
-        timeSlots: { orderBy: { startTime: "asc" } },
-        weeklySlots: { orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] },
-      },
-    });
+export const getPollConfig = cache(async (id: string): Promise<PollConfig | null> => {
+  const p = await prisma.poll.findUnique({ where: { id }, include: { timeSlots: { orderBy: { startTime: "asc" } }, weeklySlots: { orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] } } });
+  if (!p) return null;
+  const start = p.startDate?.toISOString().slice(0, 10) ?? null;
+  const end = p.endDate?.toISOString().slice(0, 10) ?? null;
+  const dates: string[] = [];
+  if (start && end) for (let d = new Date(`${start}T00:00:00.000Z`), last = new Date(`${end}T00:00:00.000Z`); d <= last; d.setUTCDate(d.getUTCDate() + 1)) dates.push(d.toISOString().slice(0, 10));
+  return { id: p.id, name: p.name, type: p.type, active: p.active, startDate: start, endDate: end, slotMode: p.slotMode as "fixed" | "free", timeSlots: p.timeSlots.map(s => s.startTime), dates, weeklyDays: p.weeklyDays, weeklySlots: p.weeklySlots.map(({ dayOfWeek, startTime, endTime }) => ({ dayOfWeek, startTime, endTime })) };
+});
 
-    if (!config) return null;
-
-    const start = config.startDate.toISOString().slice(0, 10);
-    const end = config.endDate.toISOString().slice(0, 10);
-
-    // Build array of all dates between start and end (inclusive) using UTC to prevent timezone shifts
-    const dates: string[] = [];
-    const current = new Date(start + "T00:00:00.000Z");
-    const endDate = new Date(end + "T00:00:00.000Z");
-    while (current <= endDate) {
-      dates.push(current.toISOString().slice(0, 10));
-      current.setUTCDate(current.getUTCDate() + 1);
-    }
-
-    return {
-      startDate: start,
-      endDate: end,
-      slotMode: config.slotMode as "fixed" | "free",
-      timeSlots: config.timeSlots.map((s) => s.startTime),
-      dates,
-      dateScheduleActive: config.dateScheduleActive ?? true,
-      weeklyScheduleActive: config.weeklyScheduleActive ?? true,
-      ...(config.weeklySlots.length === 0
-        ? legacyWeeklySchedule(
-            config.weeklyIncludeSaturday,
-            config.timeSlots.map((s) => s.startTime),
-          )
-        : {
-            weeklyDays: [...config.weeklyDays].sort((a, b) => a - b),
-            weeklySlots: config.weeklySlots.map(
-              ({ dayOfWeek, startTime, endTime }) => ({
-                dayOfWeek,
-                startTime,
-                endTime,
-              }),
-            ),
-          }),
-      dateScheduleTitle:
-        config.dateScheduleTitle || "Specific Date Availability",
-      weeklyScheduleTitle:
-        config.weeklyScheduleTitle || "Semester Availability",
-    };
-  },
-);
+export const getScheduleConfig = cache(async (): Promise<ScheduleConfig | null> => {
+  const [date, weekly] = await Promise.all([getPollConfig("legacy-date"), getPollConfig("legacy-weekly")]);
+  if (!date && !weekly) return null;
+  return { ...(date ?? weekly!), startDate: date?.startDate ?? "", endDate: date?.endDate ?? "", weeklyDays: weekly?.weeklyDays ?? [], weeklySlots: weekly?.weeklySlots ?? [], dateScheduleActive: date?.active ?? false, weeklyScheduleActive: weekly?.active ?? false, dateScheduleTitle: date?.name ?? "Specific Date Availability", weeklyScheduleTitle: weekly?.name ?? "Semester Availability" };
+});

@@ -103,11 +103,23 @@ export const auth = betterAuth({
     },
   },
   databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { email: true, role: true } });
+          const { isSuperAdmin } = await import("@/lib/admin");
+          if (user && isSuperAdmin(user.email) && user.role !== "super-admin") await prisma.user.update({ where: { id: session.userId }, data: { role: "super-admin" } });
+
+        },
+      },
+    },
     user: {
       update: {
         before: async (user) => {
           // Never store inline base64 photos (see disableProfilePhoto above)
           if (user.image?.startsWith("data:")) user.image = null;
+          const { isSuperAdmin } = await import("@/lib/admin");
+          if (isSuperAdmin(user.email)) user.role = "super-admin";
         },
       },
       create: {
@@ -129,10 +141,9 @@ export const auth = betterAuth({
               message: "NU ID must be exactly 9 digits",
             });
           }
-          const { isAdminEmail } = await import("@/lib/admin");
-          if (await isAdminEmail(user.email)) {
-            user.role = "admin";
-          }
+          const { isAdminEmail, isSuperAdmin } = await import("@/lib/admin");
+          if (isSuperAdmin(user.email)) user.role = "super-admin";
+          else if (await isAdminEmail(user.email)) user.role = "admin";
         },
       },
     },

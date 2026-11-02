@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getScheduleConfig } from "@/lib/schedule";
+import { getPollConfig } from "@/lib/schedule";
 import {
   DAY_OF_WEEK_MAP,
   legacyWeeklySchedule,
@@ -60,16 +60,20 @@ export type SemesterAnalyticsData = {
 
 export async function getSemesterAnalytics(
   committeeFilter?: string | null,
+  pollId = "legacy-weekly",
 ): Promise<SemesterAnalyticsData> {
-  const config = await getScheduleConfig();
+  const config = await getPollConfig(pollId);
+  const poll = await prisma.poll.findUnique({ where: { id: pollId }, select: { committees: true, allCommittees: true } });
 
   const { weeklyDays: days, weeklySlots } = config ?? legacyWeeklySchedule();
 
   const rawSlots = await prisma.recurringAvailability.findMany({
     where: {
+      pollId,
       dayOfWeek: { in: days },
       user: {
         email: { not: "admin@nu.edu.eg" },
+        ...(!poll?.allCommittees ? { committee: { in: poll?.committees ?? [] } } : {}),
         ...(committeeFilter && committeeFilter !== "all"
           ? {
               committee: committeeFilter.includes(",")
@@ -100,6 +104,7 @@ export async function getSemesterAnalytics(
   const allEligibleUsers = await prisma.user.findMany({
     where: {
       email: { not: "admin@nu.edu.eg" },
+      ...(!poll?.allCommittees ? { committee: { in: poll?.committees ?? [] } } : {}),
       ...(committeeFilter && committeeFilter !== "all"
         ? {
             committee: committeeFilter.includes(",")
