@@ -6,7 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { canSeeResults, canEditOrDeletePoll, editAudience } from "@/lib/poll-access";
 import { validateWeeklySlots, sortSlots, parseDateSlots, type WeeklySlot } from "@/lib/weekly-slots";
 import { getPollConfig } from "@/lib/schedule";
-import { escapeHtml, sendMail } from "@/lib/mail";
+import { sendMail } from "@/lib/mail";
+import { pollRequestEmail } from "@/lib/emails/poll-request";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -146,11 +147,34 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       (poll.requestStatus !== "pending" ||
         pendingCommittees.some((c) => !poll.requestedCommittees.includes(c)))
     ) {
-      const esc = escapeHtml;
+      const email = pollRequestEmail({
+        kind:
+          poll.requestStatus === "rejected"
+            ? "resubmitted"
+            : poll.committees.length
+              ? "added"
+              : "new",
+        pollName: nextName,
+        type: poll.type as "date" | "weekly",
+        creatorName: ctx.session.user.name || "A committee head",
+        creatorCommittee: ctx.user.committee,
+        requested: pendingCommittees,
+        live: audience?.committees ?? poll.committees,
+        startDate: startDate?.toISOString() ?? null,
+        endDate: endDate?.toISOString() ?? null,
+        weeklyDays: days,
+        slotCount:
+          poll.type === "date"
+            ? b.timeSlots
+              ? timeSlots.length
+              : poll.timeSlots.length
+            : weekly.length,
+        slotMode: (b.slotMode ?? poll.slotMode) as "fixed" | "free",
+        reviewUrl: `${process.env.BETTER_AUTH_URL ?? ""}/admin?tab=requests`,
+      });
       after(() => sendMail({
         to: getSuperAdminEmails().filter((e) => e !== process.env.ADMIN_EMAIL?.trim().toLowerCase()),
-        subject: `Poll approval request: ${nextName}`,
-        html: `<p>${esc(ctx.session.user.name ?? "Poll creator")} (${esc(ctx.user.committee ?? "No committee")}) requested committees: ${esc(pendingCommittees.join(", "))}.</p><p>Type: ${esc(poll.type)}</p><p><a href="${esc(process.env.BETTER_AUTH_URL ?? "")}/admin?tab=requests">Review request</a></p>`,
+        ...email,
       }));
     }
 

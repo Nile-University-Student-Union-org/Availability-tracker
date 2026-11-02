@@ -5,7 +5,8 @@ import { isAdminEmail, isSuperAdmin, getSuperAdminEmails } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { createAudience, canCreatePoll } from "@/lib/poll-access";
 import { validateWeeklySlots, sortSlots, parseDateSlots, type WeeklySlot } from "@/lib/weekly-slots";
-import { escapeHtml, sendMail } from "@/lib/mail";
+import { sendMail } from "@/lib/mail";
+import { pollRequestEmail } from "@/lib/emails/poll-request";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -128,11 +129,24 @@ export async function POST(request: NextRequest) {
         where: { id: ctx.user.id },
         select: { name: true, committee: true },
       });
-      const esc = escapeHtml;
+      const email = pollRequestEmail({
+        kind: "new",
+        pollName: poll.name,
+        type: poll.type as "date" | "weekly",
+        creatorName: creator?.name ?? "A committee head",
+        creatorCommittee: creator?.committee ?? null,
+        requested: committees,
+        live: [],
+        startDate: poll.startDate?.toISOString() ?? null,
+        endDate: poll.endDate?.toISOString() ?? null,
+        weeklyDays: poll.weeklyDays,
+        slotCount: date ? timeSlots.length : weeklySlots.length,
+        slotMode: poll.slotMode as "fixed" | "free",
+        reviewUrl: `${process.env.BETTER_AUTH_URL ?? ""}/admin?tab=requests`,
+      });
       after(() => sendMail({
         to: getSuperAdminEmails().filter((e) => e !== process.env.ADMIN_EMAIL?.trim().toLowerCase()),
-        subject: `Poll approval request: ${poll.name}`,
-        html: `<p>${esc(creator?.name ?? "Unknown creator")} (${esc(creator?.committee ?? "No committee")}) requested committees: ${esc(committees.join(", "))}.</p><p>Type: ${esc(poll.type)}</p><p><a href="${esc(process.env.BETTER_AUTH_URL ?? "")}/admin?tab=requests">Review request</a></p>`,
+        ...email,
       }));
     }
 
