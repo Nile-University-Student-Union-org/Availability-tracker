@@ -552,8 +552,18 @@ export function AdminMembersPanel({
                           {member.name}
                         </span>
 
-                        {member.role === "admin" ||
-                        member.role === "super-admin" ? (
+                        {member.role === "super-admin" ? (
+                          <Badge
+                            variant="secondary"
+                            className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25 text-[10px] py-0 px-1.5 font-semibold tracking-wide"
+                          >
+                            <HugeiconsIcon
+                              icon={Shield01Icon}
+                              className="mr-1 size-3"
+                            />
+                            HARAM
+                          </Badge>
+                        ) : member.role === "admin" ? (
                           <Badge
                             variant="secondary"
                             className="bg-primary/15 text-primary border-primary/20 text-[10px] py-0 px-1.5 font-medium"

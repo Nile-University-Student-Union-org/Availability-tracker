@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS poll_time_slot (
   id TEXT PRIMARY KEY,
   "pollId" TEXT NOT NULL REFERENCES poll(id) ON DELETE CASCADE ON UPDATE CASCADE,
   "startTime" TEXT NOT NULL,
+  "endTime" TEXT,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS poll_weekly_slot (
@@ -36,6 +37,8 @@ CREATE TABLE IF NOT EXISTS poll_weekly_slot (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS poll_time_slot_pollId_startTime_key ON poll_time_slot("pollId", "startTime");
 CREATE INDEX IF NOT EXISTS poll_time_slot_pollId_idx ON poll_time_slot("pollId");
+-- Custom slot lengths: null endTime means one hour after startTime
+ALTER TABLE poll_time_slot ADD COLUMN IF NOT EXISTS "endTime" TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS poll_weekly_slot_pollId_dayOfWeek_startTime_key ON poll_weekly_slot("pollId", "dayOfWeek", "startTime");
 CREATE INDEX IF NOT EXISTS poll_weekly_slot_pollId_idx ON poll_weekly_slot("pollId");
 

@@ -393,6 +393,7 @@ type PollConfigResponse = {
   endDate: string | null;
   slotMode: "fixed" | "free";
   timeSlots: string[];
+  slotEnds: Record<string, string>;
   weeklyDays: number[];
   weeklySlots: ScheduleConfigData["weeklySlots"];
 };
@@ -443,6 +444,7 @@ function PollEditor({ poll, viewer, committees, onDone, onCancel }: PollEditorPr
           endDate: config.endDate ?? "",
           slotMode: config.slotMode,
           timeSlots: config.timeSlots,
+          slotEnds: config.slotEnds,
           weeklyDays: config.weeklyDays,
           weeklySlots: config.weeklySlots,
         });
@@ -490,6 +492,7 @@ function PollEditor({ poll, viewer, committees, onDone, onCancel }: PollEditorPr
             endDate: config.endDate,
             slotMode: config.slotMode,
             timeSlots: config.timeSlots,
+            slotEnds: config.slotEnds,
           }
         : {
             weeklyDays,
@@ -609,7 +612,7 @@ function PollEditor({ poll, viewer, committees, onDone, onCancel }: PollEditorPr
 
               <div className="space-y-1.5 sm:col-span-2">
                 <span className="text-xs font-semibold text-foreground/80">Type</span>
-                <div role="radiogroup" aria-label="Poll type" className="grid grid-cols-2 gap-2">
+                <div role="radiogroup" aria-label="Poll type" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {(["date", "weekly"] as const).map((t) => {
                     const checked = type === t;
                     return (
@@ -627,7 +630,7 @@ function PollEditor({ poll, viewer, committees, onDone, onCancel }: PollEditorPr
                             : "border-border/70 bg-background/40 text-muted-foreground hover:bg-accent/40",
                         )}
                       >
-                        <HugeiconsIcon icon={t === "date" ? Calendar03Icon : Clock01Icon} size={18} />
+                        <HugeiconsIcon icon={t === "date" ? Calendar03Icon : Clock01Icon} size={18} className="shrink-0" />
                         <span className="text-sm font-medium">{POLL_TYPE_LABEL[t]}</span>
                       </button>
                     );
@@ -668,19 +671,19 @@ function PollEditor({ poll, viewer, committees, onDone, onCancel }: PollEditorPr
           </div>
         )}
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/95 p-2 pl-4 shadow-[0_8px_30px_-12px_rgb(15_23_42/0.25)] backdrop-blur-xl">
-          <p aria-live="polite" className="min-w-0 text-xs font-medium text-muted-foreground">
+          <p aria-live="polite" className={cn("min-w-0 text-xs leading-tight font-medium text-muted-foreground", !needsApproval && "hidden sm:block")}>
             {needsApproval ? (
               <span className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
                 <span className="size-2 shrink-0 rounded-full bg-amber-500" />
-                Other committees need approval
+                Needs approval
               </span>
             ) : chosen.length || keepsAllCommittees ? (
-              "Goes live when saved"
+              "Goes live on save"
             ) : (
-              "Pick at least one committee"
+              "Pick a committee"
             )}
           </p>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
             <Button
               type="button"
               variant="ghost"

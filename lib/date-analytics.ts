@@ -17,6 +17,7 @@ export async function getDateAnalytics(pollId = "legacy-date"): Promise<Analytic
       users: [],
       dates: [],
       timeSlots: [],
+      slotEnds: {},
     };
   }
 
@@ -131,5 +132,6 @@ export async function getDateAnalytics(pollId = "legacy-date"): Promise<Analytic
     users,
     dates,
     timeSlots: allTimeSlots,
+    slotEnds: config.slotEnds,
   };
 }

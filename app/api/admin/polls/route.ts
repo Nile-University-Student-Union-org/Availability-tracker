@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { isAdminEmail, isSuperAdmin, getSuperAdminEmails } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { createAudience, canCreatePoll } from "@/lib/poll-access";
-import { validateWeeklySlots, sortSlots, type WeeklySlot } from "@/lib/weekly-slots";
+import { validateWeeklySlots, sortSlots, parseDateSlots, type WeeklySlot } from "@/lib/weekly-slots";
 import { escapeHtml, sendMail } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
@@ -100,15 +100,11 @@ export async function POST(request: NextRequest) {
     }
 
     const audience = createAudience(ctx.user.committee, committees, ctx.superAdmin);
-    const timeSlots: string[] = Array.isArray(b.timeSlots)
-      ? Array.from(
-          new Set<string>(
-            (b.timeSlots as unknown[]).filter(
-              (s): s is string => typeof s === "string" && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s),
-            ),
-          ),
-        )
-      : [];
+    const parsedSlots = parseDateSlots(b.timeSlots, b.slotEnds);
+    if (date && "error" in parsedSlots) {
+      return NextResponse.json({ error: parsedSlots.error }, { status: 400 });
+    }
+    const timeSlots = "slots" in parsedSlots ? parsedSlots.slots : [];
 
     const poll = await prisma.poll.create({
       data: {
@@ -119,7 +115,7 @@ export async function POST(request: NextRequest) {
         ...audience,
         ...(date ? { startDate: start, endDate: end, slotMode: b.slotMode } : { weeklyDays }),
         timeSlots: {
-          create: date && b.slotMode === "fixed" ? timeSlots.map((startTime) => ({ startTime })) : [],
+          create: date && b.slotMode === "fixed" ? timeSlots : [],
         },
         weeklySlots: {
           create: date ? [] : sortSlots(weeklySlots),
@@ -142,6 +138,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ poll }, { status: 201 });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to create poll" }, { status: 400 });
+    console.error("POST /api/admin/polls failed:", e);
+    return NextResponse.json({ error: "Could not create the poll. Please try again." }, { status: 500 });
   }
 }
