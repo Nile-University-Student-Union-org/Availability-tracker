@@ -59,6 +59,7 @@ const DEFAULT_HOURS = [
 ];
 
 interface AvailabilityDialogProps {
+  pollId: string;
   date: string;
   initialSlots: string[];
   memberName: string;
@@ -76,6 +77,7 @@ interface AvailabilityDialogProps {
 }
 
 export function AvailabilityDialog({
+  pollId,
   date,
   initialSlots,
   memberName,
@@ -285,6 +287,7 @@ export function AvailabilityDialog({
           memberEmail,
           memberId,
           memberCommittee,
+          pollId,
         }),
       });
 

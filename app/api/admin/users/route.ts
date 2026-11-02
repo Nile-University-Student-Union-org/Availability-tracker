@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
   isAdminEmail,
+  isSuperAdmin,
   getAllAdminUsers,
   grantAdminAccess,
   revokeAdminAccess,
@@ -26,7 +27,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
+  if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
+  if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

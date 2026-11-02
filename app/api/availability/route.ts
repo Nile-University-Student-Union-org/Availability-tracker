@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { getScheduleConfig } from "@/lib/schedule";
+import { getPollConfig } from "@/lib/schedule";
+import { canSeePoll } from "@/lib/poll-access";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -30,24 +31,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const config = await getScheduleConfig();
+    const pollId = request.nextUrl.searchParams.get("pollId") ?? "";
+    const config = await getPollConfig(pollId);
     if (!config) {
       return NextResponse.json([]);
     }
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true },
+      select: { id: true, committee: true },
     });
     if (!user) {
       return NextResponse.json([]);
     }
+    const poll = await prisma.poll.findUnique({ where: { id: pollId }, select: { active: true, allCommittees: true, committees: true } });
+    if (!poll || !canSeePoll(poll, { id: user.id, committee: user.committee })) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
 
     const targetDates = config.dates.map((d) => new Date(d + "T00:00:00.000Z"));
 
     const slots = await prisma.availability.findMany({
       where: {
         userId: user.id,
+        pollId,
         date: { in: targetDates },
         // In fixed mode, hide any old free-booking records that no longer
         // match the configured time slots after a mode switch.
@@ -94,7 +99,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config = await getScheduleConfig();
+    const body = (await request.json()) as {
+      pollId?: string; date?: string; slots?: string[]; updates?: Array<{ date: string; slots?: string[] }>;
+      memberName?: string; memberEmail?: string; memberId?: string; memberCommittee?: string;
+    };
+    const pollId = body.pollId ?? "";
+    const config = await getPollConfig(pollId);
     if (!config) {
       return NextResponse.json(
         { error: "No schedule configured" },
@@ -102,7 +112,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!config.dateScheduleActive) {
+    const poll = await prisma.poll.findUnique({ where: { id: pollId }, select: { active: true, allCommittees: true, committees: true } });
+    const caller = await prisma.user.findUnique({ where: { email: session.user.email.toLowerCase() }, select: { id: true, committee: true } });
+    if (!poll || !caller || !canSeePoll(poll, { id: caller.id, committee: caller.committee })) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    if (!config.active) {
       return NextResponse.json(
         {
           error:
@@ -112,15 +125,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as {
-      date?: string;
-      slots?: string[];
-      updates?: Array<{ date: string; slots?: string[] }>;
-      memberName?: string;
-      memberEmail?: string;
-      memberId?: string;
-      memberCommittee?: string;
-    };
 
     const memberEmail = (body.memberEmail || session.user.email)
       ?.trim()
@@ -158,6 +162,7 @@ export async function POST(request: NextRequest) {
     const resolvedName = memberName || existingUser?.name;
     const resolvedId = memberId || existingUser?.nuId;
     const resolvedCommittee = memberCommittee || existingUser?.committee;
+    if (!canSeePoll(poll, { id: existingUser?.id ?? caller.id, committee: existingUser?.committee ?? null })) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
 
     if (!resolvedName || !resolvedId || !resolvedCommittee) {
       return NextResponse.json(
@@ -235,7 +240,7 @@ export async function POST(request: NextRequest) {
     for (const item of validatedUpdates) {
       transactionOps.push(
         prisma.availability.deleteMany({
-          where: { userId: user.id, date: item.date },
+          where: { userId: user.id, pollId, date: item.date },
         }),
       );
       if (item.validSlots.length > 0) {
@@ -243,6 +248,7 @@ export async function POST(request: NextRequest) {
           prisma.availability.createMany({
             data: item.validSlots.map((startTime) => ({
               userId: user.id,
+              pollId,
               date: item.date,
               startTime,
             })),
