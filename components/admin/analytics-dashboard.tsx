@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { COMMITTEES } from "@/lib/constants";
 import { useLivePoll } from "@/hooks/use-live-poll";
 import { AnimatedNumber } from "@/components/admin/animated-number";
 import { HeatmapPulse } from "@/components/admin/heatmap-pulse";
@@ -48,7 +49,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { COMMITTEES } from "@/lib/constants";
 import {
   BarChart,
   Bar,
@@ -208,9 +208,12 @@ function UserAvatar({
 export function AnalyticsDashboard({
   data: initialData,
   pollId,
+  pollCommittees,
 }: {
   data: AnalyticsData;
   pollId: string;
+  /** The poll's committees; omit for a poll open to every committee */
+  pollCommittees?: string[];
 }) {
   const fetchDateAnalytics = useCallback(
     async (signal: AbortSignal): Promise<AnalyticsData> => {
@@ -249,32 +252,30 @@ export function AnalyticsDashboard({
   const [viewingUser, setViewingUser] = useState<UserEntry | null>(null);
 
   const [selectedCommittees, setSelectedCommittees] = useState<string[]>([]);
-  const [availableCommittees, setAvailableCommittees] =
-    useState<string[]>(COMMITTEES);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [committeeSearch, setCommitteeSearch] = useState("");
 
+  // The poll's own committees, or every committee for an all-committee poll
+  const [globalCommittees, setGlobalCommittees] =
+    useState<string[]>(COMMITTEES);
   useEffect(() => {
+    if (pollCommittees) return;
     fetch("/api/committees")
       .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data?.committees) && data.committees.length > 0) {
-          setAvailableCommittees(data.committees);
+      .then((d) => {
+        if (Array.isArray(d?.committees) && d.committees.length > 0) {
+          setGlobalCommittees(d.committees);
         }
       })
-      .catch(() => {
-        // Fallback to static COMMITTEES
-      });
-  }, []);
-
-  // Merge static/dynamic committees with any committee present in user records
+      .catch(() => {});
+  }, [pollCommittees]);
   const allKnownCommittees = useMemo(() => {
-    const set = new Set<string>(availableCommittees);
+    const set = new Set<string>(pollCommittees ?? globalCommittees);
     for (const u of users) {
       if (u.committee) set.add(u.committee);
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [availableCommittees, users]);
+  }, [pollCommittees, globalCommittees, users]);
 
   // Precompute count of users per committee
   const committeeMemberCounts = useMemo(() => {
@@ -304,10 +305,6 @@ export function AnalyticsDashboard({
       }
       return [...prev, c];
     });
-  };
-
-  const handleSelectAllCommittees = () => {
-    setSelectedCommittees([...allKnownCommittees]);
   };
 
   const handleClearCommittees = () => {
@@ -387,7 +384,11 @@ export function AnalyticsDashboard({
   const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null;
 
   function handleExportSlotIcs(slot: SlotEntry) {
-    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime, slotMinutes(slot.startTime));
+    const { startDate, endDate } = slotToDateRange(
+      slot.date,
+      slot.startTime,
+      slotMinutes(slot.startTime),
+    );
     const attendeeList = slot.users
       .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
       .join("\n");
@@ -407,7 +408,11 @@ export function AnalyticsDashboard({
   }
 
   function handleOpenSlotGoogleCalendar(slot: SlotEntry) {
-    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime, slotMinutes(slot.startTime));
+    const { startDate, endDate } = slotToDateRange(
+      slot.date,
+      slot.startTime,
+      slotMinutes(slot.startTime),
+    );
     const attendeeList = slot.users
       .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
       .join(", ");
@@ -448,7 +453,11 @@ export function AnalyticsDashboard({
     const rows: string[] = [csvHeaders.join(",")];
 
     for (const slot of validSlots) {
-      const { endDate } = slotToDateRange(slot.date, slot.startTime, slotMinutes(slot.startTime));
+      const { endDate } = slotToDateRange(
+        slot.date,
+        slot.startTime,
+        slotMinutes(slot.startTime),
+      );
       const endH = String(endDate.getHours()).padStart(2, "0");
       const endM = String(endDate.getMinutes()).padStart(2, "0");
       const endTimeStr = formatTime(`${endH}:${endM}`);
@@ -591,203 +600,167 @@ export function AnalyticsDashboard({
       {/* ── Multi-Committee Filter Bar ───────────────────────────────── */}
       <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2.5 min-w-0 max-w-full flex-1">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <Label
-              htmlFor="committee-filter-btn"
-              className="text-xs font-semibold tracking-widest text-muted-foreground uppercase shrink-0"
-            >
-              Filter by Committee:
-            </Label>
-
-            {/* Apple-grade Interactive Multi-Select Popover */}
-            <Popover
-              open={filterPopoverOpen}
-              onOpenChange={setFilterPopoverOpen}
-            >
-              <PopoverTrigger
-                id="committee-filter-btn"
-                type="button"
-                className={cn(
-                  "group relative flex min-h-[42px] sm:min-h-[38px] w-full sm:w-auto sm:min-w-[220px] max-w-full items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-left text-xs font-semibold shadow-2xs transition-all hover:border-primary/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
-                  selectedCommittees.length > 0 &&
-                    "border-primary/40 bg-primary/5 text-primary ring-1 ring-primary/20",
-                )}
+          {/* A single-committee poll has nothing to filter */}
+          {allKnownCommittees.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Label
+                htmlFor="committee-filter-btn"
+                className="text-xs font-semibold tracking-widest text-muted-foreground uppercase shrink-0"
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <Filter className="size-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
-                  <span className="truncate text-foreground font-medium">
-                    {selectedCommittees.length === 0
-                      ? "All Committees"
-                      : selectedCommittees.length === 1
-                        ? selectedCommittees[0]
-                        : selectedCommittees.length === 2
-                          ? `${selectedCommittees[0]}, ${selectedCommittees[1]}`
-                          : `${selectedCommittees.length} Committees`}
-                  </span>
-                </div>
+                Filter by Committee:
+              </Label>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {selectedCommittees.length > 0 && (
-                    <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-2xs">
-                      {selectedCommittees.length}
-                    </span>
+              {/* Apple-grade Interactive Multi-Select Popover */}
+              <Popover
+                open={filterPopoverOpen}
+                onOpenChange={setFilterPopoverOpen}
+              >
+                <PopoverTrigger
+                  id="committee-filter-btn"
+                  type="button"
+                  className={cn(
+                    "group relative flex min-h-[42px] sm:min-h-[38px] w-full sm:w-auto sm:min-w-[220px] max-w-full items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-left text-xs font-semibold shadow-2xs transition-all hover:border-primary/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
+                    selectedCommittees.length > 0 &&
+                      "border-primary/40 bg-primary/5 text-primary ring-1 ring-primary/20",
                   )}
-                  <ChevronsUpDown className="size-3.5 text-muted-foreground/60" />
-                </div>
-              </PopoverTrigger>
-
-              <PopoverContent
-                align="start"
-                className="w-[calc(100vw-2rem)] sm:w-88 max-w-md rounded-2xl border border-border/80 bg-popover/98 p-3 shadow-2xl backdrop-blur-xl space-y-2.5 overflow-hidden"
-              >
-                {/* Popover Header */}
-                <div className="flex items-center justify-between border-b border-border/60 pb-2">
-                  <div className="flex items-center gap-1.5">
-                    <Filter className="size-3.5 text-primary" />
-                    <span className="text-xs font-bold text-foreground">
-                      Select Committees
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Filter className="size-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="truncate text-foreground font-medium">
+                      {selectedCommittees.length === 0
+                        ? "All Committees"
+                        : selectedCommittees.length === 1
+                          ? selectedCommittees[0]
+                          : selectedCommittees.length === 2
+                            ? `${selectedCommittees[0]}, ${selectedCommittees[1]}`
+                            : `${selectedCommittees.length} Committees`}
                     </span>
                   </div>
-                  {selectedCommittees.length > 0 && (
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {selectedCommittees.length > 0 && (
+                      <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-2xs">
+                        {selectedCommittees.length}
+                      </span>
+                    )}
+                    <ChevronsUpDown className="size-3.5 text-muted-foreground/60" />
+                  </div>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  align="start"
+                  className="w-[calc(100vw-2rem)] sm:w-88 max-w-md rounded-2xl border border-border/80 bg-popover/98 p-3 shadow-2xl backdrop-blur-xl space-y-2.5 overflow-hidden"
+                >
+                  {/* Popover Header */}
+                  <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Filter className="size-3.5 text-primary" />
+                      <span className="text-xs font-bold text-foreground">
+                        Select Committees
+                      </span>
+                    </div>
+                    {selectedCommittees.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={handleClearCommittees}
+                        className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Search Input */}
+                  {allKnownCommittees.length > 8 && (
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 size-3 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search committees..."
+                        value={committeeSearch}
+                        onChange={(e) => setCommitteeSearch(e.target.value)}
+                        className="h-8 pl-8 pr-7 text-xs bg-muted/40 rounded-xl"
+                      />
+                      {committeeSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setCommitteeSearch("")}
+                          className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Committees Checkbox List */}
+                  <div className="max-h-72 space-y-0.5 overflow-x-hidden overflow-y-auto overscroll-contain py-1 [mask-image:linear-gradient(to_bottom,transparent,black_12px,black_calc(100%-12px),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {filteredAvailableCommittees.map((c) => {
+                      const isSelected = selectedCommittees.includes(c);
+                      const memberCount = committeeMemberCounts.get(c) ?? 0;
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => toggleCommittee(c)}
+                          className={cn(
+                            "group flex w-full min-h-[44px] items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-colors cursor-pointer select-none touch-manipulation active:scale-[0.99] md:min-h-10",
+                            isSelected
+                              ? "bg-primary/10 text-primary font-semibold"
+                              : "text-foreground hover:bg-muted/60",
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div
+                              className={cn(
+                                "flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors",
+                                isSelected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-muted-foreground/40 bg-background group-hover:border-primary/50",
+                              )}
+                            >
+                              {isSelected && (
+                                <Check className="size-3 stroke-[2.5]" />
+                              )}
+                            </div>
+                            <span className="truncate text-left block flex-1 font-medium">
+                              {c}
+                            </span>
+                          </div>
+                          <span className="shrink-0 whitespace-nowrap pl-1 text-xs tabular-nums text-muted-foreground">
+                            {memberCount} answered
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {filteredAvailableCommittees.length === 0 && (
+                      <p className="py-4 text-center text-xs text-muted-foreground">
+                        No committees match &quot;{committeeSearch}&quot;
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Popover Footer */}
+                  <div className="flex items-center justify-between border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+                    <span>
+                      {selectedCommittees.length === 0
+                        ? `${filteredUsers.length} answered in all committees`
+                        : `${filteredUsers.length} answered in ${selectedCommittees.length} ${selectedCommittees.length === 1 ? "committee" : "committees"}`}
+                    </span>
                     <Button
                       type="button"
-                      variant="ghost"
                       size="xs"
-                      onClick={handleClearCommittees}
-                      className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                      onClick={() => setFilterPopoverOpen(false)}
+                      className="h-9 px-4 text-xs font-semibold rounded-xl cursor-pointer touch-manipulation active:scale-[0.97]"
                     >
-                      Reset to All
+                      Done
                     </Button>
-                  )}
-                </div>
-
-                {/* Quick Action Toggle Buttons */}
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    type="button"
-                    variant={
-                      selectedCommittees.length === 0 ? "secondary" : "outline"
-                    }
-                    size="xs"
-                    onClick={handleClearCommittees}
-                    className={cn(
-                      "h-7 flex-1 text-[11px] rounded-lg cursor-pointer font-medium",
-                      selectedCommittees.length === 0 &&
-                        "bg-primary/15 text-primary border-primary/30 font-semibold",
-                    )}
-                  >
-                    All Committees
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={
-                      selectedCommittees.length === allKnownCommittees.length &&
-                      allKnownCommittees.length > 0
-                        ? "secondary"
-                        : "outline"
-                    }
-                    size="xs"
-                    onClick={handleSelectAllCommittees}
-                    className={cn(
-                      "h-7 flex-1 text-[11px] rounded-lg cursor-pointer font-medium",
-                      selectedCommittees.length === allKnownCommittees.length &&
-                        allKnownCommittees.length > 0 &&
-                        "bg-primary/15 text-primary border-primary/30 font-semibold",
-                    )}
-                  >
-                    Select All
-                  </Button>
-                </div>
-
-                {/* Search Input */}
-                {allKnownCommittees.length > 5 && (
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 size-3 text-muted-foreground pointer-events-none" />
-                    <Input
-                      placeholder="Search committees..."
-                      value={committeeSearch}
-                      onChange={(e) => setCommitteeSearch(e.target.value)}
-                      className="h-8 pl-8 pr-7 text-xs bg-muted/40 rounded-xl"
-                    />
-                    {committeeSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setCommitteeSearch("")}
-                        className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    )}
                   </div>
-                )}
-
-                {/* Committees Checkbox List */}
-                <div className="max-h-60 overflow-y-auto overflow-x-hidden space-y-1 pr-0.5 scrollbar-thin">
-                  {filteredAvailableCommittees.map((c) => {
-                    const isSelected = selectedCommittees.includes(c);
-                    const memberCount = committeeMemberCounts.get(c) ?? 0;
-                    return (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => toggleCommittee(c)}
-                        className={cn(
-                          "group flex w-full min-h-[38px] items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-xs transition-colors cursor-pointer select-none touch-manipulation active:scale-[0.99]",
-                          isSelected
-                            ? "bg-primary/10 text-primary font-semibold"
-                            : "text-foreground hover:bg-muted/60",
-                        )}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div
-                            className={cn(
-                              "flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors",
-                              isSelected
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-muted-foreground/40 bg-background group-hover:border-primary/50",
-                            )}
-                          >
-                            {isSelected && (
-                              <Check className="size-3 stroke-[2.5]" />
-                            )}
-                          </div>
-                          <span className="truncate text-left block flex-1 font-medium">
-                            {c}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground/80 font-mono shrink-0 whitespace-nowrap pl-1">
-                          {memberCount}{" "}
-                          {memberCount === 1 ? "member" : "members"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                  {filteredAvailableCommittees.length === 0 && (
-                    <p className="py-4 text-center text-xs text-muted-foreground">
-                      No committees match &quot;{committeeSearch}&quot;
-                    </p>
-                  )}
-                </div>
-
-                {/* Popover Footer */}
-                <div className="flex items-center justify-between border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
-                  <span>
-                    {selectedCommittees.length === 0
-                      ? `All members (${filteredUsers.length})`
-                      : `${selectedCommittees.length} selected · ${filteredUsers.length} members`}
-                  </span>
-                  <Button
-                    type="button"
-                    size="xs"
-                    onClick={() => setFilterPopoverOpen(false)}
-                    className="h-6 px-2.5 text-[11px] font-semibold rounded-lg cursor-pointer"
-                  >
-                    Done
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
 
           <LiveIndicator lastUpdated={lastUpdated} status={status} />
           {/* Interactive Selected Committee Pills / Badges */}
@@ -838,7 +811,7 @@ export function AnalyticsDashboard({
             )}
           >
             {selectedCommittees.length === 0
-              ? `All Committees (${filteredUsers.length} members)`
+              ? `All committees (${filteredUsers.length} answered)`
               : `Showing ${filteredUsers.length} member${filteredUsers.length === 1 ? "" : "s"} across ${selectedCommittees.length} committee${selectedCommittees.length === 1 ? "" : "s"}`}
           </Badge>
           <Button

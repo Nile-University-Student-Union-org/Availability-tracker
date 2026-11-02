@@ -47,6 +47,8 @@ import { LiveIndicator } from "@/components/admin/live-indicator";
 interface SemesterAnalyticsPanelProps {
   initialData: SemesterAnalyticsData;
   pollId: string;
+  /** The poll's committees; omit for a poll open to every committee */
+  pollCommittees?: string[];
 }
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -74,12 +76,16 @@ function cellStyle(count: number, max: number): string {
 export function SemesterAnalyticsPanel({
   initialData,
   pollId,
+  pollCommittees,
 }: SemesterAnalyticsPanelProps) {
   const [committee, setCommittee] = React.useState<string>("all");
-  const [availableCommittees, setAvailableCommittees] =
-    React.useState<string[]>(COMMITTEES);
+  // A scoped poll lists only its own committees; an all-committee poll lists every one
+  const [availableCommittees, setAvailableCommittees] = React.useState<
+    string[]
+  >(pollCommittees ?? COMMITTEES);
 
   React.useEffect(() => {
+    if (pollCommittees) return;
     fetch("/api/committees")
       .then((res) => res.json())
       .then((d) => {
@@ -88,7 +94,7 @@ export function SemesterAnalyticsPanel({
         }
       })
       .catch(() => {});
-  }, []);
+  }, [pollCommittees]);
 
   // Dialog inspection state
   const [inspectedSlot, setSelectedSlot] =
@@ -148,21 +154,30 @@ export function SemesterAnalyticsPanel({
       {/* The poll page above already names the poll, so only controls here */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-64 shrink-0">
-          <Select value={committee} onValueChange={handleCommitteeChange}>
-            <SelectTrigger className="min-h-[44px] min-w-0 flex-1 text-xs font-semibold bg-background/60">
-              <SelectValue placeholder="All Committees" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="text-xs">
-                All Committees
-              </SelectItem>
-              {availableCommittees.map((c) => (
-                <SelectItem key={c} value={c} className="text-xs">
-                  {c}
+          {availableCommittees.length > 1 && (
+            <Select
+              value={committee}
+              onValueChange={handleCommitteeChange}
+              items={[
+                { value: "all", label: "All committees" },
+                ...availableCommittees.map((c) => ({ value: c, label: c })),
+              ]}
+            >
+              <SelectTrigger className="min-h-[44px] min-w-0 flex-1 text-xs font-semibold bg-background/60">
+                <SelectValue placeholder="All Committees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">
+                  All Committees
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {availableCommittees.map((c) => (
+                  <SelectItem key={c} value={c} className="text-xs">
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           <Button
             variant="outline"
