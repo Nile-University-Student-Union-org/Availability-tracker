@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type DateRange } from "react-day-picker";
 import { Badge } from "@/components/ui/badge";
@@ -380,8 +380,29 @@ export function ScheduleConfigPanel({
     }));
   }
 
+  function commitRange(a: string, b: string) {
+    setConfig((prev) => ({
+      ...prev,
+      startDate: a < b ? a : b,
+      endDate: a < b ? b : a,
+    }));
+    setSelectingStart(null);
+    setHoveredDate(null);
+    // A short tick on phones that support it, on the commit itself
+    navigator.vibrate?.(8);
+  }
+
+  // Drag across days to pick a range. It only starts once the pointer
+  // reaches another day, so a plain click keeps the click-click flow.
+  const drag = useRef<{ origin: string; moved: boolean } | null>(null);
+  const skipClick = useRef(false);
+  const dayAt = (x: number, y: number) =>
+    document.elementFromPoint(x, y)?.closest("td[data-day]")?.getAttribute("data-day") ?? null;
+
   function handleDayClick(day?: Date) {
     if (!day) return;
+    // The click that ends a drag was already handled on pointer up
+    if (skipClick.current) return;
     const iso = toISO(day);
 
     if (!selectingStart) {
@@ -393,15 +414,7 @@ export function ScheduleConfigPanel({
         endDate: iso,
       }));
     } else {
-      const start = selectingStart < iso ? selectingStart : iso;
-      const end = selectingStart < iso ? iso : selectingStart;
-      setConfig((prev) => ({
-        ...prev,
-        startDate: start,
-        endDate: end,
-      }));
-      setSelectingStart(null);
-      setHoveredDate(null);
+      commitRange(selectingStart, iso);
     }
   }
 
@@ -762,11 +775,47 @@ export function ScheduleConfigPanel({
 
             <div
               onMouseLeave={() => {
-                if (selectingStart) setHoveredDate(selectingStart);
+                if (selectingStart && !drag.current?.moved)
+                  setHoveredDate(selectingStart);
               }}
-              className="lg:col-span-7 flex flex-col items-center justify-center p-1.5 sm:p-4 rounded-3xl bg-background/50 border border-border/70 shadow-2xs"
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                const origin = (e.target as HTMLElement)
+                  .closest("td[data-day]")
+                  ?.getAttribute("data-day");
+                drag.current = origin ? { origin, moved: false } : null;
+              }}
+              onPointerMove={(e) => {
+                const d = drag.current;
+                if (!d) return;
+                const iso = dayAt(e.clientX, e.clientY);
+                if (!iso) return;
+                if (!d.moved && iso !== d.origin) {
+                  d.moved = true;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  setSelectingStart(d.origin);
+                }
+                if (d.moved) setHoveredDate(iso);
+              }}
+              onPointerUp={(e) => {
+                const d = drag.current;
+                drag.current = null;
+                if (!d?.moved) return;
+                commitRange(d.origin, dayAt(e.clientX, e.clientY) ?? hoveredDate ?? d.origin);
+                skipClick.current = true;
+                setTimeout(() => (skipClick.current = false), 0);
+              }}
+              onPointerCancel={() => {
+                if (drag.current?.moved) {
+                  setSelectingStart(null);
+                  setHoveredDate(null);
+                }
+                drag.current = null;
+              }}
+              className="lg:col-span-7 flex flex-col items-center justify-center p-1.5 sm:p-4 rounded-3xl bg-background/50 border border-border/70 shadow-2xs [touch-action:pan-y]"
             >
               <Calendar
+                animate
                 mode="range"
                 month={calendarMonth}
                 onMonthChange={setCalendarMonth}
@@ -781,7 +830,7 @@ export function ScheduleConfigPanel({
               {selectingStart && (
                 <div className="mt-2.5 flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px] font-medium animate-in fade-in duration-200">
                   <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-                  <span>Now pick the end date</span>
+                  <span>Now pick the end date, or drag across days</span>
                   <span className="ml-1 hidden text-muted-foreground md:inline">
                     (Esc to cancel)
                   </span>
