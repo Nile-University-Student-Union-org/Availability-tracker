@@ -113,7 +113,7 @@ export function PollDetail({
         <Button
           variant="ghost"
           onClick={onBack}
-          className="-ml-2 min-h-[44px] cursor-pointer gap-1.5 rounded-xl px-2.5 text-sm font-semibold touch-manipulation md:min-h-9"
+          className="-ml-2 min-h-[44px] cursor-pointer gap-1.5 px-2.5 text-sm font-semibold touch-manipulation md:min-h-9"
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
           All polls
@@ -141,6 +141,7 @@ export function PollDetail({
         </div>
         {canEdit && (
           <SegmentedControl
+            variant="tabs"
             aria-label="Poll view"
             value={shownTab}
             onChange={onTabChange}

@@ -11,7 +11,6 @@ import {
   DashboardSquare02Icon,
   Logout02Icon,
   Calendar03Icon,
-
 } from "@hugeicons/core-free-icons";
 import { Sun, Moon, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -51,9 +50,9 @@ export function Navbar({
   const userRole = (currentUser as Record<string, unknown> | undefined)?.role;
   const isAdmin = Boolean(
     initialIsAdmin ||
-      isSpecialAdmin ||
-      userRole === "admin" ||
-      userRole === "super-admin",
+    isSpecialAdmin ||
+    userRole === "admin" ||
+    userRole === "super-admin",
   );
   const [signOutOpen, setSignOutOpen] = React.useState(false);
 
@@ -161,7 +160,8 @@ export function Navbar({
 
   const isActiveRoute = React.useCallback(
     (href: string) => {
-      if (href === "/polls") return pathname.startsWith("/polls") || pathname === "/";
+      if (href === "/polls")
+        return pathname.startsWith("/polls") || pathname === "/";
       if (href === "/admin") return pathname.startsWith("/admin");
       return pathname === href;
     },
@@ -192,25 +192,25 @@ export function Navbar({
         icon: DashboardSquare02Icon,
       });
     } else if (isAdmin) {
-      links.push({ label: "Availability polls", href: "/polls", icon: Calendar03Icon });
+      links.push({
+        label: "Availability polls",
+        href: "/polls",
+        icon: Calendar03Icon,
+      });
       links.push({
         label: "Admin Panel",
         href: "/admin",
         icon: DashboardSquare02Icon,
       });
     } else if (currentUser) {
-      links.push({ label: "Availability polls", href: "/polls", icon: Calendar03Icon });
+      links.push({
+        label: "Availability polls",
+        href: "/polls",
+        icon: Calendar03Icon,
+      });
     }
     return links;
-  }, [
-
-
-
-
-    isSpecialAdmin,
-    isAdmin,
-    currentUser,
-  ]);
+  }, [isSpecialAdmin, isAdmin, currentUser]);
 
   // Synchronize the active indicator position smoothly with zero layout jumps
   const updateActiveRect = React.useCallback(() => {
@@ -349,24 +349,14 @@ export function Navbar({
             {navLinks.length > 0 && (
               <nav
                 onMouseLeave={handleNavMouseLeave}
-                className={cn(
-                  "relative ml-auto hidden items-center gap-1 rounded-full p-1 transition-colors duration-300 md:flex",
-                  isDark
-                    ? "bg-white/[0.08] ring-1 ring-white/15"
-                    : "bg-nusu-navy/[0.04] ring-1 ring-nusu-navy/[0.06]",
-                )}
+                className="relative ml-auto hidden items-center gap-1 glass rounded-full p-1 md:flex"
                 aria-label="Primary"
               >
                 {/* 1. Ghost Hover Pill (Subtle frosted preview on inactive tabs) */}
                 {hoveredRect && (
                   <span
                     aria-hidden="true"
-                    className={cn(
-                      "pointer-events-none absolute rounded-full transition-all duration-200 ease-[cubic-bezier(0.25,1,0.35,1)]",
-                      isDark
-                        ? "bg-white/[0.08] ring-1 ring-white/10"
-                        : "bg-black/[0.04] ring-1 ring-black/[0.05]",
-                    )}
+                    className="pointer-events-none absolute rounded-full bg-foreground/5 transition-all duration-200 ease-[cubic-bezier(0.25,1,0.35,1)]"
                     style={{
                       left: `${hoveredRect.left}px`,
                       top: `${hoveredRect.top}px`,
@@ -376,16 +366,11 @@ export function Navbar({
                   />
                 )}
 
-                {/* 2. Apple Liquid Active Pill (Glides smoothly between active tabs) */}
+                {/* 2. Liquid Glass Active Pill (Glides smoothly between active tabs) */}
                 {activeRect && (
                   <span
                     aria-hidden="true"
-                    className={cn(
-                      "pointer-events-none absolute rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)]",
-                      isDark
-                        ? "bg-white/20 shadow-[0_2px_12px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.25)] ring-1 ring-white/25"
-                        : "bg-white shadow-[0_2px_8px_rgba(15,48,86,0.08),inset_0_1px_1px_rgba(255,255,255,0.95)] ring-1 ring-black/[0.06]",
-                    )}
+                    className="pointer-events-none absolute rounded-full glass-lens transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)]"
                     style={{
                       left: `${activeRect.left}px`,
                       top: `${activeRect.top}px`,
@@ -414,12 +399,8 @@ export function Navbar({
                       className={cn(
                         "relative z-10 flex cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors duration-200 select-none",
                         active
-                          ? isDark
-                            ? "text-white"
-                            : "text-nusu-navy"
-                          : isDark
-                            ? "text-white/70 hover:text-white"
-                            : "text-nusu-navy/70 hover:text-nusu-navy",
+                          ? "text-(--glass-nile-fg) font-semibold"
+                          : "text-muted-foreground hover:text-foreground",
                       )}
                     >
                       <HugeiconsIcon
@@ -428,7 +409,9 @@ export function Navbar({
                         strokeWidth={2.2}
                         className={cn(
                           "transition-opacity duration-200",
-                          active ? "opacity-100" : "opacity-65",
+                          active
+                            ? "opacity-100 text-(--glass-nile-fg)"
+                            : "opacity-65",
                         )}
                       />
                       <span className="relative z-10 cursor-pointer">
@@ -451,12 +434,7 @@ export function Navbar({
                   isDark ? "Switch to light mode" : "Switch to dark mode"
                 }
                 title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-                className={cn(
-                  "group/theme relative flex size-8 cursor-pointer items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)] select-none active:scale-90 touch-manipulation sm:size-9",
-                  isDark
-                    ? "bg-white/15 shadow-xs ring-1 ring-white/25 hover:bg-white/25"
-                    : "bg-nusu-navy/[0.05] shadow-2xs ring-1 ring-black/[0.06] hover:bg-nusu-navy/10",
-                )}
+                className="group/theme relative flex size-9 min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 cursor-pointer items-center justify-center rounded-full glass glass-bloom transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)] select-none active:scale-90 touch-manipulation"
               >
                 {isDark ? (
                   <Sun
@@ -468,7 +446,7 @@ export function Navbar({
                   <Moon
                     size={15}
                     strokeWidth={2.2}
-                    className="text-nusu-navy transition-transform duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover/theme:-rotate-12 group-hover/theme:text-nusu-blue"
+                    className="text-foreground transition-transform duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover/theme:-rotate-12 group-hover/theme:text-(--glass-nile-fg)"
                   />
                 )}
               </button>
@@ -480,12 +458,7 @@ export function Navbar({
                   onClick={handleSignOut}
                   aria-label="Sign out of your account"
                   title="Sign out"
-                  className={cn(
-                    "group relative flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-all duration-200 select-none active:scale-[0.97] sm:text-[13px]",
-                    isDark
-                      ? "bg-white/10 text-white/90 ring-1 ring-white/15 hover:bg-red-500/20 hover:text-red-300 hover:ring-red-400/30"
-                      : "bg-black/[0.04] text-nusu-navy ring-1 ring-black/[0.06] hover:bg-red-50 hover:text-red-600 hover:ring-red-200",
-                  )}
+                  className="group relative flex min-h-[44px] sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-full glass glass-bloom px-3.5 py-1.5 text-xs sm:text-[13px] font-semibold text-foreground hover:text-(--tint-red-fg) transition-all duration-200 select-none active:scale-[0.97] touch-manipulation"
                 >
                   <HugeiconsIcon
                     icon={Logout02Icon}
@@ -498,12 +471,7 @@ export function Navbar({
               ) : (
                 <Link
                   href="/auth?mode=signin"
-                  className={cn(
-                    "group relative flex cursor-pointer items-center gap-2 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-all duration-200 select-none active:scale-[0.97] sm:text-[13px]",
-                    isDark
-                      ? "bg-white text-nusu-navy shadow-[0_4px_16px_rgba(0,0,0,0.35)] hover:bg-white/95"
-                      : "bg-nusu-navy text-white shadow-[0_4px_14px_rgba(15,48,86,0.22)] hover:bg-nusu-navy-light",
-                  )}
+                  className="group relative flex min-h-[44px] sm:min-h-9 cursor-pointer items-center gap-2 rounded-full glass glass-bloom px-4 py-1.5 text-xs sm:text-[13px] font-semibold text-(--glass-nile-fg) transition-all duration-200 select-none active:scale-[0.97] touch-manipulation"
                 >
                   <span>Login</span>
                 </Link>
@@ -514,12 +482,7 @@ export function Navbar({
                 <button
                   type="button"
                   onClick={() => setMobileOpen(!mobileOpen)}
-                  className={cn(
-                    "relative flex size-8 cursor-pointer items-center justify-center rounded-full transition-all duration-200 active:scale-90 md:hidden",
-                    isDark
-                      ? "bg-white/15 text-white ring-1 ring-white/25 hover:bg-white/25"
-                      : "bg-white/60 text-nusu-navy ring-1 ring-black/[0.06] hover:bg-white/90",
-                  )}
+                  className="relative flex size-9 min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 cursor-pointer items-center justify-center rounded-full glass glass-bloom transition-all duration-200 active:scale-90 md:hidden touch-manipulation"
                   aria-expanded={mobileOpen}
                   aria-label={mobileOpen ? "Close menu" : "Open menu"}
                 >

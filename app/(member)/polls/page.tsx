@@ -102,14 +102,14 @@ export default async function PollListPage() {
                 <Link
                   href={`/polls/${poll.id}`}
                   aria-label={answered ? `${poll.name}, answered` : poll.name}
-                  className="group flex min-h-[56px] items-center gap-4 rounded-3xl border border-border/70 bg-card/60 p-4 shadow-xs transition-[background-color,transform] touch-manipulation hover:bg-card active:scale-[0.97] sm:p-5"
+                  className="group flex min-h-[56px] items-center gap-4 rounded-[24px] glass glass-bloom p-4 transition-all duration-200 touch-manipulation hover:bg-(--glass-hover) active:scale-[0.985] sm:p-5"
                 >
                   <span
-                    className={`relative flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-700 dark:text-sky-300 ${answered ? "ring-2 ring-emerald-500/40 ring-offset-2 ring-offset-background" : ""}`}
+                    className={`relative flex size-11 shrink-0 items-center justify-center rounded-full bg-(--lens-nile) text-(--glass-nile-fg) ${answered ? "ring-2 ring-emerald-500/40 ring-offset-2 ring-offset-background" : ""}`}
                   >
                     <HugeiconsIcon icon={Calendar03Icon} size={20} />
                     {answered && (
-                      <span className="absolute -right-1.5 -bottom-1.5 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white ring-2 ring-background">
+                      <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white ring-2 ring-background">
                         <HugeiconsIcon
                           icon={Tick02Icon}
                           size={12}

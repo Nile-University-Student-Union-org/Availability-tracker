@@ -200,7 +200,7 @@ export function AdminOverview({
           {canCreate && (
             <Button
               onClick={onNewPoll}
-              className="min-h-[44px] cursor-pointer gap-2 rounded-xl px-4 text-sm font-semibold touch-manipulation active:scale-[0.97] md:min-h-9"
+              className="min-h-[44px] cursor-pointer gap-2 px-4 text-sm font-semibold touch-manipulation active:scale-[0.97] md:min-h-9"
             >
               <HugeiconsIcon icon={PlusSignIcon} size={16} strokeWidth={2.2} />
               New poll

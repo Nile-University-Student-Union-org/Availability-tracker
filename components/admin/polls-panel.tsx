@@ -16,6 +16,8 @@ import {
   Tick01Icon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -176,7 +178,7 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
         <Button
           variant="outline"
           onClick={() => openPoll(null)}
-          className="min-h-[44px] cursor-pointer rounded-xl md:min-h-9"
+          className="min-h-[44px] cursor-pointer md:min-h-9"
         >
           All polls
         </Button>
@@ -221,7 +223,7 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
         {canCreate && (
           <Button
             onClick={() => setCreating(true)}
-            className="min-h-[44px] cursor-pointer gap-2 rounded-xl px-4 text-sm font-semibold touch-manipulation active:scale-[0.97] md:min-h-10"
+            className="min-h-[44px] cursor-pointer gap-2 px-4 text-sm font-semibold touch-manipulation active:scale-[0.97] md:min-h-10"
           >
             <HugeiconsIcon icon={PlusSignIcon} size={16} strokeWidth={2.2} />
             New poll
@@ -260,12 +262,22 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
       )}
 
       {!polls && !loadError && (
-        <div className="flex flex-col gap-3" aria-hidden>
+        <div
+          className="flex flex-col gap-3"
+          aria-busy="true"
+          aria-label="Loading polls"
+        >
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="h-28 animate-pulse rounded-3xl border border-border/60 bg-card/60"
-            />
+              className="flex min-h-[76px] items-center gap-4 rounded-3xl border border-border/60 bg-card/60 p-4"
+            >
+              <Skeleton className="size-11 rounded-2xl shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -335,7 +347,7 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
               <Button
                 variant="ghost"
                 onClick={() => openPoll(poll.id)}
-                className="min-h-[44px] cursor-pointer gap-1.5 rounded-xl px-3 text-xs font-semibold touch-manipulation md:min-h-9"
+                className="min-h-[44px] cursor-pointer gap-1.5 px-3 text-xs font-semibold touch-manipulation md:min-h-9"
               >
                 <HugeiconsIcon icon={Analytics01Icon} size={15} />
                 Results
@@ -345,7 +357,7 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
                   <Button
                     variant="ghost"
                     onClick={() => openPoll(poll.id, "settings")}
-                    className="min-h-[44px] cursor-pointer gap-1.5 rounded-xl px-3 text-xs font-semibold touch-manipulation md:min-h-9"
+                    className="min-h-[44px] cursor-pointer gap-1.5 px-3 text-xs font-semibold touch-manipulation md:min-h-9"
                   >
                     <HugeiconsIcon icon={PencilEdit02Icon} size={15} />
                     {poll.requestStatus === "rejected"
@@ -354,9 +366,9 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
                   </Button>
                   {!poll.allCommittees && (
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       onClick={() => setToDelete(poll)}
-                      className="ml-auto min-h-[44px] cursor-pointer gap-1.5 rounded-xl px-3 text-xs font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive touch-manipulation md:min-h-9"
+                      className="ml-auto min-h-[44px] cursor-pointer gap-1.5 px-3 text-xs font-semibold touch-manipulation md:min-h-9"
                     >
                       <HugeiconsIcon icon={Delete02Icon} size={15} />
                       Delete
@@ -385,18 +397,24 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel
-              disabled={deleting}
-              className="cursor-pointer rounded-xl"
-            >
+            <AlertDialogCancel disabled={deleting} className="cursor-pointer">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={confirmDelete}
               disabled={deleting}
-              className="cursor-pointer rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              aria-busy={deleting}
+              className="cursor-pointer"
             >
-              {deleting ? "Deleting..." : "Delete poll"}
+              {deleting ? (
+                <>
+                  <Spinner className="size-4" label="Deleting" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                "Delete poll"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -584,7 +602,7 @@ function PollEditor({
             <Button
               variant="ghost"
               onClick={onCancel}
-              className="-ml-2 min-h-[44px] cursor-pointer gap-1.5 rounded-xl px-2.5 text-sm font-semibold touch-manipulation md:min-h-9"
+              className="-ml-2 min-h-[44px] cursor-pointer gap-1.5 px-2.5 text-sm font-semibold touch-manipulation md:min-h-9"
             >
               <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
               All polls
@@ -788,18 +806,22 @@ function PollEditor({
               variant="ghost"
               onClick={onCancel}
               disabled={saving}
-              className="min-h-[42px] cursor-pointer rounded-xl px-3 text-xs font-semibold text-muted-foreground"
+              className="min-h-[44px] md:min-h-[42px] cursor-pointer px-3 text-xs font-semibold"
             >
               Cancel
             </Button>
             <Button
               onClick={submit}
               disabled={saving || (!keepsAllCommittees && chosen.length === 0)}
-              className="min-h-[42px] cursor-pointer gap-2 rounded-xl px-5 text-xs font-semibold shadow-sm transition-press active:scale-[0.97] sm:text-sm"
+              aria-busy={saving}
+              className="min-h-[44px] md:min-h-[42px] cursor-pointer gap-2 px-5 text-xs font-semibold sm:text-sm"
             >
               {saving ? (
                 <>
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <Spinner
+                    className="size-3.5"
+                    label={needsApproval ? "Sending" : "Saving"}
+                  />
                   <span>{needsApproval ? "Sending..." : "Saving..."}</span>
                 </>
               ) : (

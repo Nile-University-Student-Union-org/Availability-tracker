@@ -19,6 +19,7 @@ import {
   UserEdit01Icon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { HaramBadge } from "@/components/haram-badge";
@@ -470,7 +471,7 @@ export function AdminMembersPanel({
               void fetchMembers();
             }}
             disabled={loading}
-            className="h-10 w-10 shrink-0 cursor-pointer rounded-xl"
+            className="h-10 w-10 shrink-0 cursor-pointer"
             title="Refresh members directory"
           >
             <RefreshSpinIcon spinKey={spinKey} size={16} />
@@ -492,7 +493,11 @@ export function AdminMembersPanel({
         </div>
 
         {loading ? (
-          <div className="divide-y divide-border/40 p-4 space-y-4">
+          <div
+            className="divide-y divide-border/40 p-4 space-y-4"
+            aria-busy="true"
+            aria-label="Loading members"
+          >
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 pt-4 first:pt-0">
                 <Skeleton className="size-10 rounded-full" />
@@ -663,7 +668,7 @@ export function AdminMembersPanel({
                             variant="outline"
                             size="sm"
                             onClick={() => openEditMember(member)}
-                            className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl border-border/80 hover:border-primary/40 hover:bg-primary/10 hover:text-primary touch-manipulation active:scale-[0.98]"
+                            className="h-8 min-h-[44px] sm:min-h-8 gap-1.5 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.98]"
                             title={`Edit ${member.name}'s details`}
                           >
                             <HugeiconsIcon
@@ -680,7 +685,7 @@ export function AdminMembersPanel({
                             variant="outline"
                             size="sm"
                             onClick={() => setMemberToReset(member)}
-                            className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl border-border/80 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 touch-manipulation active:scale-[0.98]"
+                            className="h-8 min-h-[44px] sm:min-h-8 gap-1.5 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.98]"
                             title="Reset member password and force new password on next login"
                           >
                             <HugeiconsIcon
@@ -694,10 +699,10 @@ export function AdminMembersPanel({
                         {/* Delete Member button */}
                         {canDelete && (
                           <Button
-                            variant="ghost"
-                            size="icon"
+                            variant="destructive"
+                            size="icon-sm"
                             onClick={() => setMemberToDelete(member)}
-                            className="size-8 rounded-xl cursor-pointer text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive touch-manipulation active:scale-[0.96]"
+                            className="size-8 cursor-pointer touch-manipulation active:scale-[0.96]"
                             title={`Delete ${member.name}`}
                           >
                             <HugeiconsIcon
@@ -743,21 +748,27 @@ export function AdminMembersPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4 gap-2">
-            <AlertDialogCancel
-              disabled={deleting}
-              className="rounded-xl cursor-pointer"
-            >
+            <AlertDialogCancel disabled={deleting} className="cursor-pointer">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={(e) => {
                 e.preventDefault();
                 void confirmDeleteMember();
               }}
               disabled={deleting}
-              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+              aria-busy={deleting}
+              className="cursor-pointer"
             >
-              {deleting ? "Deleting..." : "Yes, Delete Member"}
+              {deleting ? (
+                <>
+                  <Spinner className="size-4" label="Deleting" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                "Yes, Delete Member"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -791,10 +802,7 @@ export function AdminMembersPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4 gap-2">
-            <AlertDialogCancel
-              disabled={resetting}
-              className="rounded-xl cursor-pointer"
-            >
+            <AlertDialogCancel disabled={resetting} className="cursor-pointer">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -803,9 +811,17 @@ export function AdminMembersPanel({
                 void confirmResetPassword();
               }}
               disabled={resetting}
-              className="rounded-xl bg-amber-600 text-white hover:bg-amber-700 cursor-pointer"
+              aria-busy={resetting}
+              className="cursor-pointer"
             >
-              {resetting ? "Resetting..." : "Reset Password"}
+              {resetting ? (
+                <>
+                  <Spinner className="size-4" label="Resetting" />
+                  <span>Resetting...</span>
+                </>
+              ) : (
+                "Reset Password"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -961,19 +977,20 @@ export function AdminMembersPanel({
                 variant="outline"
                 disabled={savingEdit}
                 onClick={() => setMemberToEdit(null)}
-                className="rounded-xl cursor-pointer"
+                className="cursor-pointer"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={savingEdit}
-                className="gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                aria-busy={savingEdit}
+                className="gap-1.5 cursor-pointer"
               >
                 {savingEdit ? (
                   <>
-                    <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving Changes...
+                    <Spinner className="size-4" label="Saving" />
+                    <span>Saving Changes...</span>
                   </>
                 ) : (
                   <>
@@ -981,7 +998,7 @@ export function AdminMembersPanel({
                       icon={CheckmarkCircle02Icon}
                       className="size-4"
                     />
-                    Save Changes
+                    <span>Save Changes</span>
                   </>
                 )}
               </Button>

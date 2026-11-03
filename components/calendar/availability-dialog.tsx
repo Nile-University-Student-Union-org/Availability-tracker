@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogClose,
@@ -539,7 +540,7 @@ export function AvailabilityDialog({
           <Button
             variant="ghost"
             size="sm"
-            className="min-h-[44px] touch-manipulation rounded-xl px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
+            className="min-h-[44px] touch-manipulation px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
           >
             Close
           </Button>
@@ -550,7 +551,7 @@ export function AvailabilityDialog({
             <Button
               variant="ghost"
               size="sm"
-              className="min-h-[36px] rounded-xl px-3 text-xs sm:text-sm"
+              className="min-h-[36px] px-3 text-xs sm:text-sm"
             >
               Cancel
             </Button>
@@ -566,19 +567,28 @@ export function AvailabilityDialog({
             size="sm"
             onClick={handleNext}
             disabled={isSaving}
-            className="min-h-[44px] touch-manipulation rounded-xl px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
+            className="min-h-[44px] touch-manipulation px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
           >
             Next →
           </Button>
         )}
 
         <Button
+          variant="success"
           onClick={handleSaveClick}
           disabled={isSaving}
+          aria-busy={isSaving}
           size="sm"
-          className="min-h-[44px] touch-manipulation rounded-xl px-3.5 text-xs font-semibold shadow-sm sm:min-h-[36px] sm:text-sm"
+          className="min-h-[44px] touch-manipulation px-3.5 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
         >
-          {isSaving ? "Saving..." : "Save Availability"}
+          {isSaving ? (
+            <>
+              <Spinner className="size-3.5" label="Saving" />
+              <span>Saving...</span>
+            </>
+          ) : (
+            "Save Availability"
+          )}
         </Button>
       </div>
     </div>

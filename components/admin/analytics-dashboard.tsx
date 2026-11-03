@@ -758,7 +758,7 @@ export function AnalyticsDashboard({
                       type="button"
                       size="xs"
                       onClick={() => setFilterPopoverOpen(false)}
-                      className="h-9 px-4 text-xs font-semibold rounded-xl cursor-pointer touch-manipulation active:scale-[0.97]"
+                      className="h-9 px-4 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.97]"
                     >
                       Done
                     </Button>
@@ -823,7 +823,7 @@ export function AnalyticsDashboard({
           <Button
             variant="outline"
             size="sm"
-            className="h-11 gap-1.5 rounded-xl text-xs cursor-pointer touch-manipulation active:scale-95 md:h-8"
+            className="h-11 gap-1.5 text-xs cursor-pointer touch-manipulation active:scale-95 md:h-8"
             onClick={handleExportScheduleCsv}
             title="Export finalized meetings schedule as CSV"
           >
@@ -833,7 +833,7 @@ export function AnalyticsDashboard({
           <Button
             variant="outline"
             size="sm"
-            className="h-11 gap-1.5 rounded-xl text-xs cursor-pointer touch-manipulation active:scale-95 md:h-8"
+            className="h-11 gap-1.5 text-xs cursor-pointer touch-manipulation active:scale-95 md:h-8"
             onClick={handleExportMatrixCsv}
             title="Export full member availability matrix as CSV"
           >
@@ -967,7 +967,7 @@ export function AnalyticsDashboard({
                 spin();
                 refresh();
               }}
-              className="min-h-[44px] rounded-xl px-3 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.97]"
+              className="min-h-[44px] px-3 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.97]"
               title="Refresh availability table data"
             >
               <RefreshSpinIcon spinKey={spinKey} size={14} />
@@ -1086,7 +1086,7 @@ export function AnalyticsDashboard({
               <Button
                 variant="outline"
                 size="xs"
-                className="h-7 gap-1 px-2.5 text-[11px] text-emerald-600 dark:text-emerald-400"
+                className="h-7 gap-1 px-2.5 text-[11px]"
                 onClick={() => handleOpenSlotGoogleCalendar(activeCellData)}
                 title="Schedule this meeting slot in Google Calendar"
               >
@@ -1465,7 +1465,7 @@ export function AnalyticsDashboard({
                   <Button
                     variant="outline"
                     onClick={() => setViewingUser(null)}
-                    className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98]"
+                    className="h-11 min-h-[44px] w-full text-sm font-semibold touch-manipulation active:scale-[0.98]"
                   >
                     Close
                   </Button>

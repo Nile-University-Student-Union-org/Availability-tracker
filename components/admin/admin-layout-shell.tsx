@@ -33,7 +33,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/status-pill";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import dynamic from "next/dynamic";
@@ -43,14 +44,35 @@ import type { AdminUserInfo } from "@/lib/admin";
 import { cn } from "@/lib/utils";
 import { NusuLogo } from "@/components/nusu-logo";
 
+function PanelSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading section" className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-5 w-40 rounded-full" />
+        <Skeleton className="h-9 w-24 rounded-full" />
+      </div>
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="flex min-h-[76px] items-center gap-4 rounded-3xl border border-border/60 bg-card/60 p-4"
+          >
+            <Skeleton className="size-11 rounded-2xl shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const PollsPanel = dynamic(
   () => import("@/components/admin/polls-panel").then((m) => m.PollsPanel),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -60,11 +82,7 @@ const PollRequestsPanel = dynamic(
       (m) => m.PollRequestsPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -74,11 +92,7 @@ const AdminUsersPanel = dynamic(
       (m) => m.AdminUsersPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -88,11 +102,7 @@ const AdminMembersPanel = dynamic(
       (m) => m.AdminMembersPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -102,11 +112,7 @@ const AdminCommitteesPanel = dynamic(
       (m) => m.AdminCommitteesPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -332,7 +338,7 @@ export function AdminLayoutShell({
                         {pendingCount > 0 && (
                           <span
                             aria-label={`${pendingCount} waiting`}
-                            className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold tabular-nums text-amber-950 group-data-[collapsible=icon]:hidden"
+                            className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 text-[11px] font-bold tabular-nums text-amber-700 dark:text-amber-400 group-data-[collapsible=icon]:hidden"
                           >
                             {pendingCount}
                           </span>
@@ -454,7 +460,7 @@ export function AdminLayoutShell({
                 variant="ghost"
                 size="icon"
                 onClick={handleSignOut}
-                className="size-8 cursor-pointer rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                className="size-8 cursor-pointer text-muted-foreground hover:text-destructive"
                 title="Sign out of Admin Console"
               >
                 <HugeiconsIcon icon={Logout02Icon} size={15} />
@@ -484,9 +490,12 @@ export function AdminLayoutShell({
               <ThemeToggle />
               <Link
                 href="/"
-                className="hidden items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-secondary/80 sm:inline-flex"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "hidden sm:inline-flex gap-1.5 text-xs min-h-[44px] md:min-h-8",
+                )}
               >
-                <HugeiconsIcon icon={Home01Icon} size={13} />
+                <HugeiconsIcon icon={Home01Icon} size={14} />
                 <span>Live Schedule</span>
               </Link>
             </div>

@@ -6,6 +6,8 @@ import { getPollConfig } from "@/lib/schedule";
 import { canSeePoll } from "@/lib/poll-access";
 import { AvailabilityCalendar } from "@/components/calendar/availability-calendar";
 import { WeeklyTimetable } from "@/components/weekly/weekly-timetable";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +60,10 @@ export default async function PollPage({
           <div className="mt-6 flex justify-center">
             <Link
               href="/polls"
-              className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 touch-manipulation active:scale-[0.98]"
+              className={cn(
+                buttonVariants({ variant: "default" }),
+                "min-h-[44px] px-6 text-sm font-semibold touch-manipulation active:scale-[0.98]",
+              )}
             >
               Back to your polls
             </Link>
@@ -82,7 +87,10 @@ export default async function PollPage({
             <div className="mt-6 flex justify-center">
               <Link
                 href="/polls"
-                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 touch-manipulation active:scale-[0.98]"
+                className={cn(
+                  buttonVariants({ variant: "default" }),
+                  "min-h-[44px] px-6 text-sm font-semibold touch-manipulation active:scale-[0.98]",
+                )}
               >
                 Back to your polls
               </Link>

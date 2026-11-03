@@ -3,6 +3,7 @@
 import * as React from "react";
 import { toast } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { authClient } from "@/lib/auth-client";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -59,6 +60,35 @@ export function WeeklyTimetable({
   const [selectedDay, setSelectedDay] = React.useState<number>(
     weeklyDays[0] ?? 0,
   );
+  const dayButtonRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
+  const [dayThumb, setDayThumb] = React.useState<{
+    left: number;
+    width: number;
+  } | null>(null);
+  const [dayMounted, setDayMounted] = React.useState(false);
+
+  const selectedDayIndex = Math.max(0, activeDays.indexOf(selectedDay));
+
+  const updateDayThumb = React.useCallback(() => {
+    const el = dayButtonRefs.current[selectedDayIndex];
+    if (el) {
+      setDayThumb({
+        left: el.offsetLeft,
+        width: el.offsetWidth,
+      });
+    }
+  }, [selectedDayIndex]);
+
+  React.useLayoutEffect(() => {
+    updateDayThumb();
+  }, [updateDayThumb, activeDays, selectedDay]);
+
+  React.useEffect(() => {
+    setDayMounted(true);
+    const handleResize = () => updateDayThumb();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [updateDayThumb]);
   const selectedDaySlots = weeklySlots.filter(
     (s) => s.dayOfWeek === selectedDay,
   );
@@ -292,12 +322,30 @@ export function WeeklyTimetable({
         <div
           role="tablist"
           aria-label="Days"
-          className="grid gap-1 rounded-2xl bg-muted/70 p-1 ring-1 ring-border/50"
-          style={{
-            gridTemplateColumns: `repeat(${activeDays.length}, minmax(0, 1fr))`,
-          }}
+          className="relative inline-flex w-full max-w-full items-center overflow-x-auto glass rounded-full p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {activeDays.map((dayNum) => {
+          {/* Sliding lens capsule */}
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute top-1 bottom-1 left-0 z-[2] rounded-full glass-lens will-change-[transform,width]",
+              dayMounted
+                ? "transition-[transform,width] duration-[560ms] ease-[var(--ease-spring)] motion-reduce:transition-none"
+                : "transition-none",
+            )}
+            style={
+              dayThumb
+                ? {
+                    transform: `translateX(${dayThumb.left}px)`,
+                    width: `${dayThumb.width}px`,
+                  }
+                : {
+                    transform: `translateX(calc(${selectedDayIndex} * 100%))`,
+                    width: `calc(100% / ${Math.max(1, activeDays.length)})`,
+                  }
+            }
+          />
+          {activeDays.map((dayNum, index) => {
             const meta = DAY_OF_WEEK_MAP.find((d) => d.day === dayNum);
             const isSelected = selectedDay === dayNum;
             const dayCount = slotMap.get(dayNum)?.size ?? 0;
@@ -305,6 +353,9 @@ export function WeeklyTimetable({
             return (
               <button
                 key={dayNum}
+                ref={(el) => {
+                  dayButtonRefs.current[index] = el;
+                }}
                 id={`day-tab-${dayNum}`}
                 type="button"
                 role="tab"
@@ -313,9 +364,9 @@ export function WeeklyTimetable({
                 aria-label={`${meta?.label}, ${dayCount} selected`}
                 onClick={() => setSelectedDay(dayNum)}
                 className={cn(
-                  "relative flex min-h-[48px] min-w-0 cursor-pointer touch-manipulation select-none flex-col items-center justify-center gap-0.5 rounded-xl text-sm font-semibold transition-press active:scale-[0.97]",
+                  "relative z-[3] flex flex-1 min-h-[48px] min-w-0 cursor-pointer touch-manipulation select-none flex-col items-center justify-center gap-0.5 rounded-full text-sm font-semibold transition-colors active:scale-[0.97]",
                   isSelected
-                    ? "bg-card text-foreground shadow-sm ring-1 ring-border/60"
+                    ? "text-(--glass-nile-fg)"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -340,8 +391,8 @@ export function WeeklyTimetable({
           aria-labelledby={`day-tab-${selectedDay}`}
           className="rounded-3xl border border-border/70 bg-card p-4 shadow-xs sm:p-5"
         >
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div className="min-w-0">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+            <div className="min-w-[12rem] flex-1">
               <h3 className="font-heading text-lg font-bold tracking-tight">
                 {activeDayMeta?.label}
               </h3>
@@ -357,7 +408,7 @@ export function WeeklyTimetable({
                 size="sm"
                 onClick={selectAllDay}
                 disabled={activeDaySlots.size === selectedDaySlots.length}
-                className="h-9 cursor-pointer gap-1.5 rounded-xl px-2.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400"
+                className="h-9 min-h-[44px] sm:min-h-9 cursor-pointer gap-1.5 px-2.5 text-xs font-semibold"
               >
                 <HugeiconsIcon icon={CheckmarkCircle02Icon} size={15} />
                 All
@@ -367,7 +418,7 @@ export function WeeklyTimetable({
                 size="sm"
                 onClick={clearDay}
                 disabled={activeDaySlots.size === 0}
-                className="h-9 cursor-pointer gap-1.5 rounded-xl px-2.5 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                className="h-9 min-h-[44px] sm:min-h-9 cursor-pointer gap-1.5 px-2.5 text-xs font-semibold"
               >
                 <HugeiconsIcon icon={Delete02Icon} size={15} />
                 Clear
@@ -444,7 +495,7 @@ export function WeeklyTimetable({
             : "translate-y-10 opacity-0 scale-95 pointer-events-none",
         )}
       >
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-full bg-card/90 dark:bg-card/85 backdrop-blur-2xl border border-white/20 dark:border-white/15 shadow-[0_12px_36px_-6px_rgba(0,0,0,0.3)]">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-full glass glass-thick">
           <div className="flex items-center gap-2 min-w-0 pl-1">
             <span className="text-xs font-semibold tracking-tight truncate text-foreground">
               Unsaved changes ({totalSlotsCount}{" "}
@@ -458,21 +509,23 @@ export function WeeklyTimetable({
                 variant="ghost"
                 size="sm"
                 onClick={clearAllWeek}
-                className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full cursor-pointer"
+                className="h-8 min-h-[44px] sm:min-h-8 px-2.5 text-xs cursor-pointer"
               >
                 Reset
               </Button>
             )}
 
             <Button
+              variant="success"
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
-              className="h-8 px-4 gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-xs cursor-pointer active:scale-[0.97] transition-transform"
+              aria-busy={isSaving}
+              className="h-8 min-h-[44px] sm:min-h-8 px-4 gap-1.5 font-semibold text-xs cursor-pointer"
             >
               {isSaving ? (
                 <>
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <Spinner className="size-3.5" label="Saving" />
                   <span>Saving...</span>
                 </>
               ) : (

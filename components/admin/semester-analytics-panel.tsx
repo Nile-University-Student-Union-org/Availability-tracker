@@ -6,6 +6,7 @@ import {
 } from "@/components/admin/refresh-spin";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -576,32 +577,24 @@ export function SemesterAnalyticsPanel({
                 </DrawerHeader>
 
                 {/* Toggle available vs missing */}
-                <div className="flex p-1 rounded-xl bg-muted/60 border border-border/60 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setDialogTab("available")}
-                    className={cn(
-                      "flex-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer touch-manipulation active:scale-[0.98]",
-                      dialogTab === "available"
-                        ? "bg-background text-foreground shadow-xs font-bold"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Available ({selectedSlot.users.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDialogTab("missing")}
-                    className={cn(
-                      "flex-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer touch-manipulation active:scale-[0.98]",
-                      dialogTab === "missing"
-                        ? "bg-background text-foreground shadow-xs font-bold"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Conflicting / Missing ({missingMembersForSlot.length})
-                  </button>
-                </div>
+                <SegmentedControl
+                  aria-label="Filter slot members"
+                  value={dialogTab}
+                  onChange={(val) =>
+                    setDialogTab(val as "available" | "missing")
+                  }
+                  options={[
+                    {
+                      value: "available",
+                      label: `Available (${selectedSlot.users.length})`,
+                    },
+                    {
+                      value: "missing",
+                      label: `Conflicting / Missing (${missingMembersForSlot.length})`,
+                    },
+                  ]}
+                  className="w-full mt-2"
+                />
 
                 <div className="mt-2 flex-1 overflow-y-auto overscroll-contain pr-1">
                   {dialogTab === "available" ? (
@@ -627,7 +620,8 @@ export function SemesterAnalyticsPanel({
                                 {u.name || "Unnamed"}
                               </p>
                               <p className="text-[10px] text-muted-foreground truncate">
-                                {u.email} {u.committee ? `• ${u.committee}` : ""}
+                                {u.email}{" "}
+                                {u.committee ? `• ${u.committee}` : ""}
                               </p>
                             </div>
                             <div className="size-5 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center">
@@ -683,7 +677,7 @@ export function SemesterAnalyticsPanel({
                   <Button
                     variant="outline"
                     onClick={() => setSelectedSlot(null)}
-                    className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98]"
+                    className="h-11 min-h-[44px] w-full text-sm font-semibold touch-manipulation active:scale-[0.98]"
                   >
                     Close
                   </Button>
@@ -726,32 +720,24 @@ export function SemesterAnalyticsPanel({
                 </DialogHeader>
 
                 {/* Toggle available vs missing */}
-                <div className="flex p-1 rounded-xl bg-muted/60 border border-border/60 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => setDialogTab("available")}
-                    className={cn(
-                      "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
-                      dialogTab === "available"
-                        ? "bg-background text-foreground shadow-xs font-bold"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Available ({selectedSlot.users.length})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDialogTab("missing")}
-                    className={cn(
-                      "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
-                      dialogTab === "missing"
-                        ? "bg-background text-foreground shadow-xs font-bold"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    Conflicting / Missing ({missingMembersForSlot.length})
-                  </button>
-                </div>
+                <SegmentedControl
+                  aria-label="Filter slot members"
+                  value={dialogTab}
+                  onChange={(val) =>
+                    setDialogTab(val as "available" | "missing")
+                  }
+                  options={[
+                    {
+                      value: "available",
+                      label: `Available (${selectedSlot.users.length})`,
+                    },
+                    {
+                      value: "missing",
+                      label: `Conflicting / Missing (${missingMembersForSlot.length})`,
+                    },
+                  ]}
+                  className="w-full mt-2"
+                />
 
                 <ScrollArea className="max-h-[300px] mt-2 pr-2">
                   {dialogTab === "available" ? (
@@ -777,7 +763,8 @@ export function SemesterAnalyticsPanel({
                                 {u.name || "Unnamed"}
                               </p>
                               <p className="text-[10px] text-muted-foreground truncate">
-                                {u.email} {u.committee ? `• ${u.committee}` : ""}
+                                {u.email}{" "}
+                                {u.committee ? `• ${u.committee}` : ""}
                               </p>
                             </div>
                             <div className="size-5 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center">

@@ -4,6 +4,8 @@ import { isSameDay } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -170,13 +172,16 @@ export function AvailabilityCalendar({
   const fetchConfig = useCallback(async () => {
     try {
       setIsConfigLoading(true);
-      const configRes = await fetch(`/api/polls/${encodeURIComponent(pollId)}?_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: {
-          Pragma: "no-cache",
-          "Cache-Control": "no-cache",
+      const configRes = await fetch(
+        `/api/polls/${encodeURIComponent(pollId)}?_t=${Date.now()}`,
+        {
+          cache: "no-store",
+          headers: {
+            Pragma: "no-cache",
+            "Cache-Control": "no-cache",
+          },
         },
-      });
+      );
       if (configRes.ok) {
         const configData: ScheduleConfig = await configRes.json();
         setConfig(configData);
@@ -473,11 +478,20 @@ export function AvailabilityCalendar({
       )}
 
       {isConfigLoading ? (
-        <div className="flex h-72 w-full max-w-sm flex-col items-center justify-center rounded-3xl border border-border/80 bg-card p-6 shadow-xs">
-          <div className="size-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="mt-3 text-xs font-medium text-muted-foreground">
-            Loading schedule calendar...
-          </p>
+        <div
+          aria-busy="true"
+          className="flex h-72 w-full max-w-sm flex-col justify-between rounded-3xl border border-border/80 bg-card p-6 shadow-xs"
+        >
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-28 rounded-full" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-8 rounded-full mx-auto" />
+            ))}
+          </div>
+          <Skeleton className="h-3 w-3/4 mx-auto rounded-full" />
         </div>
       ) : !memberSaved ? (
         <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
@@ -512,10 +526,13 @@ export function AvailabilityCalendar({
       {/* Availability summary */}
       {isAvailabilityLoading && !config ? null : isAvailabilityLoading &&
         datesWithSlotsISO.length === 0 ? (
-        <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            Syncing availability...
-          </p>
+        <div
+          aria-busy="true"
+          className="w-full max-w-sm space-y-2.5 rounded-3xl border border-border/70 p-4"
+        >
+          <Skeleton className="h-4 w-32 rounded-full" />
+          <Skeleton className="h-8 w-full rounded-xl" />
+          <Skeleton className="h-8 w-3/4 rounded-xl" />
         </div>
       ) : config && datesWithSlotsISO.length > 0 ? (
         <div className="w-full max-w-sm overflow-hidden rounded-3xl border bg-card">
@@ -538,13 +555,21 @@ export function AvailabilityCalendar({
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-sm font-medium">{label}</p>
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="xs"
                       disabled={isClearing}
-                      className="h-6 px-2 text-xs text-destructive hover:text-destructive cursor-pointer disabled:opacity-50"
+                      aria-busy={isClearing}
+                      className="h-6 px-2 text-xs cursor-pointer disabled:opacity-50"
                       onClick={() => handleClear(iso)}
                     >
-                      {isClearing ? "Clearing..." : "Clear"}
+                      {isClearing ? (
+                        <>
+                          <Spinner className="size-3" label="Clearing" />
+                          <span>Clearing...</span>
+                        </>
+                      ) : (
+                        "Clear"
+                      )}
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
