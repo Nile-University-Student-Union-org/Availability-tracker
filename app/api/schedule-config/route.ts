@@ -24,7 +24,7 @@ export async function GET() {
       },
     });
   } catch (error: unknown) {
-    console.error("Error in GET /api/schedule-config:", error);
+    console.error("GET /api/schedule-config failed:", error);
     return NextResponse.json(
       { error: "Failed to load schedule configuration" },
       { status: 500 },

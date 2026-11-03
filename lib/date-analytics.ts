@@ -8,7 +8,7 @@ import type {
 
 export async function getDateAnalytics(pollId = "legacy-date"): Promise<AnalyticsData> {
   const config = await getPollConfig(pollId);
-  if (!config) {
+  if (!config || !config.startDate || !config.endDate) {
     return {
       totalUsers: 0,
       totalSlots: 0,
@@ -99,26 +99,33 @@ export async function getDateAnalytics(pollId = "legacy-date"): Promise<Analytic
     }
   }
 
-  const slotMatrix: SlotEntry[] = dates.flatMap((date) =>
-    allTimeSlots.map((startTime) => {
-      const matching = slotBuckets.get(`${date}_${startTime}`) ?? [];
-      return {
-        date,
-        startTime,
-        count: matching.length,
-        users: matching
-          .filter((s) => Boolean(s.user))
-          .map((s) => ({
-            name: s.user.name,
-            email: s.user.email,
-            image: s.user.image,
-            committee: s.user.committee,
-          })),
-      };
-    }),
-  );
+  const slotMatrix: SlotEntry[] = [];
+  let maxCount = 0;
 
-  const maxCount = slotMatrix.reduce((m, s) => Math.max(m, s.count), 0);
+  for (const date of dates) {
+    for (const timeSlot of allTimeSlots) {
+      const bucketKey = `${date}_${timeSlot}`;
+      const bucket = slotBuckets.get(bucketKey) ?? [];
+      const count = bucket.length;
+      if (count > maxCount) maxCount = count;
+
+      slotMatrix.push({
+        date,
+        startTime: timeSlot,
+        count,
+        users: bucket
+          .filter((s) => s.user !== null)
+          .map((s) => ({
+            id: s.user!.id,
+            name: s.user!.name,
+            email: s.user!.email,
+            nuId: s.user!.nuId,
+            image: s.user!.image,
+            committee: s.user!.committee,
+          })),
+      });
+    }
+  }
 
   const users = Array.from(userMap.values()).sort(
     (a, b) => b.totalSlots - a.totalSlots,

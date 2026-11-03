@@ -65,6 +65,17 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
     try {
       setLoginLoading(true);
 
+      // Sign in first with the provided credentials
+      const { error } = await authClient.signIn.email({
+        email: trimmedEmail,
+        password: loginPassword,
+      });
+
+      if (error) {
+        toast.error(error.message || "Invalid credentials. Please try again.");
+        return;
+      }
+
       // Check if this member is flagged for a mandatory administrative password reset
       try {
         const checkRes = await fetch(
@@ -81,37 +92,7 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
           }
         }
       } catch {
-        // Fallback to standard sign in if check endpoint is unreachable
-      }
-
-      const { error } = await authClient.signIn.email({
-        email: trimmedEmail,
-        password: loginPassword,
-        callbackURL: resolvedCallback,
-      });
-
-      if (error) {
-        // Also check if invalid credentials was due to a pending reset
-        try {
-          const checkRes = await fetch(
-            `/api/auth/reset-first-login?email=${encodeURIComponent(trimmedEmail)}`,
-          );
-          if (checkRes.ok) {
-            const checkData = await checkRes.json();
-            if (checkData.mustResetPassword) {
-              setResetMode(true);
-              toast.info(
-                "An administrator has reset your password. Please set a new password below.",
-              );
-              return;
-            }
-          }
-        } catch {
-          // Ignore
-        }
-
-        toast.error(error.message || "Invalid credentials. Please try again.");
-        return;
+        // Continue if check endpoint is unreachable
       }
 
       toast.success("Signed in successfully!");

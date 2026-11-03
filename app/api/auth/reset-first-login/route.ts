@@ -1,17 +1,21 @@
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "better-auth/crypto";
 
 /**
  * GET /api/auth/reset-first-login?email=user@nu.edu.eg
  * Checks whether the specified account is flagged for forced password reset.
+ * Requires an active Better Auth session for the requested email to prevent user enumeration.
  */
 export async function GET(req: Request) {
   try {
+    const session = await auth.api.getSession({ headers: await headers() });
     const { searchParams } = new URL(req.url);
     const email = searchParams.get("email")?.trim().toLowerCase();
 
-    if (!email) {
+    if (!session?.user?.email || !email || session.user.email.toLowerCase() !== email) {
       return NextResponse.json({ mustResetPassword: false }, { status: 200 });
     }
 
@@ -24,7 +28,7 @@ export async function GET(req: Request) {
       mustResetPassword: Boolean(user?.mustResetPassword),
     });
   } catch (error: unknown) {
-    console.error("Error checking password reset status:", error);
+    console.error("GET /api/auth/reset-first-login failed:", error);
     return NextResponse.json({ mustResetPassword: false }, { status: 200 });
   }
 }
@@ -32,15 +36,21 @@ export async function GET(req: Request) {
 /**
  * POST /api/auth/reset-first-login
  * Sets a new password for an account where mustResetPassword is true.
+ * Requires an active Better Auth session matching the target email.
  */
 export async function POST(req: Request) {
   try {
+    const session = await auth.api.getSession({ headers: await headers() });
     const body = await req.json();
     const email = String(body.email ?? "")
       .trim()
       .toLowerCase();
     const newPassword = String(body.newPassword ?? "");
     const confirmPassword = String(body.confirmPassword ?? "");
+
+    if (!session?.user?.email || session.user.email.toLowerCase() !== email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!email) {
       return NextResponse.json(
@@ -123,9 +133,7 @@ export async function POST(req: Request) {
       message: "Password has been reset successfully. You can now log in.",
     });
   } catch (error: unknown) {
-    console.error("Failed to reset member password:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to reset password.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("POST /api/auth/reset-first-login failed:", error);
+    return NextResponse.json({ error: "Failed to reset password." }, { status: 500 });
   }
 }

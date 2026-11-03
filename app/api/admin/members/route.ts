@@ -2,7 +2,8 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdminEmail, isSuperAdmin } from "@/lib/admin";
+import { canManageMember } from "@/lib/member-access";
 
 export async function GET() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -34,9 +35,8 @@ export async function GET() {
 
     return NextResponse.json({ members });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to fetch members";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("GET /api/admin/members failed:", error);
+    return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 });
   }
 }
 
@@ -59,23 +59,51 @@ export async function DELETE(req: Request) {
 
     const targetUser = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, role: true, committee: true },
     });
 
     if (!targetUser) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    const currentEmail = session.user.email.toLowerCase();
-    const targetEmail = targetUser.email.toLowerCase();
+    const caller = await prisma.user.findUnique({
+      where: { email: session.user.email.toLowerCase() },
+      select: { id: true, role: true, committee: true },
+    });
 
-    // Prevent deleting self
-    if (targetUser.id === session.user.id || targetEmail === currentEmail) {
-      return NextResponse.json(
-        { error: "You cannot delete your own account" },
-        { status: 400 },
-      );
+    const isCallerSuper = isSuperAdmin(session.user.email);
+    const isCallerAdm = isCallerSuper || (await isAdminEmail(session.user.email));
+
+    const isTargetSuper =
+      isSuperAdmin(targetUser.email) || targetUser.role === "super-admin";
+    const isTargetAdm =
+      isTargetSuper ||
+      (await isAdminEmail(targetUser.email)) ||
+      targetUser.role === "admin";
+
+    const canDelete = canManageMember(
+      {
+        id: caller?.id ?? session.user.id,
+        email: session.user.email,
+        committee: caller?.committee ?? null,
+        isAdmin: isCallerAdm,
+        isSuperAdmin: isCallerSuper,
+      },
+      {
+        id: targetUser.id,
+        email: targetUser.email,
+        committee: targetUser.committee,
+        isAdmin: isTargetAdm,
+        isSuperAdmin: isTargetSuper,
+      },
+      "delete",
+    );
+
+    if (!canDelete) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const targetEmail = targetUser.email.toLowerCase();
 
     // Protect primary root admin
     if (targetEmail === "admin@nu.edu.eg") {
@@ -100,9 +128,8 @@ export async function DELETE(req: Request) {
       message: `Member "${targetUser.name}" (${targetEmail}) has been deleted.`,
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to delete member";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("DELETE /api/admin/members failed:", error);
+    return NextResponse.json({ error: "Failed to delete member" }, { status: 500 });
   }
 }
 
@@ -130,11 +157,48 @@ export async function PATCH(req: Request) {
 
     const targetUser = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, email: true, role: true, committee: true },
     });
 
     if (!targetUser) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    const caller = await prisma.user.findUnique({
+      where: { email: session.user.email.toLowerCase() },
+      select: { id: true, role: true, committee: true },
+    });
+
+    const isCallerSuper = isSuperAdmin(session.user.email);
+    const isCallerAdm = isCallerSuper || (await isAdminEmail(session.user.email));
+
+    const isTargetSuper =
+      isSuperAdmin(targetUser.email) || targetUser.role === "super-admin";
+    const isTargetAdm =
+      isTargetSuper ||
+      (await isAdminEmail(targetUser.email)) ||
+      targetUser.role === "admin";
+
+    const canReset = canManageMember(
+      {
+        id: caller?.id ?? session.user.id,
+        email: session.user.email,
+        committee: caller?.committee ?? null,
+        isAdmin: isCallerAdm,
+        isSuperAdmin: isCallerSuper,
+      },
+      {
+        id: targetUser.id,
+        email: targetUser.email,
+        committee: targetUser.committee,
+        isAdmin: isTargetAdm,
+        isSuperAdmin: isTargetSuper,
+      },
+      "reset-password",
+    );
+
+    if (!canReset) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Flag user for forced password reset upon next login
@@ -153,9 +217,8 @@ export async function PATCH(req: Request) {
       message: `Password reset triggered for ${targetUser.name}. They will be required to set a new password on their next login.`,
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to reset password";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("PATCH /api/admin/members failed:", error);
+    return NextResponse.json({ error: "Failed to reset password" }, { status: 500 });
   }
 }
 
@@ -221,7 +284,7 @@ export async function PUT(req: Request) {
       );
     }
 
-    const existingUser = await prisma.user.findUnique({
+    const targetUser = await prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -233,11 +296,48 @@ export async function PUT(req: Request) {
       },
     });
 
-    if (!existingUser) {
+    if (!targetUser) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    const oldEmail = existingUser.email.toLowerCase();
+    const caller = await prisma.user.findUnique({
+      where: { email: session.user.email.toLowerCase() },
+      select: { id: true, role: true, committee: true },
+    });
+
+    const isCallerSuper = isSuperAdmin(session.user.email);
+    const isCallerAdm = isCallerSuper || (await isAdminEmail(session.user.email));
+
+    const isTargetSuper =
+      isSuperAdmin(targetUser.email) || targetUser.role === "super-admin";
+    const isTargetAdm =
+      isTargetSuper ||
+      (await isAdminEmail(targetUser.email)) ||
+      targetUser.role === "admin";
+
+    const canEdit = canManageMember(
+      {
+        id: caller?.id ?? session.user.id,
+        email: session.user.email,
+        committee: caller?.committee ?? null,
+        isAdmin: isCallerAdm,
+        isSuperAdmin: isCallerSuper,
+      },
+      {
+        id: targetUser.id,
+        email: targetUser.email,
+        committee: targetUser.committee,
+        isAdmin: isTargetAdm,
+        isSuperAdmin: isTargetSuper,
+      },
+      "edit",
+    );
+
+    if (!canEdit) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const oldEmail = targetUser.email.toLowerCase();
 
     // Check email uniqueness if email is changed
     if (email !== oldEmail) {
@@ -265,22 +365,10 @@ export async function PUT(req: Request) {
           { status: 400 },
         );
       }
-
-      // If user is in AdminEmail table, update their admin authorization email
-      await prisma.adminEmail.updateMany({
-        where: { email: oldEmail },
-        data: { email },
-      });
-
-      // Update Better Auth account credentials accountId if it matched old email
-      await prisma.account.updateMany({
-        where: { userId: id, accountId: oldEmail },
-        data: { accountId: email },
-      });
     }
 
     // Check nuId uniqueness if provided and changed
-    if (nuId && nuId !== existingUser.nuId) {
+    if (nuId && nuId !== targetUser.nuId) {
       const nuIdConflict = await prisma.user.findFirst({
         where: {
           nuId,
@@ -299,31 +387,46 @@ export async function PUT(req: Request) {
       }
     }
 
-    const updatedMember = await prisma.user.update({
-      where: { id },
-      data: {
-        name,
-        email,
-        nuId,
-        committee,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        nuId: true,
-        committee: true,
-        role: true,
-        mustResetPassword: true,
-        createdAt: true,
-        image: true,
-        _count: {
-          select: {
-            availabilities: true,
-            recurringAvailabilities: true,
+    // Atomically execute all writes
+    const updatedMember = await prisma.$transaction(async (tx) => {
+      if (email !== oldEmail) {
+        await tx.adminEmail.updateMany({
+          where: { email: oldEmail },
+          data: { email },
+        });
+
+        await tx.account.updateMany({
+          where: { userId: id, accountId: oldEmail },
+          data: { accountId: email },
+        });
+      }
+
+      return tx.user.update({
+        where: { id },
+        data: {
+          name,
+          email,
+          nuId,
+          committee,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          nuId: true,
+          committee: true,
+          role: true,
+          mustResetPassword: true,
+          createdAt: true,
+          image: true,
+          _count: {
+            select: {
+              availabilities: true,
+              recurringAvailabilities: true,
+            },
           },
         },
-      },
+      });
     });
 
     return NextResponse.json({
@@ -332,8 +435,7 @@ export async function PUT(req: Request) {
       member: updatedMember,
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to update member";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("PUT /api/admin/members failed:", error);
+    return NextResponse.json({ error: "Failed to update member" }, { status: 500 });
   }
 }

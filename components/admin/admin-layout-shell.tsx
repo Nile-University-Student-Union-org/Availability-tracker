@@ -530,6 +530,7 @@ export function AdminLayoutShell({
                 <AdminMembersPanel
                   currentUserId={session.user.id}
                   currentUserEmail={session.user.email}
+                  viewer={viewer}
                 />
               )}
               {activeTab === "committees" && (
