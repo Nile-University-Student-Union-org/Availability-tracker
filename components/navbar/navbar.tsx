@@ -349,7 +349,7 @@ export function Navbar({
             {navLinks.length > 0 && (
               <nav
                 onMouseLeave={handleNavMouseLeave}
-                className="relative ml-auto hidden items-center gap-1 glass rounded-full p-1 md:flex"
+                className="relative ml-auto hidden items-center gap-0.5 md:flex"
                 aria-label="Primary"
               >
                 {/* 1. Ghost Hover Pill (Subtle frosted preview on inactive tabs) */}
@@ -370,7 +370,7 @@ export function Navbar({
                 {activeRect && (
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute rounded-full glass-lens transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)]"
+                    className="pointer-events-none absolute rounded-full bg-(--lens) shadow-[var(--edge),0_4px_14px_-6px_rgb(0_0_0/0.35)] transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)]"
                     style={{
                       left: `${activeRect.left}px`,
                       top: `${activeRect.top}px`,
@@ -399,7 +399,7 @@ export function Navbar({
                       className={cn(
                         "relative z-10 flex cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors duration-200 select-none",
                         active
-                          ? "text-(--glass-nile-fg) font-semibold"
+                          ? "text-foreground font-semibold"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
@@ -409,9 +409,7 @@ export function Navbar({
                         strokeWidth={2.2}
                         className={cn(
                           "transition-opacity duration-200",
-                          active
-                            ? "opacity-100 text-(--glass-nile-fg)"
-                            : "opacity-65",
+                          active ? "opacity-100" : "opacity-65",
                         )}
                       />
                       <span className="relative z-10 cursor-pointer">
@@ -434,7 +432,7 @@ export function Navbar({
                   isDark ? "Switch to light mode" : "Switch to dark mode"
                 }
                 title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-                className="group/theme relative flex size-9 min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 cursor-pointer items-center justify-center rounded-full glass glass-bloom transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)] select-none active:scale-90 touch-manipulation"
+                className="group/theme relative flex size-9 min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 cursor-pointer items-center justify-center rounded-full hover:bg-foreground/5 transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)] select-none active:scale-90 touch-manipulation"
               >
                 {isDark ? (
                   <Sun
@@ -458,13 +456,13 @@ export function Navbar({
                   onClick={handleSignOut}
                   aria-label="Sign out of your account"
                   title="Sign out"
-                  className="group relative flex min-h-[44px] sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-full glass glass-bloom px-3.5 py-1.5 text-xs sm:text-[13px] font-semibold text-foreground hover:text-(--tint-red-fg) transition-all duration-200 select-none active:scale-[0.97] touch-manipulation"
+                  className="group relative flex min-h-[44px] sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs sm:text-[13px] font-semibold text-muted-foreground hover:bg-red-500/10 hover:text-(--tint-red-fg) transition-all duration-200 select-none active:scale-[0.97] touch-manipulation"
                 >
                   <HugeiconsIcon
                     icon={Logout02Icon}
                     size={14}
                     strokeWidth={2.2}
-                    className="text-red-500 transition-transform duration-200 group-hover:-translate-x-0.5"
+                    className="transition-transform duration-200 group-hover:-translate-x-0.5"
                   />
                   <span>Sign out</span>
                 </button>
@@ -482,7 +480,7 @@ export function Navbar({
                 <button
                   type="button"
                   onClick={() => setMobileOpen(!mobileOpen)}
-                  className="relative flex size-9 min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 cursor-pointer items-center justify-center rounded-full glass glass-bloom transition-all duration-200 active:scale-90 md:hidden touch-manipulation"
+                  className="relative flex size-9 min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 cursor-pointer items-center justify-center rounded-full hover:bg-foreground/5 transition-all duration-200 active:scale-90 md:hidden touch-manipulation"
                   aria-expanded={mobileOpen}
                   aria-label={mobileOpen ? "Close menu" : "Open menu"}
                 >
