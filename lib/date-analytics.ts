@@ -6,7 +6,9 @@ import type {
   UserEntry,
 } from "@/components/admin/analytics-dashboard";
 
-export async function getDateAnalytics(pollId = "legacy-date"): Promise<AnalyticsData> {
+export async function getDateAnalytics(
+  pollId = "legacy-date",
+): Promise<AnalyticsData> {
   const config = await getPollConfig(pollId);
   if (!config || !config.startDate || !config.endDate) {
     return {
@@ -22,12 +24,17 @@ export async function getDateAnalytics(pollId = "legacy-date"): Promise<Analytic
   }
 
   const { dates, timeSlots } = config;
-  const poll = await prisma.poll.findUnique({ where: { id: pollId }, select: { committees: true, allCommittees: true } });
+  const poll = await prisma.poll.findUnique({
+    where: { id: pollId },
+    select: { committees: true, allCommittees: true },
+  });
 
   const rawSlots = await prisma.availability.findMany({
     where: {
       pollId,
-      ...(poll && !poll.allCommittees ? { user: { committee: { in: poll.committees } } } : {}),
+      ...(poll && !poll.allCommittees
+        ? { user: { committee: { in: poll.committees } } }
+        : {}),
       date: {
         gte: new Date(config.startDate + "T00:00:00.000Z"),
         lte: new Date(config.endDate + "T00:00:00.000Z"),

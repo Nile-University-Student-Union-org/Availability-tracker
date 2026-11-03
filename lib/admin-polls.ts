@@ -1,7 +1,11 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export type AdminViewer = { id: string; committee: string | null; superAdmin: boolean };
+export type AdminViewer = {
+  id: string;
+  committee: string | null;
+  superAdmin: boolean;
+};
 
 /** Polls an admin manages or can read results for (superadmins see all) */
 export function adminPollsWhere(viewer: AdminViewer): Prisma.PollWhereInput {
@@ -38,25 +42,34 @@ export type OverviewPoll = {
 };
 
 /** Every visible poll with how many of its members have answered */
-export async function getAdminOverview(viewer: AdminViewer): Promise<OverviewPoll[]> {
-  const [polls, answered, byCommittee] = await Promise.all([
-    prisma.poll.findMany({
-      where: adminPollsWhere(viewer),
-      include: { createdBy: { select: { name: true, email: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
+export async function getAdminOverview(
+  viewer: AdminViewer,
+): Promise<OverviewPoll[]> {
+  const polls = await prisma.poll.findMany({
+    where: adminPollsWhere(viewer),
+    include: { createdBy: { select: { name: true, email: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (polls.length === 0) return [];
+
+  const pollIds = polls.map((p) => p.id);
+  const [answered, byCommittee] = await Promise.all([
     prisma.$queryRaw<{ pollId: string; n: number }[]>`
       SELECT "pollId", COUNT(DISTINCT "userId")::int AS n FROM (
-        SELECT "pollId", "userId" FROM availability
+        SELECT "pollId", "userId" FROM availability WHERE "pollId" IN (${Prisma.join(pollIds)})
         UNION ALL
-        SELECT "pollId", "userId" FROM recurring_availability
+        SELECT "pollId", "userId" FROM recurring_availability WHERE "pollId" IN (${Prisma.join(pollIds)})
       ) answers GROUP BY "pollId"`,
     prisma.user.groupBy({ by: ["committee"], _count: { _all: true } }),
   ]);
 
   const respondents = new Map(answered.map((r) => [r.pollId, r.n]));
   const members = new Map(byCommittee.map((c) => [c.committee, c._count._all]));
-  const everyone = byCommittee.reduce((sum, c) => sum + (c.committee ? c._count._all : 0), 0);
+  const everyone = byCommittee.reduce(
+    (sum, c) => sum + (c.committee ? c._count._all : 0),
+    0,
+  );
 
   return polls.map((p) => ({
     id: p.id,

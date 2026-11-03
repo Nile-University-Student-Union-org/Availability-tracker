@@ -16,12 +16,36 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const pollId = new URL(request.url).searchParams.get("pollId") ?? "legacy-date";
+    const pollId =
+      new URL(request.url).searchParams.get("pollId") ?? "legacy-date";
     const [user, poll] = await Promise.all([
-      prisma.user.findUnique({ where: { email: session.user.email.toLowerCase() }, select: { id: true, committee: true } }),
-      prisma.poll.findUnique({ where: { id: pollId }, select: { id: true, committees: true, requestedCommittees: true, allCommittees: true, createdById: true } }),
+      prisma.user.findUnique({
+        where: { email: session.user.email.toLowerCase() },
+        select: { id: true, committee: true },
+      }),
+      prisma.poll.findUnique({
+        where: { id: pollId },
+        select: {
+          id: true,
+          committees: true,
+          requestedCommittees: true,
+          allCommittees: true,
+          createdById: true,
+        },
+      }),
     ]);
-    if (!user || !poll || !canSeeResults(poll, user.id, user.committee, true, isSuperAdmin(session.user.email))) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (
+      !user ||
+      !poll ||
+      !canSeeResults(
+        poll,
+        user.id,
+        user.committee,
+        true,
+        isSuperAdmin(session.user.email),
+      )
+    )
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     const analytics = await getDateAnalytics(pollId);
 
     return NextResponse.json(analytics, {

@@ -3,8 +3,17 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { isAdminEmail, isSuperAdmin, getSuperAdminEmails } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { canSeeResults, canEditOrDeletePoll, editAudience } from "@/lib/poll-access";
-import { validateWeeklySlots, sortSlots, parseDateSlots, type WeeklySlot } from "@/lib/weekly-slots";
+import {
+  canSeeResults,
+  canEditOrDeletePoll,
+  editAudience,
+} from "@/lib/poll-access";
+import {
+  validateWeeklySlots,
+  sortSlots,
+  parseDateSlots,
+  type WeeklySlot,
+} from "@/lib/weekly-slots";
 import { getPollConfig } from "@/lib/schedule";
 import { sendMail } from "@/lib/mail";
 import { pollRequestEmail } from "@/lib/emails/poll-request";
@@ -29,33 +38,50 @@ async function load(id: string) {
       },
     }),
   ]);
-  if (!user || !poll) return { session, user, poll: null, superAdmin: isSuperAdmin(session.user.email) };
+  if (!user || !poll)
+    return {
+      session,
+      user,
+      poll: null,
+      superAdmin: isSuperAdmin(session.user.email),
+    };
   const superAdmin = isSuperAdmin(session.user.email);
   return canSeeResults(poll, user.id, user.committee, true, superAdmin)
     ? { session, user, poll, superAdmin }
     : { session, user, poll: null, superAdmin };
 }
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params;
   const ctx = await load(id);
-  if (!ctx?.session) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  if (!ctx.poll) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+  if (!ctx?.session)
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!ctx.poll)
+    return NextResponse.json({ error: "Poll not found" }, { status: 404 });
   return NextResponse.json(
     { poll: ctx.poll, config: await getPollConfig(id) },
     {
       headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
       },
     },
   );
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params;
   const ctx = await load(id);
-  if (!ctx?.session || !ctx.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  if (!ctx.poll) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+  if (!ctx?.session || !ctx.user)
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!ctx.poll)
+    return NextResponse.json({ error: "Poll not found" }, { status: 404 });
   if (!canEditOrDeletePoll(ctx.poll, ctx.user.id, ctx.superAdmin)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -64,37 +90,69 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const b = await request.json();
     const poll = ctx.poll;
     const nextName = typeof b.name === "string" ? b.name.trim() : poll.name;
-    if (!nextName || nextName.length > 100) return NextResponse.json({ error: "Poll name is required (up to 100 characters)" }, { status: 400 });
+    if (!nextName || nextName.length > 100)
+      return NextResponse.json(
+        { error: "Poll name is required (up to 100 characters)" },
+        { status: 400 },
+      );
 
     // Audience only changes when committees are sent; a rename alone keeps it
     let audience: ReturnType<typeof editAudience> | null = null;
     if (Array.isArray(b.committees)) {
       const chosen = Array.from(
-        new Set<string>((b.committees as unknown[]).filter((x): x is string => typeof x === "string")),
+        new Set<string>(
+          (b.committees as unknown[]).filter(
+            (x): x is string => typeof x === "string",
+          ),
+        ),
       );
       const found = await prisma.committee.findMany({
         where: { name: { in: chosen } },
         select: { name: true },
       });
       if (found.length !== chosen.length || !chosen.length) {
-        return NextResponse.json({ error: "Choose valid committees" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Choose valid committees" },
+          { status: 400 },
+        );
       }
-      audience = editAudience(poll.committees, chosen, ctx.user.committee, ctx.superAdmin);
+      audience = editAudience(
+        poll.committees,
+        chosen,
+        ctx.user.committee,
+        ctx.superAdmin,
+      );
     }
     const willBePending = audience?.requestStatus === "pending";
 
     const startDate =
-      poll.type === "date" && b.startDate ? new Date(`${b.startDate}T00:00:00.000Z`) : poll.startDate;
-    const endDate = poll.type === "date" && b.endDate ? new Date(`${b.endDate}T00:00:00.000Z`) : poll.endDate;
+      poll.type === "date" && b.startDate
+        ? new Date(`${b.startDate}T00:00:00.000Z`)
+        : poll.startDate;
+    const endDate =
+      poll.type === "date" && b.endDate
+        ? new Date(`${b.endDate}T00:00:00.000Z`)
+        : poll.endDate;
     if (
       poll.type === "date" &&
-      (!startDate || !endDate || isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || startDate > endDate)
+      (!startDate ||
+        !endDate ||
+        isNaN(startDate.getTime()) ||
+        isNaN(endDate.getTime()) ||
+        startDate > endDate)
     ) {
-      return NextResponse.json({ error: "Invalid date range" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid date range" },
+        { status: 400 },
+      );
     }
 
-    const days: number[] = Array.isArray(b.weeklyDays) ? b.weeklyDays : poll.weeklyDays;
-    const weekly: WeeklySlot[] = Array.isArray(b.weeklySlots) ? b.weeklySlots : poll.weeklySlots;
+    const days: number[] = Array.isArray(b.weeklyDays)
+      ? b.weeklyDays
+      : poll.weeklyDays;
+    const weekly: WeeklySlot[] = Array.isArray(b.weeklySlots)
+      ? b.weeklySlots
+      : poll.weeklySlots;
     if (poll.type === "weekly") {
       const error = validateWeeklySlots(days, weekly);
       if (error) return NextResponse.json({ error }, { status: 400 });
@@ -107,7 +165,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     const timeSlots = "slots" in parsedSlots ? parsedSlots.slots : [];
 
-    const pendingCommittees = audience?.requestedCommittees ?? poll.requestedCommittees;
+    const pendingCommittees =
+      audience?.requestedCommittees ?? poll.requestedCommittees;
 
     await prisma.$transaction(async (tx) => {
       await tx.poll.update({
@@ -172,24 +231,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         slotMode: (b.slotMode ?? poll.slotMode) as "fixed" | "free",
         reviewUrl: `${process.env.BETTER_AUTH_URL ?? ""}/admin?tab=requests`,
       });
-      after(() => sendMail({
-        to: getSuperAdminEmails().filter((e) => e !== process.env.ADMIN_EMAIL?.trim().toLowerCase()),
-        ...email,
-      }));
+      after(() =>
+        sendMail({
+          to: getSuperAdminEmails().filter(
+            (e) => e !== process.env.ADMIN_EMAIL?.trim().toLowerCase(),
+          ),
+          ...email,
+        }),
+      );
     }
 
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error("PATCH /api/admin/polls/[id] failed:", e);
-    return NextResponse.json({ error: "Could not save the poll. Please try again." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not save the poll. Please try again." },
+      { status: 500 },
+    );
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params;
   const ctx = await load(id);
-  if (!ctx?.session || !ctx.user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  if (!ctx.poll) return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+  if (!ctx?.session || !ctx.user)
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!ctx.poll)
+    return NextResponse.json({ error: "Poll not found" }, { status: 404 });
   if (!canEditOrDeletePoll(ctx.poll, ctx.user.id, ctx.superAdmin)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
