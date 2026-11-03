@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error: unknown) {
-    console.error("Error in GET /api/admin/analytics:", error);
+    console.error("GET /api/admin/analytics failed:", error);
     return NextResponse.json(
       { error: "Failed to load date analytics" },
       { status: 500 },

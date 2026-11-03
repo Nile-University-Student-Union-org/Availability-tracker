@@ -19,9 +19,8 @@ export async function GET() {
     const admins = await getAllAdminUsers();
     return NextResponse.json({ admins });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load admins";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("GET /api/admin/users failed:", error);
+    return NextResponse.json({ error: "Failed to load admins" }, { status: 500 });
   }
 }
 
@@ -51,9 +50,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ message: result.message, email });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to grant admin access";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("POST /api/admin/users failed:", error);
+    return NextResponse.json({ error: "Failed to grant admin access" }, { status: 500 });
   }
 }
 
@@ -87,8 +85,7 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ message: result.message, email });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to revoke admin access";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("DELETE /api/admin/users failed:", error);
+    return NextResponse.json({ error: "Failed to revoke admin access" }, { status: 500 });
   }
 }

@@ -33,5 +33,8 @@ export async function PUT(request: NextRequest) {
     });
     revalidatePath("/admin"); revalidatePath("/polls");
     return NextResponse.json({ success: true });
-  } catch (e) { return NextResponse.json({ error: e instanceof Error ? e.message : "Failed to update legacy polls" }, { status: 500 }); }
+  } catch (e) {
+    console.error("PUT /api/admin/schedule-config failed:", e);
+    return NextResponse.json({ error: "Failed to update legacy polls" }, { status: 500 });
+  }
 }

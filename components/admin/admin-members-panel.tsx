@@ -52,6 +52,7 @@ import {
 import { toast } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 import { COMMITTEES } from "@/lib/constants";
+import { canManageMember } from "@/lib/member-access";
 
 export interface MemberData {
   id: string;
@@ -72,11 +73,17 @@ export interface MemberData {
 interface AdminMembersPanelProps {
   currentUserId?: string;
   currentUserEmail?: string;
+  viewer?: {
+    id: string;
+    committee: string | null;
+    isSuperAdmin: boolean;
+  };
 }
 
 export function AdminMembersPanel({
   currentUserId,
   currentUserEmail,
+  viewer,
 }: AdminMembersPanelProps) {
   const { spinKey, spin } = useRefreshSpin();
   const [members, setMembers] = React.useState<MemberData[]>([]);
@@ -511,9 +518,6 @@ export function AdminMembersPanel({
         ) : (
           <div className="divide-y divide-border/40">
             {filteredMembers.map((member) => {
-              const isSelf =
-                member.id === currentUserId ||
-                member.email.toLowerCase() === currentUserEmail?.toLowerCase();
               const isRootAdmin =
                 member.email.toLowerCase() === "admin@nu.edu.eg";
 
@@ -630,59 +634,80 @@ export function AdminMembersPanel({
                   </div>
 
                   {/* Right: Actions */}
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    {/* Edit Member details button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditMember(member)}
-                      className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl border-border/80 hover:border-primary/40 hover:bg-primary/10 hover:text-primary touch-manipulation active:scale-[0.98]"
-                      title={`Edit ${member.name}'s details`}
-                    >
-                      <HugeiconsIcon
-                        icon={UserEdit01Icon}
-                        className="size-3.5"
-                      />
-                      <span>Edit</span>
-                    </Button>
+                  {(() => {
+                    const isTargetSuper = member.role === "super-admin" || isRootAdmin;
+                    const isTargetAdm = isTargetSuper || member.role === "admin";
+                    const actor = {
+                      id: viewer?.id ?? currentUserId ?? "",
+                      email: currentUserEmail ?? "",
+                      committee: viewer?.committee ?? null,
+                      isAdmin: true,
+                      isSuperAdmin: Boolean(viewer?.isSuperAdmin),
+                    };
+                    const target = {
+                      id: member.id,
+                      email: member.email,
+                      committee: member.committee ?? null,
+                      isAdmin: isTargetAdm,
+                      isSuperAdmin: isTargetSuper,
+                    };
+                    const canEdit = canManageMember(actor, target, "edit");
+                    const canReset = canManageMember(actor, target, "reset-password");
+                    const canDelete = canManageMember(actor, target, "delete");
 
-                    {/* Change / Reset Password button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setMemberToReset(member)}
-                      className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl border-border/80 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 touch-manipulation active:scale-[0.98]"
-                      title="Reset member password and force new password on next login"
-                    >
-                      <HugeiconsIcon
-                        icon={LockPasswordIcon}
-                        className="size-3.5"
-                      />
-                      Reset Password
-                    </Button>
+                    if (!canEdit && !canReset && !canDelete) return null;
 
-                    {/* Delete Member button */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setMemberToDelete(member)}
-                      disabled={isSelf || isRootAdmin}
-                      className={cn(
-                        "size-8 rounded-xl cursor-pointer text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive touch-manipulation active:scale-[0.96]",
-                        (isSelf || isRootAdmin) &&
-                          "opacity-40 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground",
-                      )}
-                      title={
-                        isSelf
-                          ? "You cannot delete your own account"
-                          : isRootAdmin
-                            ? "Primary administrator cannot be deleted"
-                            : `Delete ${member.name}`
-                      }
-                    >
-                      <HugeiconsIcon icon={Delete02Icon} className="size-4" />
-                    </Button>
-                  </div>
+                    return (
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        {/* Edit Member details button */}
+                        {canEdit && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditMember(member)}
+                            className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl border-border/80 hover:border-primary/40 hover:bg-primary/10 hover:text-primary touch-manipulation active:scale-[0.98]"
+                            title={`Edit ${member.name}'s details`}
+                          >
+                            <HugeiconsIcon
+                              icon={UserEdit01Icon}
+                              className="size-3.5"
+                            />
+                            <span>Edit</span>
+                          </Button>
+                        )}
+
+                        {/* Change / Reset Password button */}
+                        {canReset && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMemberToReset(member)}
+                            className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl border-border/80 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 touch-manipulation active:scale-[0.98]"
+                            title="Reset member password and force new password on next login"
+                          >
+                            <HugeiconsIcon
+                              icon={LockPasswordIcon}
+                              className="size-3.5"
+                            />
+                            Reset Password
+                          </Button>
+                        )}
+
+                        {/* Delete Member button */}
+                        {canDelete && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setMemberToDelete(member)}
+                            className="size-8 rounded-xl cursor-pointer text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive touch-manipulation active:scale-[0.96]"
+                            title={`Delete ${member.name}`}
+                          >
+                            <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

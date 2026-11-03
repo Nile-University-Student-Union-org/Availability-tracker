@@ -10,7 +10,7 @@ export async function GET() {
     const committees = await getCommittees();
     return NextResponse.json({ committees });
   } catch (error: unknown) {
-    console.error("Failed to load committees:", error);
+    console.error("GET /api/committees failed:", error);
     return NextResponse.json({ committees: [] }, { status: 500 });
   }
 }

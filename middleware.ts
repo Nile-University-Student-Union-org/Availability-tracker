@@ -9,11 +9,14 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:3000",
 ];
 
+const PREVIEW_ORIGIN_REGEX =
+  /^https:\/\/nusu-availability-tracker(-[a-z0-9-]+)?(\.vercel\.app)$/;
+
 function getCorsHeaders(origin: string | null, requestOrigin: string) {
   const isAllowed =
     origin &&
     (ALLOWED_ORIGINS.includes(origin) ||
-      origin.endsWith(".vercel.app") ||
+      PREVIEW_ORIGIN_REGEX.test(origin) ||
       origin === requestOrigin);
 
   const allowedOrigin = isAllowed

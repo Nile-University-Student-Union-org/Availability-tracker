@@ -56,9 +56,8 @@ export async function GET() {
 
     return NextResponse.json({ committees: result });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to fetch committees";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("GET /api/admin/committees failed:", error);
+    return NextResponse.json({ error: "Failed to fetch committees" }, { status: 500 });
   }
 }
 
@@ -125,9 +124,8 @@ export async function POST(req: Request) {
       message: `Committee "${newCommittee.name}" created successfully.`,
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to create committee";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("POST /api/admin/committees failed:", error);
+    return NextResponse.json({ error: "Failed to create committee" }, { status: 500 });
   }
 }
 
@@ -175,9 +173,8 @@ export async function DELETE(req: Request) {
       message: `Committee "${target.name}" has been deleted. Any members assigned have been unassigned.`,
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to delete committee";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("DELETE /api/admin/committees failed:", error);
+    return NextResponse.json({ error: "Failed to delete committee" }, { status: 500 });
   }
 }
 
@@ -231,8 +228,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to reorder committees";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("PATCH /api/admin/committees failed:", error);
+    return NextResponse.json({ error: "Failed to update committees" }, { status: 500 });
   }
 }
