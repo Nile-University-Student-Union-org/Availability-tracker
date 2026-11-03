@@ -229,37 +229,53 @@ export function AdminLayoutShell({
   };
 
   // One glass lens glides to the active nav item instead of each item lighting up on its own
-  const navRef = React.useRef<HTMLDivElement>(null);
-  const [lens, setLens] = React.useState<DOMRectReadOnly>();
+  // State (not a plain ref) so the effect re-runs when the mobile sheet mounts its own nav
+  const [nav, setNav] = React.useState<HTMLDivElement | null>(null);
+  const lensRef = React.useRef<HTMLSpanElement>(null);
+  const placedNav = React.useRef<HTMLDivElement | null>(null);
   React.useLayoutEffect(() => {
-    const nav = navRef.current;
-    if (!nav) return;
-    const measure = () => {
+    const lens = lensRef.current;
+    if (!nav || !lens) return;
+    // Writes straight to the DOM: a React state update per frame would re-render every panel
+    const place = (glide: boolean) => {
       const active = nav.querySelector<HTMLElement>(
         '[data-slot="sidebar-menu-button"][data-active]',
       );
-      if (!active) return setLens(undefined);
+      lens.style.opacity = active ? "1" : "0";
+      if (!active) return;
       const a = active.getBoundingClientRect();
       const n = nav.getBoundingClientRect();
-      setLens(
-        new DOMRectReadOnly(
-          a.left - n.left,
-          a.top - n.top + nav.scrollTop,
-          a.width,
-          a.height,
-        ),
-      );
+      lens.style.transitionDuration = glide ? "" : "0s";
+      lens.style.transform = `translate(${a.left - n.left}px, ${a.top - n.top + nav.scrollTop}px)`;
+      lens.style.width = `${a.width}px`;
+      lens.style.height = `${a.height}px`;
     };
-    measure();
-    // Collapsing slides the group labels away without resizing the nav, so also re-measure after transitions
-    const observer = new ResizeObserver(measure);
-    observer.observe(nav);
-    nav.addEventListener("transitionend", measure);
+    // Glide on a section switch, jump into place on first paint
+    place(placedNav.current === nav);
+    placedNav.current = nav;
+
+    // While the sidebar collapses or expands, track the item every frame with no lag
+    let frame = 0;
+    let until = 0;
+    const follow = () => {
+      place(false);
+      frame = performance.now() < until ? requestAnimationFrame(follow) : 0;
+    };
+    const onRun = (e: TransitionEvent) => {
+      if (
+        e.target === lens ||
+        !/width|height|margin|padding/.test(e.propertyName)
+      )
+        return;
+      until = performance.now() + 400;
+      if (!frame) frame = requestAnimationFrame(follow);
+    };
+    nav.addEventListener("transitionrun", onRun);
     return () => {
-      observer.disconnect();
-      nav.removeEventListener("transitionend", measure);
+      nav.removeEventListener("transitionrun", onRun);
+      cancelAnimationFrame(frame);
     };
-  }, [activeTab]);
+  }, [nav, activeTab]);
 
   const [signOutOpen, setSignOutOpen] = React.useState(false);
 
@@ -313,18 +329,12 @@ export function AdminLayoutShell({
           </SidebarHeader>
 
           {/* Navigation Groups */}
-          <SidebarContent ref={navRef} className="relative">
-            {lens && (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute top-0 left-0 rounded-full glass-lens transition-[transform,width,height] duration-500 ease-(--ease-spring) motion-reduce:transition-none"
-                style={{
-                  transform: `translate(${lens.x}px, ${lens.y}px)`,
-                  width: lens.width,
-                  height: lens.height,
-                }}
-              />
-            )}
+          <SidebarContent ref={setNav} className="relative">
+            <span
+              ref={lensRef}
+              aria-hidden
+              className="pointer-events-none absolute top-0 left-0 rounded-full opacity-0 glass-lens transition-[transform,width,height] duration-500 ease-(--ease-spring) motion-reduce:transition-none"
+            />
             <SidebarGroup>
               <SidebarGroupLabel>Workspace</SidebarGroupLabel>
               <SidebarGroupContent>
