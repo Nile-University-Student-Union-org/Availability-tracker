@@ -305,9 +305,11 @@ export function WeeklyTimetable({
             return (
               <button
                 key={dayNum}
+                id={`day-tab-${dayNum}`}
                 type="button"
                 role="tab"
                 aria-selected={isSelected}
+                aria-controls="weekly-slots-panel"
                 aria-label={`${meta?.label}, ${dayCount} selected`}
                 onClick={() => setSelectedDay(dayNum)}
                 className={cn(
@@ -332,7 +334,12 @@ export function WeeklyTimetable({
         </div>
 
         {/* ─── Slots for the selected day ─────────────────────────────────── */}
-        <div className="rounded-3xl border border-border/70 bg-card p-4 shadow-xs sm:p-5">
+        <div
+          role="tabpanel"
+          id="weekly-slots-panel"
+          aria-labelledby={`day-tab-${selectedDay}`}
+          className="rounded-3xl border border-border/70 bg-card p-4 shadow-xs sm:p-5"
+        >
           <div className="mb-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="font-heading text-lg font-bold tracking-tight">
@@ -431,7 +438,7 @@ export function WeeklyTimetable({
       {/* ─── Floating Dynamic Save Island (Visible only on unsaved changes) ────── */}
       <div
         className={cn(
-          "fixed bottom-6 inset-x-0 mx-auto z-40 w-[calc(100%-2rem)] max-w-md transition-[translate,scale,opacity] duration-250 ease-[var(--ease-out)]",
+          "fixed bottom-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1rem))] inset-x-0 mx-auto z-40 w-[calc(100%-2rem)] max-w-md transition-[translate,scale,opacity] duration-250 ease-[var(--ease-out)]",
           hasChanges
             ? "translate-y-0 opacity-100 scale-100 pointer-events-auto"
             : "translate-y-10 opacity-0 scale-95 pointer-events-none",

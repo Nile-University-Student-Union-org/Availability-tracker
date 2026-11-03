@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCachedSession } from "@/lib/session";
-import { isAdminEmail, getEnvAdminEmails, isSuperAdmin } from "@/lib/admin";
+import {
+  isAdminEmail,
+  getEnvAdminEmails,
+  isSuperAdmin,
+  getAllAdminUsers,
+} from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { getCommittees } from "@/lib/committees";
 import { getAdminOverview } from "@/lib/admin-polls";
@@ -61,25 +66,30 @@ export default async function AdminPage() {
     committee: user?.committee ?? null,
     isSuperAdmin: superAdmin,
   };
-  const [committees, pendingCount, overviewPolls] = await Promise.all([
-    getCommittees(),
-    superAdmin
-      ? prisma.poll.count({ where: { requestStatus: "pending" } })
-      : Promise.resolve(0),
-    getAdminOverview({
-      id: viewer.id,
-      committee: viewer.committee,
-      superAdmin,
-    }).catch((err) => {
-      console.error("Failed to load admin overview:", err);
-      return [];
-    }),
-  ]);
+  const [committees, pendingCount, overviewPolls, initialAdmins] =
+    await Promise.all([
+      getCommittees(),
+      superAdmin
+        ? prisma.poll.count({ where: { requestStatus: "pending" } })
+        : Promise.resolve(0),
+      getAdminOverview({
+        id: viewer.id,
+        committee: viewer.committee,
+        superAdmin,
+      }).catch((err) => {
+        console.error("Failed to load admin overview:", err);
+        return [];
+      }),
+      getAllAdminUsers().catch((err) => {
+        console.error("Failed to load admin users:", err);
+        return [];
+      }),
+    ]);
 
   return (
     <AdminLayoutShell
       session={session}
-      initialAdmins={[]}
+      initialAdmins={initialAdmins}
       viewer={viewer}
       committees={committees}
       pendingCount={pendingCount}

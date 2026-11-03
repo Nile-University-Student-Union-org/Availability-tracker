@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCachedSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -5,7 +6,6 @@ import { getPollConfig } from "@/lib/schedule";
 import { canSeePoll } from "@/lib/poll-access";
 import { AvailabilityCalendar } from "@/components/calendar/availability-calendar";
 import { WeeklyTimetable } from "@/components/weekly/weekly-timetable";
-import { ScheduleInactiveNotice } from "@/components/schedule-inactive-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -47,12 +47,23 @@ export default async function PollPage({
     (poll.type === "date" && (!poll.startDate || !poll.endDate))
   ) {
     return (
-      <main className="container mx-auto flex max-w-lg flex-col items-center gap-6 px-4 pt-28 pb-12">
-        <ScheduleInactiveNotice
-          currentMode={poll.type === "date" ? "specific" : "weekly"}
-          dateScheduleActive={poll.type === "date" ? false : true}
-          weeklyScheduleActive={poll.type === "weekly" ? false : true}
-        />
+      <main className="container mx-auto flex max-w-md flex-col items-center gap-6 px-4 pt-28 pb-12">
+        <div className="w-full rounded-3xl border border-border/80 bg-card p-6 text-center shadow-xs">
+          <h1 className="font-heading text-xl font-bold tracking-tight sm:text-2xl">
+            {poll.name}
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This poll is closed
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Link
+              href="/polls"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 touch-manipulation active:scale-[0.98]"
+            >
+              Back to your polls
+            </Link>
+          </div>
+        </div>
       </main>
     );
   }
@@ -60,12 +71,23 @@ export default async function PollPage({
     const { startDate, endDate } = poll;
     if (!startDate || !endDate) {
       return (
-        <main className="container mx-auto flex max-w-lg flex-col items-center gap-6 px-4 pt-28 pb-12">
-          <ScheduleInactiveNotice
-            currentMode="specific"
-            dateScheduleActive={false}
-            weeklyScheduleActive={true}
-          />
+        <main className="container mx-auto flex max-w-md flex-col items-center gap-6 px-4 pt-28 pb-12">
+          <div className="w-full rounded-3xl border border-border/80 bg-card p-6 text-center shadow-xs">
+            <h1 className="font-heading text-xl font-bold tracking-tight sm:text-2xl">
+              {poll.name}
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This poll is closed
+            </p>
+            <div className="mt-6 flex justify-center">
+              <Link
+                href="/polls"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-xs transition-colors hover:bg-primary/90 touch-manipulation active:scale-[0.98]"
+              >
+                Back to your polls
+              </Link>
+            </div>
+          </div>
         </main>
       );
     }

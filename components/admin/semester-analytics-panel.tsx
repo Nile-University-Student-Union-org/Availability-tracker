@@ -23,6 +23,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -78,6 +87,7 @@ export function SemesterAnalyticsPanel({
   pollId,
   pollCommittees,
 }: SemesterAnalyticsPanelProps) {
+  const isMobile = useIsMobile();
   const [committee, setCommittee] = React.useState<string>("all");
   // A scoped poll lists only its own committees; an all-committee poll lists every one
   const [availableCommittees, setAvailableCommittees] = React.useState<
@@ -376,7 +386,7 @@ export function SemesterAnalyticsPanel({
           </div>
 
           {/* Matrix Grid */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]">
             <div className="min-w-[640px]">
               {/* Table Header: Days */}
               <div
@@ -531,146 +541,298 @@ export function SemesterAnalyticsPanel({
         </CardContent>
       </Card>
 
-      {/* ─── Slot Inspection Dialog ───────────────────────────────────────────── */}
-      <Dialog
-        open={Boolean(selectedSlot)}
-        onOpenChange={(open) => !open && setSelectedSlot(null)}
-      >
-        <DialogContent className="max-w-md rounded-3xl border-border/80 bg-background/95 backdrop-blur-2xl">
-          {selectedSlot && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 text-xs font-bold"
+      {/* ─── Slot Inspection Dialog / Drawer ─────────────────────────────────── */}
+      {isMobile ? (
+        <Drawer
+          open={Boolean(selectedSlot)}
+          onOpenChange={(open) => !open && setSelectedSlot(null)}
+        >
+          <DrawerContent className="max-h-[85vh] px-4 pb-6">
+            {selectedSlot && (
+              <>
+                <DrawerHeader className="px-0 text-left">
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 text-xs font-bold"
+                    >
+                      {
+                        DAY_OF_WEEK_MAP.find(
+                          (d) => d.day === selectedSlot.dayOfWeek,
+                        )?.label
+                      }
+                    </Badge>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {formatTimeSlot(selectedSlot.startTime)} →{" "}
+                      {formatTimeSlot(selectedSlot.endTime)}
+                    </span>
+                  </div>
+                  <DrawerTitle className="text-xl font-bold tracking-tight mt-1">
+                    Slot Inspection
+                  </DrawerTitle>
+                  <DrawerDescription className="text-xs">
+                    Review which members are free and who has academic lectures.
+                  </DrawerDescription>
+                </DrawerHeader>
+
+                {/* Toggle available vs missing */}
+                <div className="flex p-1 rounded-xl bg-muted/60 border border-border/60 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setDialogTab("available")}
+                    className={cn(
+                      "flex-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer touch-manipulation active:scale-[0.98]",
+                      dialogTab === "available"
+                        ? "bg-background text-foreground shadow-xs font-bold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
                   >
-                    {
-                      DAY_OF_WEEK_MAP.find(
-                        (d) => d.day === selectedSlot.dayOfWeek,
-                      )?.label
-                    }
-                  </Badge>
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {formatTimeSlot(selectedSlot.startTime)} →{" "}
-                    {formatTimeSlot(selectedSlot.endTime)}
-                  </span>
+                    Available ({selectedSlot.users.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDialogTab("missing")}
+                    className={cn(
+                      "flex-1 min-h-[44px] py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer touch-manipulation active:scale-[0.98]",
+                      dialogTab === "missing"
+                        ? "bg-background text-foreground shadow-xs font-bold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Conflicting / Missing ({missingMembersForSlot.length})
+                  </button>
                 </div>
-                <DialogTitle className="text-xl font-bold tracking-tight mt-1">
-                  Slot Inspection
-                </DialogTitle>
-                <DialogDescription className="text-xs">
-                  Review which members are free and who has academic lectures.
-                </DialogDescription>
-              </DialogHeader>
 
-              {/* Toggle available vs missing */}
-              <div className="flex p-1 rounded-xl bg-muted/60 border border-border/60 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setDialogTab("available")}
-                  className={cn(
-                    "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
-                    dialogTab === "available"
-                      ? "bg-background text-foreground shadow-xs font-bold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  Available ({selectedSlot.users.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDialogTab("missing")}
-                  className={cn(
-                    "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
-                    dialogTab === "missing"
-                      ? "bg-background text-foreground shadow-xs font-bold"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  Conflicting / Missing ({missingMembersForSlot.length})
-                </button>
-              </div>
-
-              <ScrollArea className="max-h-[300px] mt-2 pr-2">
-                {dialogTab === "available" ? (
-                  selectedSlot.users.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-muted-foreground">
-                      No members are marked available for this standing hour.
+                <div className="mt-2 flex-1 overflow-y-auto overscroll-contain pr-1">
+                  {dialogTab === "available" ? (
+                    selectedSlot.users.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-muted-foreground">
+                        No members are marked available for this standing hour.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border/60">
+                        {selectedSlot.users.map((u) => (
+                          <div
+                            key={u.id}
+                            className="flex items-center gap-3 py-2.5"
+                          >
+                            <Avatar className="size-8 rounded-lg">
+                              <AvatarImage src={u.image ?? undefined} />
+                              <AvatarFallback className="rounded-lg bg-emerald-600 text-white text-[11px] font-bold">
+                                {getInitials(u.name, u.email)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold truncate">
+                                {u.name || "Unnamed"}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {u.email} {u.committee ? `• ${u.committee}` : ""}
+                              </p>
+                            </div>
+                            <div className="size-5 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center">
+                              <HugeiconsIcon
+                                icon={Tick01Icon}
+                                size={12}
+                                strokeWidth={3}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : missingMembersForSlot.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                      100% Attendance! All registered members are free for this
+                      slot.
                     </div>
                   ) : (
                     <div className="divide-y divide-border/60">
-                      {selectedSlot.users.map((u) => (
+                      {missingMembersForSlot.map((u) => (
                         <div
                           key={u.id}
-                          className="flex items-center gap-3 py-2.5"
+                          className="flex items-center gap-3 py-2.5 opacity-80"
                         >
                           <Avatar className="size-8 rounded-lg">
                             <AvatarImage src={u.image ?? undefined} />
-                            <AvatarFallback className="rounded-lg bg-emerald-600 text-white text-[11px] font-bold">
+                            <AvatarFallback className="rounded-lg bg-muted text-muted-foreground text-[11px]">
                               {getInitials(u.name, u.email)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold truncate">
+                            <p className="text-xs font-medium truncate">
                               {u.name || "Unnamed"}
                             </p>
                             <p className="text-[10px] text-muted-foreground truncate">
                               {u.email} {u.committee ? `• ${u.committee}` : ""}
                             </p>
                           </div>
-                          <div className="size-5 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center">
-                            <HugeiconsIcon
-                              icon={Tick01Icon}
-                              size={12}
-                              strokeWidth={3}
-                            />
-                          </div>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] py-0 border-amber-500/30 text-amber-600"
+                          >
+                            Lecture Conflict
+                          </Badge>
                         </div>
                       ))}
                     </div>
-                  )
-                ) : missingMembersForSlot.length === 0 ? (
-                  <div className="py-8 text-center text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-                    100% Attendance! All registered members are free for this
-                    slot.
+                  )}
+                </div>
+
+                <DrawerFooter className="sticky bottom-0 mt-3 border-t bg-background px-0 pt-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedSlot(null)}
+                    className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98]"
+                  >
+                    Close
+                  </Button>
+                </DrawerFooter>
+              </>
+            )}
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog
+          open={Boolean(selectedSlot)}
+          onOpenChange={(open) => !open && setSelectedSlot(null)}
+        >
+          <DialogContent className="max-w-md rounded-3xl border-border/80 bg-background/95 backdrop-blur-2xl">
+            {selectedSlot && (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 text-xs font-bold"
+                    >
+                      {
+                        DAY_OF_WEEK_MAP.find(
+                          (d) => d.day === selectedSlot.dayOfWeek,
+                        )?.label
+                      }
+                    </Badge>
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      {formatTimeSlot(selectedSlot.startTime)} →{" "}
+                      {formatTimeSlot(selectedSlot.endTime)}
+                    </span>
                   </div>
-                ) : (
-                  <div className="divide-y divide-border/60">
-                    {missingMembersForSlot.map((u) => (
-                      <div
-                        key={u.id}
-                        className="flex items-center gap-3 py-2.5 opacity-80"
-                      >
-                        <Avatar className="size-8 rounded-lg">
-                          <AvatarImage src={u.image ?? undefined} />
-                          <AvatarFallback className="rounded-lg bg-muted text-muted-foreground text-[11px]">
-                            {getInitials(u.name, u.email)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium truncate">
-                            {u.name || "Unnamed"}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {u.email} {u.committee ? `• ${u.committee}` : ""}
-                          </p>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] py-0 border-amber-500/30 text-amber-600"
-                        >
-                          Lecture Conflict
-                        </Badge>
+                  <DialogTitle className="text-xl font-bold tracking-tight mt-1">
+                    Slot Inspection
+                  </DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Review which members are free and who has academic lectures.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {/* Toggle available vs missing */}
+                <div className="flex p-1 rounded-xl bg-muted/60 border border-border/60 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setDialogTab("available")}
+                    className={cn(
+                      "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
+                      dialogTab === "available"
+                        ? "bg-background text-foreground shadow-xs font-bold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Available ({selectedSlot.users.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDialogTab("missing")}
+                    className={cn(
+                      "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
+                      dialogTab === "missing"
+                        ? "bg-background text-foreground shadow-xs font-bold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Conflicting / Missing ({missingMembersForSlot.length})
+                  </button>
+                </div>
+
+                <ScrollArea className="max-h-[300px] mt-2 pr-2">
+                  {dialogTab === "available" ? (
+                    selectedSlot.users.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-muted-foreground">
+                        No members are marked available for this standing hour.
                       </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+                    ) : (
+                      <div className="divide-y divide-border/60">
+                        {selectedSlot.users.map((u) => (
+                          <div
+                            key={u.id}
+                            className="flex items-center gap-3 py-2.5"
+                          >
+                            <Avatar className="size-8 rounded-lg">
+                              <AvatarImage src={u.image ?? undefined} />
+                              <AvatarFallback className="rounded-lg bg-emerald-600 text-white text-[11px] font-bold">
+                                {getInitials(u.name, u.email)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold truncate">
+                                {u.name || "Unnamed"}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {u.email} {u.committee ? `• ${u.committee}` : ""}
+                              </p>
+                            </div>
+                            <div className="size-5 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center">
+                              <HugeiconsIcon
+                                icon={Tick01Icon}
+                                size={12}
+                                strokeWidth={3}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : missingMembersForSlot.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                      100% Attendance! All registered members are free for this
+                      slot.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border/60">
+                      {missingMembersForSlot.map((u) => (
+                        <div
+                          key={u.id}
+                          className="flex items-center gap-3 py-2.5 opacity-80"
+                        >
+                          <Avatar className="size-8 rounded-lg">
+                            <AvatarImage src={u.image ?? undefined} />
+                            <AvatarFallback className="rounded-lg bg-muted text-muted-foreground text-[11px]">
+                              {getInitials(u.name, u.email)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium truncate">
+                              {u.name || "Unnamed"}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {u.email} {u.committee ? `• ${u.committee}` : ""}
+                            </p>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] py-0 border-amber-500/30 text-amber-600"
+                          >
+                            Lecture Conflict
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

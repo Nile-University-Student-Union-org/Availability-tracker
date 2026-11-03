@@ -450,7 +450,7 @@ export function AdminLayoutShell({
           {/* Top Navbar */}
           <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
             <div className="flex items-center gap-3">
-              <SidebarTrigger className="cursor-pointer" />
+              <SidebarTrigger className="size-11 cursor-pointer touch-manipulation md:size-8" />
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">
                   Admin Console

@@ -48,16 +48,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -245,6 +245,7 @@ export function AnalyticsDashboard({
     slotEnds?.[start]
       ? `${formatTime(start)} → ${formatTime(slotEnds[start])}`
       : formatTime(start);
+  const isMobile = useIsMobile();
   const [activeCell, setActiveCell] = useState<{
     date: string;
     startTime: string;
@@ -380,6 +381,11 @@ export function AnalyticsDashboard({
       })
       .sort((a, b) => b.slots - a.slots);
   }, [allKnownCommittees, selectedCommittees, users]);
+
+  const maxCommitteeSlots = useMemo(
+    () => committeeStats.reduce((max, c) => Math.max(max, c.slots), 0),
+    [committeeStats],
+  );
 
   const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null;
 
@@ -619,7 +625,7 @@ export function AnalyticsDashboard({
                   id="committee-filter-btn"
                   type="button"
                   className={cn(
-                    "group relative flex min-h-[42px] sm:min-h-[38px] w-full sm:w-auto sm:min-w-[220px] max-w-full items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-left text-xs font-semibold shadow-2xs transition-all hover:border-primary/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
+                    "group relative flex min-h-[44px] md:min-h-[38px] w-full sm:w-auto sm:min-w-[220px] max-w-full items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-left text-xs font-semibold shadow-2xs transition-all hover:border-primary/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
                     selectedCommittees.length > 0 &&
                       "border-primary/40 bg-primary/5 text-primary ring-1 ring-primary/20",
                   )}
@@ -817,7 +823,7 @@ export function AnalyticsDashboard({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 rounded-xl text-xs cursor-pointer active:scale-95"
+            className="h-11 gap-1.5 rounded-xl text-xs cursor-pointer touch-manipulation active:scale-95 md:h-8"
             onClick={handleExportScheduleCsv}
             title="Export finalized meetings schedule as CSV"
           >
@@ -827,7 +833,7 @@ export function AnalyticsDashboard({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 rounded-xl text-xs cursor-pointer active:scale-95"
+            className="h-11 gap-1.5 rounded-xl text-xs cursor-pointer touch-manipulation active:scale-95 md:h-8"
             onClick={handleExportMatrixCsv}
             title="Export full member availability matrix as CSV"
           >
@@ -871,7 +877,7 @@ export function AnalyticsDashboard({
         />
       </div>
 
-      {/* ── NEW: Committee Breakdown Chart ────────────────────────────── */}
+      {/* ── Committee Breakdown ────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-3xl border bg-card">
         <div className="border-b px-5 py-4">
           <h2 className="font-heading text-base font-semibold">
@@ -881,52 +887,53 @@ export function AnalyticsDashboard({
             Distribution of members and total availability slots per committee
           </p>
         </div>
-        <div className="h-64 w-full min-w-0 p-4">
-          <ResponsiveContainer
-            width="100%"
-            height="100%"
-            minWidth={0}
-            minHeight={200}
-          >
-            <BarChart
-              data={committeeStats}
-              layout="vertical"
-              margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
-            >
-              <XAxis type="number" hide />
-              <YAxis
-                dataKey="name"
-                type="category"
-                width={80}
-                tick={{ fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                cursor={{ fill: "transparent" }}
-                contentStyle={{
-                  borderRadius: "16px",
-                  border: "none",
-                  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                  fontSize: "12px",
-                }}
-              />
-              <Bar dataKey="slots" radius={[0, 4, 4, 0]} barSize={20}>
-                {committeeStats.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={
-                      index % 2 === 0
-                        ? "var(--color-primary)"
-                        : "var(--color-primary-foreground)"
-                    }
-                    className="fill-primary"
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {maxCommitteeSlots === 0 ? (
+          <div className="px-5 py-10 text-center">
+            <p className="font-heading text-sm font-semibold text-foreground">
+              No answers yet
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              The breakdown appears once members mark their availability.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y p-5">
+            {committeeStats.map((entry) => {
+              const ratio =
+                maxCommitteeSlots > 0 ? entry.slots / maxCommitteeSlots : 0;
+              return (
+                // Name and numbers on one line, a full-width bar under them,
+                // so the bar stays readable on narrow phones
+                <div
+                  key={entry.name}
+                  className="space-y-1.5 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span
+                      className="min-w-0 truncate text-sm font-medium text-foreground"
+                      title={entry.name}
+                    >
+                      {entry.name}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      <span className="font-semibold text-foreground">
+                        {entry.slots}
+                      </span>{" "}
+                      {entry.slots === 1 ? "slot" : "slots"} · {entry.users}{" "}
+                      {entry.users === 1 ? "member" : "members"}
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-foreground/[0.06]">
+                    <div
+                      className="h-full w-full origin-left rounded-full bg-emerald-500 transition-transform duration-500 ease-out motion-reduce:transition-none"
+                      style={{ transform: `scaleX(${ratio})` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Availability table ─────────────────────────────────────────── */}
@@ -977,7 +984,7 @@ export function AnalyticsDashboard({
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto p-4">
+            <div className="overflow-x-auto p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]">
               <table className="w-full min-w-90 text-xs">
                 <thead>
                   <tr>
@@ -1251,7 +1258,7 @@ export function AnalyticsDashboard({
             Number of unique members available each day per committee
           </p>
         </div>
-        <div className="overflow-x-auto p-4">
+        <div className="overflow-x-auto p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]">
           <table className="w-full text-xs">
             <thead>
               <tr>
@@ -1395,67 +1402,140 @@ export function AnalyticsDashboard({
         )}
       </div>
 
-      {/* ── Individual member schedule dialog ──────────────────────────── */}
-      <Dialog
-        open={!!viewingUser}
-        onOpenChange={(open) => !open && setViewingUser(null)}
-      >
-        <DialogContent className="max-w-md rounded-3xl">
-          {viewingUser && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-3">
-                  <UserAvatar
-                    name={viewingUser.name}
-                    email={viewingUser.email}
-                    image={viewingUser.image}
-                    size="sm"
-                  />
-                  <div className="text-left">
-                    <DialogTitle className="font-heading text-lg">
-                      {viewingUser.name ?? "Member Schedule"}
-                    </DialogTitle>
-                    <DialogDescription className="text-xs">
-                      {viewingUser.email}{" "}
-                      {viewingUser.nuId && `· ID: ${viewingUser.nuId}`}
-                    </DialogDescription>
+      {/* ── Individual member schedule dialog / drawer ───────────────────── */}
+      {isMobile ? (
+        <Drawer
+          open={!!viewingUser}
+          onOpenChange={(open) => !open && setViewingUser(null)}
+        >
+          <DrawerContent className="max-h-[85vh] px-4 pb-6">
+            {viewingUser && (
+              <>
+                <DrawerHeader className="px-0 text-left">
+                  <div className="flex items-center gap-3">
+                    <UserAvatar
+                      name={viewingUser.name}
+                      email={viewingUser.email}
+                      image={viewingUser.image}
+                      size="sm"
+                    />
+                    <div className="text-left">
+                      <DrawerTitle className="font-heading text-lg">
+                        {viewingUser.name ?? "Member Schedule"}
+                      </DrawerTitle>
+                      <DrawerDescription className="text-xs">
+                        {viewingUser.email}{" "}
+                        {viewingUser.nuId && `· ID: ${viewingUser.nuId}`}
+                      </DrawerDescription>
+                    </div>
+                  </div>
+                </DrawerHeader>
+
+                <div className="mt-2 flex-1 overflow-y-auto overscroll-contain pr-2">
+                  <div className="space-y-6 pb-2">
+                    {Object.entries(viewingUser.byDate)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([date, slots]) => (
+                        <div key={date}>
+                          <p className="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+                            {formatDayFull(date)}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {slots.sort().map((slot) => (
+                              <Badge
+                                key={slot}
+                                variant="secondary"
+                                className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                              >
+                                {formatTime(slot)}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    {Object.keys(viewingUser.byDate).length === 0 && (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        No availability marked yet.
+                      </p>
+                    )}
                   </div>
                 </div>
-              </DialogHeader>
 
-              <ScrollArea className="mt-4 max-h-[60vh] pr-4">
-                <div className="space-y-6 pb-2">
-                  {Object.entries(viewingUser.byDate)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([date, slots]) => (
-                      <div key={date}>
-                        <p className="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-                          {formatDayFull(date)}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {slots.sort().map((slot) => (
-                            <Badge
-                              key={slot}
-                              variant="secondary"
-                              className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                            >
-                              {formatTime(slot)}
-                            </Badge>
-                          ))}
+                <DrawerFooter className="sticky bottom-0 mt-3 border-t bg-background px-0 pt-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setViewingUser(null)}
+                    className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98]"
+                  >
+                    Close
+                  </Button>
+                </DrawerFooter>
+              </>
+            )}
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog
+          open={!!viewingUser}
+          onOpenChange={(open) => !open && setViewingUser(null)}
+        >
+          <DialogContent className="max-w-md rounded-3xl">
+            {viewingUser && (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-3">
+                    <UserAvatar
+                      name={viewingUser.name}
+                      email={viewingUser.email}
+                      image={viewingUser.image}
+                      size="sm"
+                    />
+                    <div className="text-left">
+                      <DialogTitle className="font-heading text-lg">
+                        {viewingUser.name ?? "Member Schedule"}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs">
+                        {viewingUser.email}{" "}
+                        {viewingUser.nuId && `· ID: ${viewingUser.nuId}`}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <ScrollArea className="mt-4 max-h-[60vh] pr-4">
+                  <div className="space-y-6 pb-2">
+                    {Object.entries(viewingUser.byDate)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([date, slots]) => (
+                        <div key={date}>
+                          <p className="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+                            {formatDayFull(date)}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {slots.sort().map((slot) => (
+                              <Badge
+                                key={slot}
+                                variant="secondary"
+                                className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                              >
+                                {formatTime(slot)}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  {Object.keys(viewingUser.byDate).length === 0 && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">
-                      No availability marked yet.
-                    </p>
-                  )}
-                </div>
-              </ScrollArea>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+                      ))}
+                    {Object.keys(viewingUser.byDate).length === 0 && (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        No availability marked yet.
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

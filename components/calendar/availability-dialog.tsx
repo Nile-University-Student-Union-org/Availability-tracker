@@ -31,6 +31,7 @@ import {
   CalendarCheck2,
   AlertCircle,
 } from "lucide-react";
+import { formatDuration } from "@/lib/weekly-slots";
 
 function formatTime(time: string): string {
   const [h, m] = time.split(":").map(Number);
@@ -113,6 +114,21 @@ export function AvailabilityDialog({
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(
     new Set(initialSlots),
   );
+  const totalSelectedMinutes = useMemo(() => {
+    let total = 0;
+    for (const slot of selectedSlots) {
+      const end = slotEnds?.[slot];
+      if (end) {
+        const [sh, sm] = slot.split(":").map(Number);
+        const [eh, em] = end.split(":").map(Number);
+        const diff = eh * 60 + em - (sh * 60 + sm);
+        total += diff > 0 ? diff : 60;
+      } else {
+        total += 60;
+      }
+    }
+    return total;
+  }, [selectedSlots, slotEnds]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -433,8 +449,8 @@ export function AvailabilityDialog({
             )}
           >
             <CalendarCheck2 className="size-3.5" />
-            {selectedSlots.size} {selectedSlots.size === 1 ? "slot" : "slots"} (
-            {selectedSlots.size}h)
+            {selectedSlots.size} {selectedSlots.size === 1 ? "slot" : "slots"} ·{" "}
+            {formatDuration(totalSelectedMinutes)}
           </Badge>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
