@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { HaramBadge } from "@/components/haram-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
@@ -557,16 +558,7 @@ export function AdminMembersPanel({
                         </span>
 
                         {member.role === "super-admin" ? (
-                          <Badge
-                            variant="secondary"
-                            className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/25 text-[10px] py-0 px-1.5 font-semibold tracking-wide"
-                          >
-                            <HugeiconsIcon
-                              icon={Shield01Icon}
-                              className="mr-1 size-3"
-                            />
-                            HARAM
-                          </Badge>
+                          <HaramBadge />
                         ) : member.role === "admin" ? (
                           <Badge
                             variant="secondary"
@@ -635,8 +627,10 @@ export function AdminMembersPanel({
 
                   {/* Right: Actions */}
                   {(() => {
-                    const isTargetSuper = member.role === "super-admin" || isRootAdmin;
-                    const isTargetAdm = isTargetSuper || member.role === "admin";
+                    const isTargetSuper =
+                      member.role === "super-admin" || isRootAdmin;
+                    const isTargetAdm =
+                      isTargetSuper || member.role === "admin";
                     const actor = {
                       id: viewer?.id ?? currentUserId ?? "",
                       email: currentUserEmail ?? "",
@@ -652,7 +646,11 @@ export function AdminMembersPanel({
                       isSuperAdmin: isTargetSuper,
                     };
                     const canEdit = canManageMember(actor, target, "edit");
-                    const canReset = canManageMember(actor, target, "reset-password");
+                    const canReset = canManageMember(
+                      actor,
+                      target,
+                      "reset-password",
+                    );
                     const canDelete = canManageMember(actor, target, "delete");
 
                     if (!canEdit && !canReset && !canDelete) return null;
@@ -702,7 +700,10 @@ export function AdminMembersPanel({
                             className="size-8 rounded-xl cursor-pointer text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive touch-manipulation active:scale-[0.96]"
                             title={`Delete ${member.name}`}
                           >
-                            <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+                            <HugeiconsIcon
+                              icon={Delete02Icon}
+                              className="size-4"
+                            />
                           </Button>
                         )}
                       </div>

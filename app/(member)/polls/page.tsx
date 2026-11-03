@@ -5,16 +5,12 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ArrowRight01Icon,
   Calendar03Icon,
-  Clock01Icon,
+  Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { getCachedSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canSeePoll } from "@/lib/poll-access";
-import {
-  POLL_TYPE_LABEL,
-  pollSummary,
-  type PollType,
-} from "@/lib/poll-display";
+import { pollSummary, type PollType } from "@/lib/poll-display";
 
 export const metadata: Metadata = {
   title: "Your polls | Nile University Student Union",
@@ -54,6 +50,13 @@ export default async function PollListPage() {
             startDate: true,
             endDate: true,
             weeklyDays: true,
+            // Answered = this member saved at least one slot (counted in the same query)
+            _count: {
+              select: {
+                availabilities: { where: { userId: user.id } },
+                recurringAvailabilities: { where: { userId: user.id } },
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
         })
@@ -91,30 +94,47 @@ export default async function PollListPage() {
         <ul className="flex flex-col gap-3">
           {polls.map((poll) => {
             const type = poll.type as PollType;
+            const answered =
+              poll._count.availabilities + poll._count.recurringAvailabilities >
+              0;
             return (
               <li key={poll.id}>
                 <Link
                   href={`/polls/${poll.id}`}
+                  aria-label={answered ? `${poll.name}, answered` : poll.name}
                   className="group flex min-h-[56px] items-center gap-4 rounded-3xl border border-border/70 bg-card/60 p-4 shadow-xs transition-[background-color,transform] touch-manipulation hover:bg-card active:scale-[0.97] sm:p-5"
                 >
                   <span
-                    className={
-                      type === "date"
-                        ? "flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-700 dark:text-sky-300"
-                        : "flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    }
+                    className={`relative flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-700 dark:text-sky-300 ${answered ? "ring-2 ring-emerald-500/40 ring-offset-2 ring-offset-background" : ""}`}
                   >
-                    <HugeiconsIcon
-                      icon={type === "date" ? Calendar03Icon : Clock01Icon}
-                      size={20}
-                    />
+                    <HugeiconsIcon icon={Calendar03Icon} size={20} />
+                    {answered && (
+                      <span className="absolute -right-1.5 -bottom-1.5 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white ring-2 ring-background">
+                        <HugeiconsIcon
+                          icon={Tick02Icon}
+                          size={12}
+                          strokeWidth={2.6}
+                        />
+                      </span>
+                    )}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-heading text-base font-semibold tracking-tight">
-                      {poll.name}
+                    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="min-w-0 font-heading text-base font-semibold tracking-tight break-words">
+                        {poll.name}
+                      </span>
+                      {answered && (
+                        <span className="inline-flex h-[22px] shrink-0 items-center gap-1 rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2 text-[11px] font-semibold text-emerald-700 dark:border-emerald-400/40 dark:text-emerald-300">
+                          <HugeiconsIcon
+                            icon={Tick02Icon}
+                            size={12}
+                            strokeWidth={2.2}
+                          />
+                          Answered
+                        </span>
+                      )}
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                      {POLL_TYPE_LABEL[type]} ·{" "}
                       <span className="tabular-nums">
                         {pollSummary({
                           type,

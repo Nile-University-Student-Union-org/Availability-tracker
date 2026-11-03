@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { HaramBadge } from "@/components/haram-badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/notify";
@@ -137,49 +138,49 @@ export function AdminUsersPanel({
     <div className="space-y-6">
       {/* Grant Access Card */}
       {canManage && (
-      <div className="rounded-2xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-sm sm:p-6">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <HugeiconsIcon icon={UserAdd01Icon} size={18} />
+        <div className="rounded-2xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-sm sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <HugeiconsIcon icon={UserAdd01Icon} size={18} />
+            </div>
+            <h3 className="font-heading text-lg leading-tight font-semibold">
+              Grant Admin Privileges
+            </h3>
           </div>
-          <h3 className="font-heading text-lg leading-tight font-semibold">
-            Grant Admin Privileges
-          </h3>
-        </div>
 
-        <form
-          onSubmit={handleGrantAccess}
-          className="mt-4 flex flex-col gap-2.5 sm:flex-row"
-        >
-          <div className="relative flex-1">
-            <Input
-              type="email"
-              placeholder="e.g. member@nu.edu.eg"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              className="h-10 rounded-xl bg-background/80 pr-10 font-sans text-sm"
-              disabled={submitting}
-            />
-          </div>
-          <Button
-            type="submit"
-            disabled={submitting || !newEmail.trim()}
-            className="h-10 rounded-xl px-5 text-sm font-semibold transition-all duration-200"
+          <form
+            onSubmit={handleGrantAccess}
+            className="mt-4 flex flex-col gap-2.5 sm:flex-row"
           >
-            {submitting ? (
-              <span className="flex items-center gap-2">
-                <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Granting...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <HugeiconsIcon icon={Shield01Icon} size={16} />
-                Grant Access
-              </span>
-            )}
-          </Button>
-        </form>
-      </div>
+            <div className="relative flex-1">
+              <Input
+                type="email"
+                placeholder="e.g. member@nu.edu.eg"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="h-10 rounded-xl bg-background/80 pr-10 font-sans text-sm"
+                disabled={submitting}
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={submitting || !newEmail.trim()}
+              className="h-10 rounded-xl px-5 text-sm font-semibold transition-all duration-200"
+            >
+              {submitting ? (
+                <span className="flex items-center gap-2">
+                  <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Granting...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <HugeiconsIcon icon={Shield01Icon} size={16} />
+                  Grant Access
+                </span>
+              )}
+            </Button>
+          </form>
+        </div>
       )}
 
       {/* Admin List Card */}
@@ -273,12 +274,7 @@ export function AdminUsersPanel({
                           {admin.name || "Pending Account Creation"}
                         </span>
                         {isEnvAdmin ? (
-                          <Badge
-                            variant="outline"
-                            className="border-primary/40 bg-primary/5 px-2 py-0 text-[10px] text-primary"
-                          >
-                            HARAM
-                          </Badge>
+                          <HaramBadge />
                         ) : (
                           <Badge
                             variant="outline"

@@ -34,7 +34,10 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
   );
 
   const authError = searchParams.get("error");
-  const [showPasswordLogin, setShowPasswordLogin] = useState(false);
+  // Password sign-in has no visible link; admins reach it at /auth?mode=password
+  const [showPasswordLogin, setShowPasswordLogin] = useState(
+    searchParams.get("mode") === "password",
+  );
   const [microsoftLoading, setMicrosoftLoading] = useState(false);
 
   // Signin Form State
@@ -208,7 +211,7 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
             Sign in
           </h1>
           <p className="text-xs text-muted-foreground sm:text-sm">
-            Use your Nile University Microsoft account (@nu.edu.eg).
+            Use your Nile University Microsoft account.
           </p>
         </div>
 
@@ -239,17 +242,6 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
           </svg>
           {microsoftLoading ? "Redirecting..." : "Sign in with Microsoft"}
         </Button>
-
-        <p className="text-center text-xs text-muted-foreground">
-          Union administrator?{" "}
-          <button
-            type="button"
-            onClick={() => setShowPasswordLogin(true)}
-            className="inline-flex min-h-[44px] cursor-pointer touch-manipulation items-center font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            Sign in with password
-          </button>
-        </p>
       </div>
     );
   }
