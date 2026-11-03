@@ -219,7 +219,9 @@ export async function POST(request: NextRequest) {
     let resolvedCommittee = existingUser?.committee ?? null;
     if (!resolvedCommittee && memberCommittee) {
       const committeeExists = await prisma.committee.findFirst({
-        where: { name: { equals: memberCommittee.trim(), mode: "insensitive" } },
+        where: {
+          name: { equals: memberCommittee.trim(), mode: "insensitive" },
+        },
       });
       if (!committeeExists) {
         return NextResponse.json(

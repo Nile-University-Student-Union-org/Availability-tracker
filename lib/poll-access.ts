@@ -5,15 +5,27 @@ export type PollAudience = {
   createdById?: string | null;
 };
 
-export function canCreatePoll(isAdmin: boolean, isSuperAdmin: boolean, committee: string | null) {
+export function canCreatePoll(
+  isAdmin: boolean,
+  isSuperAdmin: boolean,
+  committee: string | null,
+) {
   return {
     allowed: isAdmin || isSuperAdmin,
-    error: (isAdmin || isSuperAdmin) && !isSuperAdmin && !committee ? "Set your committee in your profile first" : null,
+    error:
+      (isAdmin || isSuperAdmin) && !isSuperAdmin && !committee
+        ? "Set your committee in your profile first"
+        : null,
   };
 }
 
-export function createAudience(creatorCommittee: string | null, chosen: string[], isSuperAdmin: boolean) {
-  const live = isSuperAdmin || (chosen.length === 1 && chosen[0] === creatorCommittee);
+export function createAudience(
+  creatorCommittee: string | null,
+  chosen: string[],
+  isSuperAdmin: boolean,
+) {
+  const live =
+    isSuperAdmin || (chosen.length === 1 && chosen[0] === creatorCommittee);
   return {
     committees: live ? chosen : [],
     requestedCommittees: live ? [] : chosen,
@@ -21,20 +33,31 @@ export function createAudience(creatorCommittee: string | null, chosen: string[]
   };
 }
 
-export function editAudience(current: string[], chosen: string[], editorCommittee: string | null, isSuperAdmin: boolean) {
-  if (isSuperAdmin) return { committees: chosen, requestedCommittees: [], requestStatus: null };
+export function editAudience(
+  current: string[],
+  chosen: string[],
+  editorCommittee: string | null,
+  isSuperAdmin: boolean,
+) {
+  if (isSuperAdmin)
+    return { committees: chosen, requestedCommittees: [], requestStatus: null };
   // Never approved yet: the whole poll keeps waiting, same rule as create
   if (!current.length) return createAudience(editorCommittee, chosen, false);
   const additions = chosen.filter((c) => !current.includes(c));
   const requested = additions.filter((c) => c !== editorCommittee);
   return {
-    committees: chosen.filter((c) => current.includes(c) || c === editorCommittee),
+    committees: chosen.filter(
+      (c) => current.includes(c) || c === editorCommittee,
+    ),
     requestedCommittees: requested,
     requestStatus: requested.length ? ("pending" as const) : null,
   };
 }
 
-export function approveAudience(committees: string[], requestedCommittees: string[]) {
+export function approveAudience(
+  committees: string[],
+  requestedCommittees: string[],
+) {
   return {
     committees: [...new Set([...committees, ...requestedCommittees])],
     requestedCommittees: [],
@@ -45,7 +68,9 @@ export function approveAudience(committees: string[], requestedCommittees: strin
 export function rejectAudience(requestedCommittees: string[], reason: string) {
   const trimmed = reason.trim();
   if (!trimmed || trimmed.length > 500) {
-    throw new Error("Rejection reason is required and must be at most 500 characters");
+    throw new Error(
+      "Rejection reason is required and must be at most 500 characters",
+    );
   }
   return {
     requestStatus: "rejected" as const,
@@ -60,7 +85,8 @@ export function canSeePoll(
 ) {
   return Boolean(
     poll.active &&
-      (poll.allCommittees || Boolean(user.committee && poll.committees.includes(user.committee))),
+    (poll.allCommittees ||
+      Boolean(user.committee && poll.committees.includes(user.committee))),
   );
 }
 
@@ -74,7 +100,9 @@ export function canSeeResults(
   return (
     isSuperAdmin ||
     poll.createdById === userId ||
-    (isAdmin && (poll.allCommittees || Boolean(committee && poll.committees.includes(committee))))
+    (isAdmin &&
+      (poll.allCommittees ||
+        Boolean(committee && poll.committees.includes(committee))))
   );
 }
 
@@ -83,5 +111,7 @@ export function canEditOrDeletePoll(
   userId: string,
   isSuperAdmin: boolean,
 ) {
-  return isSuperAdmin || Boolean(poll.createdById && poll.createdById === userId);
+  return (
+    isSuperAdmin || Boolean(poll.createdById && poll.createdById === userId)
+  );
 }

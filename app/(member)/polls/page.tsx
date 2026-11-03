@@ -10,7 +10,11 @@ import {
 import { getCachedSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canSeePoll } from "@/lib/poll-access";
-import { POLL_TYPE_LABEL, pollSummary, type PollType } from "@/lib/poll-display";
+import {
+  POLL_TYPE_LABEL,
+  pollSummary,
+  type PollType,
+} from "@/lib/poll-display";
 
 export const metadata: Metadata = {
   title: "Your polls | Nile University Student Union",
@@ -35,7 +39,9 @@ export default async function PollListPage() {
             active: true,
             OR: [
               { allCommittees: true },
-              ...(user.committee ? [{ committees: { has: user.committee } }] : []),
+              ...(user.committee
+                ? [{ committees: { has: user.committee } }]
+                : []),
             ],
           },
           select: {
@@ -69,8 +75,14 @@ export default async function PollListPage() {
 
       {polls.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-border px-6 py-14 text-center">
-          <HugeiconsIcon icon={Calendar03Icon} size={26} className="text-muted-foreground" />
-          <p className="font-heading text-base font-semibold">No polls for your committee yet</p>
+          <HugeiconsIcon
+            icon={Calendar03Icon}
+            size={26}
+            className="text-muted-foreground"
+          />
+          <p className="font-heading text-base font-semibold">
+            No polls for your committee yet
+          </p>
           <p className="max-w-xs text-sm text-muted-foreground">
             When your head opens a poll for you, it shows up here.
           </p>
@@ -92,7 +104,10 @@ export default async function PollListPage() {
                         : "flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                     }
                   >
-                    <HugeiconsIcon icon={type === "date" ? Calendar03Icon : Clock01Icon} size={20} />
+                    <HugeiconsIcon
+                      icon={type === "date" ? Calendar03Icon : Clock01Icon}
+                      size={20}
+                    />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-heading text-base font-semibold tracking-tight">

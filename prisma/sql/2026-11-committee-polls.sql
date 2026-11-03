@@ -101,4 +101,9 @@ CREATE INDEX IF NOT EXISTS recurring_availability_pollId_idx ON recurring_availa
 DROP TABLE IF EXISTS weekly_slot_config;
 DROP TABLE IF EXISTS time_slot_config;
 DROP TABLE IF EXISTS schedule_config;
+
+CREATE INDEX IF NOT EXISTS user_committee_idx ON "user"(committee);
+CREATE INDEX IF NOT EXISTS user_role_idx ON "user"(role);
+CREATE INDEX IF NOT EXISTS "poll_createdById_idx" ON poll("createdById");
+CREATE INDEX IF NOT EXISTS "poll_requestStatus_idx" ON poll("requestStatus");
 COMMIT;

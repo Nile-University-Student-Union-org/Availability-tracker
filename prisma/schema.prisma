@@ -29,6 +29,8 @@ model User {
   reviewedPolls Poll[] @relation("PollReviewer")
 
   @@unique([email])
+  @@index([committee])
+  @@index([role])
   @@map("user")
 }
 
@@ -166,6 +168,8 @@ model Poll {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([createdById])
+  @@index([requestStatus])
   @@map("poll")
 }
 
