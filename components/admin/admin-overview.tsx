@@ -29,12 +29,20 @@ interface AdminOverviewProps {
   onNewPoll: () => void;
 }
 
-function SectionTitle({ children, count }: { children: React.ReactNode; count?: number }) {
+function SectionTitle({
+  children,
+  count,
+}: {
+  children: React.ReactNode;
+  count?: number;
+}) {
   return (
     <h2 className="flex items-baseline gap-2 text-sm font-semibold text-foreground">
       {children}
       {count !== undefined && (
-        <span className="text-xs font-medium tabular-nums text-muted-foreground">{count}</span>
+        <span className="text-xs font-medium tabular-nums text-muted-foreground">
+          {count}
+        </span>
       )}
     </h2>
   );
@@ -56,13 +64,19 @@ function PollRow({ poll, onOpen }: { poll: AdminPoll; onOpen: () => void }) {
               : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
           )}
         >
-          <HugeiconsIcon icon={poll.type === "date" ? Calendar03Icon : Clock01Icon} size={18} />
+          <HugeiconsIcon
+            icon={poll.type === "date" ? Calendar03Icon : Clock01Icon}
+            size={18}
+          />
         </span>
         <span className="min-w-0 flex-1 space-y-2.5">
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="truncate font-heading text-sm font-semibold tracking-tight">{poll.name}</span>
+            <span className="truncate font-heading text-sm font-semibold tracking-tight">
+              {poll.name}
+            </span>
             <span className="text-xs text-muted-foreground">
-              {POLL_TYPE_LABEL[poll.type]} · <span className="tabular-nums">{pollSummary(poll)}</span>
+              {POLL_TYPE_LABEL[poll.type]} ·{" "}
+              <span className="tabular-nums">{pollSummary(poll)}</span>
             </span>
           </span>
           <ResponseMeter poll={poll} />
@@ -90,15 +104,20 @@ export function AdminOverview({
   onNewPoll,
 }: AdminOverviewProps) {
   const mine = (p: AdminPoll) => p.createdById === viewer.id;
-  const rejected = polls.filter((p) => p.requestStatus === "rejected" && mine(p));
+  const rejected = polls.filter(
+    (p) => p.requestStatus === "rejected" && mine(p),
+  );
   const waiting = polls.filter((p) => p.requestStatus === "pending" && mine(p));
   const live = polls.filter((p) => p.active && !p.requestStatus);
   const closed = polls.filter((p) => !p.active && !p.requestStatus);
   const canCreate = viewer.isSuperAdmin || Boolean(viewer.committee);
-  const attention = (viewer.isSuperAdmin && pendingCount > 0) || rejected.length > 0 || waiting.length > 0;
+  const attention =
+    (viewer.isSuperAdmin && pendingCount > 0) ||
+    rejected.length > 0 ||
+    waiting.length > 0;
 
   return (
-    <div className="flex max-w-3xl flex-col gap-8">
+    <div className="flex flex-col gap-8">
       {attention && (
         <section className="space-y-3">
           <SectionTitle>Needs your attention</SectionTitle>
@@ -110,12 +129,23 @@ export function AdminOverview({
                   onClick={onOpenRequests}
                   className="flex w-full min-h-[56px] cursor-pointer items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] p-4 text-left transition-transform duration-150 touch-manipulation active:scale-[0.99]"
                 >
-                  <HugeiconsIcon icon={InboxIcon} size={18} className="shrink-0 text-amber-700 dark:text-amber-300" />
+                  <HugeiconsIcon
+                    icon={InboxIcon}
+                    size={18}
+                    className="shrink-0 text-amber-700 dark:text-amber-300"
+                  />
                   <span className="flex-1 text-sm">
-                    <span className="font-semibold tabular-nums">{pendingCount}</span>{" "}
-                    {pendingCount === 1 ? "poll is" : "polls are"} waiting for your approval
+                    <span className="font-semibold tabular-nums">
+                      {pendingCount}
+                    </span>{" "}
+                    {pendingCount === 1 ? "poll is" : "polls are"} waiting for
+                    your approval
                   </span>
-                  <HugeiconsIcon icon={ArrowRight01Icon} size={18} className="shrink-0 text-muted-foreground" />
+                  <HugeiconsIcon
+                    icon={ArrowRight01Icon}
+                    size={18}
+                    className="shrink-0 text-muted-foreground"
+                  />
                 </button>
               </li>
             )}
@@ -126,14 +156,22 @@ export function AdminOverview({
                   onClick={() => onOpenPoll(p.id, "settings")}
                   className="flex w-full min-h-[56px] cursor-pointer items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/[0.05] p-4 text-left transition-transform duration-150 touch-manipulation active:scale-[0.99]"
                 >
-                  <HugeiconsIcon icon={AlertCircleIcon} size={18} className="mt-0.5 shrink-0 text-destructive" />
+                  <HugeiconsIcon
+                    icon={AlertCircleIcon}
+                    size={18}
+                    className="mt-0.5 shrink-0 text-destructive"
+                  />
                   <span className="min-w-0 flex-1 text-sm">
                     <span className="font-semibold">{p.name}</span> was rejected
                     {p.rejectionReason && (
-                      <span className="mt-0.5 block text-xs text-muted-foreground text-pretty">“{p.rejectionReason}”</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground text-pretty">
+                        “{p.rejectionReason}”
+                      </span>
                     )}
                   </span>
-                  <span className="shrink-0 self-center text-xs font-semibold text-foreground">Edit</span>
+                  <span className="shrink-0 self-center text-xs font-semibold text-foreground">
+                    Edit
+                  </span>
                 </button>
               </li>
             ))}
@@ -145,7 +183,10 @@ export function AdminOverview({
                 <StatusPill poll={p} />
                 <span className="min-w-0 truncate">
                   <span className="font-semibold">{p.name}</span>
-                  <span className="text-muted-foreground"> · {p.requestedCommittees.join(", ")}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {p.requestedCommittees.join(", ")}
+                  </span>
                 </span>
               </li>
             ))}
@@ -170,7 +211,9 @@ export function AdminOverview({
           <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-6 py-10 text-center">
             <p className="text-sm font-semibold">Nothing is open right now</p>
             <p className="max-w-sm text-sm text-muted-foreground">
-              {canCreate ? "Create a poll to start collecting availability." : "Polls your committee can see will appear here."}
+              {canCreate
+                ? "Create a poll to start collecting availability."
+                : "Polls your committee can see will appear here."}
             </p>
           </div>
         ) : (

@@ -71,16 +71,14 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
   // useSearchParams lags a render behind history.replaceState, so on the
   // client read the live URL; the server render uses the request params
   const params =
-    typeof window === "undefined" ? searchParams : new URLSearchParams(window.location.search);
+    typeof window === "undefined"
+      ? searchParams
+      : new URLSearchParams(window.location.search);
   const [polls, setPolls] = React.useState<AdminPoll[] | null>(null);
   const [loadError, setLoadError] = React.useState<string | null>(null);
-  const [creating, setCreating] = React.useState(
-    params.get("new") === "1",
-  );
+  const [creating, setCreating] = React.useState(params.get("new") === "1");
   // An open poll lives in the URL (?poll=<id>&view=settings), so links land on it
-  const [openId, setOpenId] = React.useState<string | null>(
-    params.get("poll"),
-  );
+  const [openId, setOpenId] = React.useState<string | null>(params.get("poll"));
   const [detailTab, setDetailTab] = React.useState<PollDetailTab>(
     params.get("view") === "settings" ? "settings" : "results",
   );
@@ -149,7 +147,7 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
 
   if (creating) {
     return (
-      <div className="max-w-2xl">
+      <div>
         <PollEditor
           poll={null}
           viewer={viewer}
@@ -168,7 +166,7 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
   const opened = openId ? polls?.find((p) => p.id === openId) : undefined;
   if (openId && polls && !opened) {
     return (
-      <div className="flex max-w-2xl flex-col items-center gap-3 rounded-3xl border border-dashed border-border px-6 py-14 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border px-6 py-14 text-center">
         <p className="font-heading text-base font-semibold">
           This poll isn&apos;t available
         </p>
@@ -213,7 +211,7 @@ export function PollsPanel({ viewer, committees }: PollsPanelProps) {
   }
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           {polls

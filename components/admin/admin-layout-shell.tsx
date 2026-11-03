@@ -40,6 +40,7 @@ import dynamic from "next/dynamic";
 import type { AdminPoll, PollViewer } from "@/components/admin/poll-badges";
 import { AdminOverview } from "@/components/admin/admin-overview";
 import type { AdminUserInfo } from "@/lib/admin";
+import { cn } from "@/lib/utils";
 import { NusuLogo } from "@/components/nusu-logo";
 
 const PollsPanel = dynamic(
@@ -148,6 +149,15 @@ const TAB_TITLES: Record<AdminTab, string> = {
   committees: "Union Committees Management",
 };
 
+const TAB_DESCRIPTIONS: Record<AdminTab, string> = {
+  overview: "What needs your attention and how live polls are doing.",
+  polls: "Create polls and read their results.",
+  requests: "Approve or reject polls sent to other committees.",
+  admins: "Who can open the admin console.",
+  members: "Everyone in the union and their committees.",
+  committees: "The union's committees.",
+};
+
 interface AdminLayoutShellProps {
   session: {
     user: {
@@ -181,6 +191,12 @@ export function AdminLayoutShell({
   const searchParams = useSearchParams();
   const tabParam = parseTab(searchParams.get("tab")) ?? initialTab;
   const [activeTab, setActiveTab] = React.useState<AdminTab>(tabParam);
+  // List-style sections read best in a narrow column; tables and poll results need the full width
+  const narrowTab =
+    activeTab === "overview" ||
+    activeTab === "requests" ||
+    activeTab === "admins" ||
+    (activeTab === "polls" && !searchParams.get("poll"));
   const [pendingCount, setPendingCount] = React.useState(initialPendingCount);
 
   React.useEffect(() => {
@@ -233,20 +249,22 @@ export function AdminLayoutShell({
                   size="lg"
                   tooltip="NUSU Admin Console"
                   onClick={() => setTab("overview")}
-                  className="cursor-pointer"
+                  // Same height in both states so the nav below doesn't jump while the sidebar expands
+                  className="cursor-pointer group-data-[collapsible=icon]:h-14!"
                 >
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#0F3056] to-[#018BCE] text-white shadow-xs">
+                  <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#0F3056] to-[#018BCE] text-white shadow-xs">
                     <NusuLogo
                       size="sm"
                       showText={false}
                       className="size-5 brightness-0 invert"
                     />
                   </div>
-                  <div className="flex min-w-0 flex-col gap-0.5 leading-none">
-                    <span className="text-[11px] font-bold tracking-[0.25em] text-[#0F3056] uppercase dark:text-white">
+                  {/* nowrap: the label must not reflow while the panel animates its width */}
+                  <div className="flex min-w-0 flex-col gap-0.5 whitespace-nowrap transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
+                    <span className="text-[15px] leading-tight font-bold">
                       NUSU
                     </span>
-                    <span className="text-[8px] font-semibold tracking-[0.3em] text-[#018BCE] uppercase">
+                    <span className="text-xs leading-tight font-medium text-muted-foreground">
                       Admin Console
                     </span>
                   </div>
@@ -476,17 +494,20 @@ export function AdminLayoutShell({
           </header>
 
           {/* Main Content Area */}
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-8 sm:py-8">
-            {/* Header Banner */}
-            <div className="mb-8 flex flex-col justify-between gap-4 border-b border-border pb-5 sm:flex-row sm:items-end">
-              <div>
-                <p className="mb-1.5 text-[11px] font-semibold tracking-[0.25em] text-primary uppercase">
-                  NUSU Administration
-                </p>
-                <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-                  {TAB_TITLES[activeTab]}
-                </h1>
-              </div>
+          {/* Header and body share one centred column; list-style tabs use a narrower one */}
+          <main
+            className={cn(
+              "mx-auto w-full flex-1 px-4 py-6 sm:px-8 sm:py-8",
+              narrowTab ? "max-w-3xl" : "max-w-6xl",
+            )}
+          >
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold tracking-tight">
+                {TAB_TITLES[activeTab]}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {TAB_DESCRIPTIONS[activeTab]}
+              </p>
             </div>
 
             {/* Dynamic Tab Body */}
@@ -514,17 +535,13 @@ export function AdminLayoutShell({
                 />
               )}
               {activeTab === "requests" && viewer.isSuperAdmin && (
-                <div className="max-w-2xl">
-                  <PollRequestsPanel onCountChange={setPendingCount} />
-                </div>
+                <PollRequestsPanel onCountChange={setPendingCount} />
               )}
               {activeTab === "admins" && (
-                <div className="max-w-3xl">
-                  <AdminUsersPanel
-                    initialAdmins={initialAdmins}
-                    canManage={viewer.isSuperAdmin}
-                  />
-                </div>
+                <AdminUsersPanel
+                  initialAdmins={initialAdmins}
+                  canManage={viewer.isSuperAdmin}
+                />
               )}
               {activeTab === "members" && (
                 <AdminMembersPanel
