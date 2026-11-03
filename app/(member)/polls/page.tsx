@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  ArrowRight01Icon,
-  Calendar03Icon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
+import { Calendar03Icon } from "@hugeicons/core-free-icons";
 import { getCachedSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canSeePoll } from "@/lib/poll-access";
 import { pollSummary, type PollType } from "@/lib/poll-display";
+import { PollList } from "@/components/member/poll-list";
 
 export const metadata: Metadata = {
   title: "Your polls | Nile University Student Union",
@@ -91,70 +87,25 @@ export default async function PollListPage() {
           </p>
         </div>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {polls.map((poll) => {
+        <PollList
+          polls={polls.map((poll) => {
             const type = poll.type as PollType;
             const answered =
               poll._count.availabilities + poll._count.recurringAvailabilities >
               0;
-            return (
-              <li key={poll.id}>
-                <Link
-                  href={`/polls/${poll.id}`}
-                  aria-label={answered ? `${poll.name}, answered` : poll.name}
-                  className="group flex min-h-[56px] items-center gap-4 rounded-[24px] glass glass-bloom p-4 transition-all duration-200 touch-manipulation hover:bg-(--glass-hover) active:scale-[0.985] sm:p-5"
-                >
-                  <span
-                    className={`relative flex size-11 shrink-0 items-center justify-center rounded-full bg-(--lens-nile) text-(--glass-nile-fg) ${answered ? "ring-2 ring-emerald-500/40 ring-offset-2 ring-offset-background" : ""}`}
-                  >
-                    <HugeiconsIcon icon={Calendar03Icon} size={20} />
-                    {answered && (
-                      <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white ring-2 ring-background">
-                        <HugeiconsIcon
-                          icon={Tick02Icon}
-                          size={12}
-                          strokeWidth={2.6}
-                        />
-                      </span>
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="min-w-0 font-heading text-base font-semibold tracking-tight break-words">
-                        {poll.name}
-                      </span>
-                      {answered && (
-                        <span className="inline-flex h-[22px] shrink-0 items-center gap-1 rounded-full border border-emerald-600/30 bg-emerald-500/10 px-2 text-[11px] font-semibold text-emerald-700 dark:border-emerald-400/40 dark:text-emerald-300">
-                          <HugeiconsIcon
-                            icon={Tick02Icon}
-                            size={12}
-                            strokeWidth={2.2}
-                          />
-                          Answered
-                        </span>
-                      )}
-                    </span>
-                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                      <span className="tabular-nums">
-                        {pollSummary({
-                          type,
-                          startDate: poll.startDate?.toISOString() ?? null,
-                          endDate: poll.endDate?.toISOString() ?? null,
-                          weeklyDays: poll.weeklyDays,
-                        })}
-                      </span>
-                    </span>
-                  </span>
-                  <HugeiconsIcon
-                    icon={ArrowRight01Icon}
-                    size={18}
-                    className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                  />
-                </Link>
-              </li>
-            );
+            return {
+              id: poll.id,
+              name: poll.name,
+              answered,
+              summary: pollSummary({
+                type,
+                startDate: poll.startDate?.toISOString() ?? null,
+                endDate: poll.endDate?.toISOString() ?? null,
+                weeklyDays: poll.weeklyDays,
+              }),
+            };
           })}
-        </ul>
+        />
       )}
     </main>
   );

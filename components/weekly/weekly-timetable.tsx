@@ -9,8 +9,10 @@ import { authClient } from "@/lib/auth-client";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Tick01Icon,
+  Tick02Icon,
   Delete02Icon,
   CheckmarkCircle02Icon,
+  AlertCircleIcon,
 } from "@hugeicons/core-free-icons";
 import {
   DAY_OF_WEEK_MAP,
@@ -92,8 +94,9 @@ export function WeeklyTimetable({
   const selectedDaySlots = weeklySlots.filter(
     (s) => s.dayOfWeek === selectedDay,
   );
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [hasChanges, setHasChanges] = React.useState(false);
+  type SaveState = "idle" | "saving" | "saved" | "error";
+  const [saveState, setSaveState] = React.useState<SaveState>("idle");
+  const [isShaking, setIsShaking] = React.useState(false);
 
   // Profile states
   const [memberName, setMemberName] = React.useState(
@@ -138,6 +141,36 @@ export function WeeklyTimetable({
     return map;
   });
 
+  const [savedSlots, setSavedSlots] = React.useState<Map<number, Set<string>>>(
+    () => {
+      const map = new Map<number, Set<string>>();
+      for (const d of activeDays) {
+        map.set(d, new Set<string>());
+      }
+      for (const slot of initialSlots) {
+        if (map.has(slot.dayOfWeek)) {
+          map.get(slot.dayOfWeek)?.add(slot.startTime);
+        }
+      }
+      return map;
+    },
+  );
+
+  const changeCount = React.useMemo(() => {
+    let count = 0;
+    for (const d of activeDays) {
+      const saved = savedSlots.get(d) ?? new Set();
+      const curr = slotMap.get(d) ?? new Set();
+      for (const s of curr) {
+        if (!saved.has(s)) count++;
+      }
+      for (const s of saved) {
+        if (!curr.has(s)) count++;
+      }
+    }
+    return count;
+  }, [activeDays, savedSlots, slotMap]);
+
   // Total marked slots across all days
   const totalSlotsCount = React.useMemo(() => {
     let count = 0;
@@ -149,6 +182,9 @@ export function WeeklyTimetable({
 
   // Toggle a single time slot for the active day
   const toggleSlot = (startTime: string) => {
+    if (saveState === "error" || saveState === "saved") {
+      setSaveState("idle");
+    }
     setSlotMap((prev) => {
       const next = new Map(prev);
       const currentDaySlots = new Set(next.get(selectedDay) ?? []);
@@ -160,43 +196,46 @@ export function WeeklyTimetable({
       next.set(selectedDay, currentDaySlots);
       return next;
     });
-    setHasChanges(true);
   };
 
   // Select all available time slots for the active day
   const selectAllDay = () => {
+    if (saveState === "error" || saveState === "saved") {
+      setSaveState("idle");
+    }
     setSlotMap((prev) => {
       const next = new Map(prev);
       next.set(selectedDay, new Set(selectedDaySlots.map((s) => s.startTime)));
       return next;
     });
-    setHasChanges(true);
   };
 
   // Clear all time slots for the active day
   const clearDay = () => {
+    if (saveState === "error" || saveState === "saved") {
+      setSaveState("idle");
+    }
     setSlotMap((prev) => {
       const next = new Map(prev);
       next.set(selectedDay, new Set());
       return next;
     });
-    setHasChanges(true);
   };
 
-  // Clear entire week
-  const clearAllWeek = () => {
-    setSlotMap(() => {
-      const next = new Map();
-      for (const d of activeDays) {
-        next.set(d, new Set());
-      }
-      return next;
-    });
-    setHasChanges(true);
+  // Reset availability to saved state
+  const handleReset = () => {
+    setSlotMap(
+      new Map(
+        Array.from(savedSlots.entries()).map(([k, v]) => [k, new Set(v)]),
+      ),
+    );
+    setSaveState("idle");
   };
 
   // Save changes to the server
   const handleSave = async () => {
+    if (changeCount === 0 || saveState === "saving") return;
+
     // Validate profile
     if (!memberName.trim()) {
       toast.error("Please enter your name");
@@ -211,7 +250,8 @@ export function WeeklyTimetable({
       return;
     }
 
-    setIsSaving(true);
+    setSaveState("saving");
+    setIsShaking(false);
 
     // Build slots array
     const slotsPayload: { dayOfWeek: number; startTime: string }[] = [];
@@ -241,17 +281,25 @@ export function WeeklyTimetable({
         );
       }
 
-      setHasChanges(false);
+      setSavedSlots(
+        new Map(Array.from(slotMap.entries()).map(([k, v]) => [k, new Set(v)])),
+      );
+      setSaveState("saved");
       toast.success("Saved semester availability", {
         id: "weekly-availability-save",
         duration: 2000,
       });
+
+      setTimeout(() => {
+        setSaveState((prev) => (prev === "saved" ? "idle" : prev));
+      }, 1300);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Failed to save schedule";
       toast.error(msg);
-    } finally {
-      setIsSaving(false);
+      setSaveState("error");
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 360);
     }
   };
 
@@ -440,7 +488,7 @@ export function WeeklyTimetable({
                   className={cn(
                     "group flex min-h-[60px] cursor-pointer touch-manipulation select-none items-center gap-3 rounded-2xl border px-4 text-left transition-press active:scale-[0.98]",
                     isMarked
-                      ? "border-emerald-500/60 bg-emerald-500/[0.08] shadow-xs"
+                      ? "border-transparent bg-emerald-500/[0.08] dark:bg-emerald-500/15 [box-shadow:var(--edge-slot-on)]"
                       : "border-border/80 bg-background hover:border-foreground/20 hover:bg-muted/40",
                   )}
                 >
@@ -486,57 +534,98 @@ export function WeeklyTimetable({
         </div>
       </section>
 
-      {/* ─── Floating Dynamic Save Island (Visible only on unsaved changes) ────── */}
-      <div
-        className={cn(
-          "fixed bottom-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1rem))] inset-x-0 mx-auto z-40 w-[calc(100%-2rem)] max-w-md transition-[translate,scale,opacity] duration-250 ease-[var(--ease-out)]",
-          hasChanges
-            ? "translate-y-0 opacity-100 scale-100 pointer-events-auto"
-            : "translate-y-10 opacity-0 scale-95 pointer-events-none",
-        )}
-      >
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-full glass glass-thick">
-          <div className="flex items-center gap-2 min-w-0 pl-1">
-            <span className="text-xs font-semibold tracking-tight truncate text-foreground">
-              Unsaved changes ({totalSlotsCount}{" "}
-              {totalSlotsCount === 1 ? "slot" : "slots"})
-            </span>
+      {/* ─── Floating Save Bar ────── */}
+      <div className="fixed bottom-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1rem))] inset-x-0 mx-auto z-40 w-[calc(100%-2rem)] max-w-md">
+        <div className="flex items-center justify-between gap-3 rounded-full glass glass-thick py-[7px] pr-[7px] pl-4 sm:pl-5">
+          <div className="min-w-0 flex-1 pr-1 text-left" aria-live="polite">
+            {saveState === "saving" ? (
+              <span className="truncate text-[13px] font-medium text-muted-foreground">
+                Saving your availability…
+              </span>
+            ) : saveState === "saved" ? (
+              <span className="truncate text-[13px] font-medium text-emerald-600 dark:text-emerald-400">
+                Saved
+              </span>
+            ) : saveState === "error" ? (
+              <span className="inline-flex items-center gap-1.5 truncate text-[13px] font-medium text-(--tint-red-fg) dark:text-red-400">
+                <HugeiconsIcon
+                  icon={AlertCircleIcon}
+                  className="size-4 shrink-0"
+                />
+                <span className="truncate">
+                  Couldn&apos;t save. Check your connection and retry.
+                </span>
+              </span>
+            ) : changeCount > 0 ? (
+              <span className="truncate text-[13px] font-medium text-muted-foreground">
+                {changeCount} unsaved{" "}
+                <span className="hidden sm:inline">
+                  {changeCount === 1 ? "change" : "changes"}
+                </span>
+              </span>
+            ) : (
+              <span className="truncate text-[13px] font-medium text-muted-foreground">
+                All changes saved
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            {totalSlotsCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllWeek}
-                className="h-8 min-h-[44px] sm:min-h-8 px-2.5 text-xs cursor-pointer"
-              >
-                Reset
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="lg"
+              onClick={handleReset}
+              className={cn(
+                "h-11 px-3 text-sm font-semibold transition-[opacity,transform,visibility] duration-200 ease-[var(--ease-smooth)] motion-reduce:transition-none motion-reduce:transform-none",
+                changeCount > 0
+                  ? "opacity-100 scale-100 pointer-events-auto visible"
+                  : "opacity-0 scale-95 pointer-events-none invisible",
+              )}
+            >
+              Reset
+            </Button>
 
             <Button
+              type="button"
               variant="success"
-              size="sm"
+              size="lg"
               onClick={handleSave}
-              disabled={isSaving}
-              aria-busy={isSaving}
-              className="h-8 min-h-[44px] sm:min-h-8 px-4 gap-1.5 font-semibold text-xs cursor-pointer"
+              disabled={changeCount === 0 || saveState === "saving"}
+              aria-busy={saveState === "saving"}
+              className={cn(
+                "h-11 min-w-[116px] px-4 font-semibold text-sm",
+                isShaking && "animate-shake",
+              )}
             >
-              {isSaving ? (
+              {saveState === "saving" ? (
                 <>
-                  <Spinner className="size-3.5" label="Saving" />
-                  <span>Saving...</span>
+                  <Spinner className="size-4" label="Saving availability" />
+                  <span>Saving…</span>
                 </>
-              ) : (
-                <>
+              ) : saveState === "saved" ? (
+                <span className="flex items-center gap-1.5">
                   <HugeiconsIcon
-                    icon={Tick01Icon}
-                    size={14}
+                    icon={Tick02Icon}
+                    size={16}
+                    strokeWidth={2.5}
+                  />
+                  <span>Saved</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <HugeiconsIcon
+                    icon={Tick02Icon}
+                    size={16}
                     strokeWidth={2.5}
                   />
                   <span>Save</span>
-                </>
+                  {changeCount > 0 && (
+                    <span className="inline-grid place-items-center rounded-full bg-white/25 px-1.5 text-xs tabular-nums text-white">
+                      {changeCount}
+                    </span>
+                  )}
+                </span>
               )}
             </Button>
           </div>

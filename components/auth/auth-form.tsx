@@ -234,12 +234,12 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
           onClick={handleMicrosoft}
           disabled={microsoftLoading}
           aria-busy={microsoftLoading}
-          className="min-h-[48px] w-full cursor-pointer touch-manipulation gap-3 font-semibold active:scale-[0.98]"
+          className="h-[52px] w-full gap-3 text-[15px]"
         >
           {microsoftLoading ? (
             <>
-              <Spinner className="size-4" label="Redirecting" />
-              <span>Redirecting...</span>
+              <Spinner className="size-[18px]" label="Redirecting" />
+              <span>Redirecting to Microsoft…</span>
             </>
           ) : (
             <>

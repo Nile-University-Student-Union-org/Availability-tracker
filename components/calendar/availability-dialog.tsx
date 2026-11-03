@@ -487,7 +487,7 @@ export function AvailabilityDialog({
               className={cn(
                 "group relative flex min-h-[56px] cursor-pointer touch-manipulation items-center justify-between rounded-2xl border p-3 transition-all duration-150 active:scale-[0.97]",
                 isSelected
-                  ? "border-emerald-500/70 bg-emerald-500/15 shadow-sm ring-1 ring-emerald-500/30 dark:bg-emerald-500/20"
+                  ? "border-transparent bg-emerald-500/15 [box-shadow:var(--edge-slot-on)] dark:bg-emerald-500/20"
                   : "border-border/80 bg-card hover:border-primary/40 hover:bg-muted/30",
               )}
             >
