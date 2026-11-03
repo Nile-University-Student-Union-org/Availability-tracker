@@ -307,7 +307,8 @@ export function WeeklyTimetable({
   const activeDayMeta = DAY_OF_WEEK_MAP.find((d) => d.day === selectedDay);
 
   return (
-    <div className="w-full flex flex-col items-center gap-6">
+    // pb-24 keeps the last slot clear of the floating save bar
+    <div className="w-full flex flex-col items-center gap-6 pb-24">
       {/* ─── Authenticated Member Summary Card (Matches /specific) ─────────────── */}
       <div className="w-full max-w-sm rounded-2xl border border-border/80 bg-card p-4 shadow-xs transition-colors">
         <div className="flex items-center gap-3.5">
@@ -376,7 +377,7 @@ export function WeeklyTimetable({
           <span
             aria-hidden="true"
             className={cn(
-              "pointer-events-none absolute top-1 bottom-1 left-0 z-[2] rounded-full glass-lens will-change-[transform,width]",
+              "pointer-events-none absolute top-1 bottom-1 left-0 z-[2] rounded-full bg-(--lens) shadow-[var(--edge),0_4px_14px_-6px_rgb(0_0_0/0.35)] will-change-[transform,width]",
               dayMounted
                 ? "transition-[transform,width] duration-[560ms] ease-[var(--ease-spring)] motion-reduce:transition-none"
                 : "transition-none",
@@ -412,21 +413,25 @@ export function WeeklyTimetable({
                 aria-label={`${meta?.label}, ${dayCount} selected`}
                 onClick={() => setSelectedDay(dayNum)}
                 className={cn(
-                  "relative z-[3] flex flex-1 min-h-[48px] min-w-0 cursor-pointer touch-manipulation select-none flex-col items-center justify-center gap-0.5 rounded-full text-sm font-semibold transition-colors active:scale-[0.97]",
+                  "relative z-[3] flex flex-1 min-h-[44px] min-w-0 cursor-pointer touch-manipulation select-none flex-col items-center justify-center rounded-full text-sm leading-tight font-semibold transition-colors duration-200 active:scale-[0.97]",
                   isSelected
-                    ? "text-(--glass-nile-fg)"
+                    ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {meta?.short}
+                {/* Slot count says more than a dot; zero keeps its height so labels don't jump */}
                 <span
+                  aria-hidden
                   className={cn(
-                    "h-1.5 w-1.5 rounded-full bg-emerald-500 transition-[scale,opacity] duration-200 ease-[var(--ease-out)]",
+                    "text-[11px] font-semibold tabular-nums transition-opacity duration-200",
                     dayCount > 0
-                      ? "scale-100 opacity-100"
-                      : "scale-50 opacity-0",
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "opacity-0",
                   )}
-                />
+                >
+                  {dayCount}
+                </span>
               </button>
             );
           })}
