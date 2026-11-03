@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdminEmail, isSuperAdmin } from "@/lib/admin";
 import { COMMITTEES as DEFAULT_COMMITTEES } from "@/lib/constants";
 
 /**
@@ -56,9 +56,8 @@ export async function GET() {
 
     return NextResponse.json({ committees: result });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to fetch committees";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("GET /api/admin/committees failed:", error);
+    return NextResponse.json({ error: "Failed to fetch committees" }, { status: 500 });
   }
 }
 
@@ -68,7 +67,7 @@ export async function GET() {
  */
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
+  if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -125,9 +124,8 @@ export async function POST(req: Request) {
       message: `Committee "${newCommittee.name}" created successfully.`,
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to create committee";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("POST /api/admin/committees failed:", error);
+    return NextResponse.json({ error: "Failed to create committee" }, { status: 500 });
   }
 }
 
@@ -137,7 +135,7 @@ export async function POST(req: Request) {
  */
 export async function DELETE(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
+  if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -163,15 +161,11 @@ export async function DELETE(req: Request) {
       );
     }
 
-    // Unassign members from this committee so their accounts remain intact
-    await prisma.user.updateMany({
-      where: { committee: target.name },
-      data: { committee: null },
-    });
-
-    // Delete the committee
-    await prisma.committee.delete({
-      where: { id },
+    await prisma.$transaction(async tx => {
+      await tx.user.updateMany({ where: { committee: target.name }, data: { committee: null } });
+      const polls = await tx.poll.findMany({ where: { OR: [{ committees: { has: target.name } }, { requestedCommittees: { has: target.name } }] }, select: { id: true, committees: true, requestedCommittees: true } });
+      for (const poll of polls) await tx.poll.update({ where: { id: poll.id }, data: { committees: poll.committees.filter(c => c !== target.name), requestedCommittees: poll.requestedCommittees.filter(c => c !== target.name) } });
+      await tx.committee.delete({ where: { id } });
     });
 
     return NextResponse.json({
@@ -179,9 +173,8 @@ export async function DELETE(req: Request) {
       message: `Committee "${target.name}" has been deleted. Any members assigned have been unassigned.`,
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to delete committee";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("DELETE /api/admin/committees failed:", error);
+    return NextResponse.json({ error: "Failed to delete committee" }, { status: 500 });
   }
 }
 
@@ -191,12 +184,26 @@ export async function DELETE(req: Request) {
  */
 export async function PATCH(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
+  if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
   try {
     const body = await req.json();
+    if (body.id && body.name) {
+      const id = String(body.id), name = String(body.name).trim();
+      if (name.length < 2 || name.length > 50) return NextResponse.json({ error: "Committee name must be between 2 and 50 characters" }, { status: 400 });
+      const target = await prisma.committee.findUnique({ where: { id } });
+      if (!target) return NextResponse.json({ error: "Committee not found" }, { status: 404 });
+      if (await prisma.committee.findFirst({ where: { name: { equals: name, mode: "insensitive" }, id: { not: id } } })) return NextResponse.json({ error: `Committee "${name}" already exists` }, { status: 409 });
+      await prisma.$transaction(async tx => {
+        await tx.committee.update({ where: { id }, data: { name } });
+        await tx.user.updateMany({ where: { committee: target.name }, data: { committee: name } });
+        const polls = await tx.poll.findMany({ where: { OR: [{ committees: { has: target.name } }, { requestedCommittees: { has: target.name } }] }, select: { id: true, committees: true, requestedCommittees: true } });
+        for (const poll of polls) await tx.poll.update({ where: { id: poll.id }, data: { committees: poll.committees.map(c => c === target.name ? name : c), requestedCommittees: poll.requestedCommittees.map(c => c === target.name ? name : c) } });
+      });
+      return NextResponse.json({ success: true, committee: { ...target, name } });
+    }
     const ids: unknown = body?.ids;
     const existing = await prisma.committee.findMany({ select: { id: true } });
     const known = new Set(existing.map((c) => c.id));
@@ -221,8 +228,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to reorder committees";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("PATCH /api/admin/committees failed:", error);
+    return NextResponse.json({ error: "Failed to update committees" }, { status: 500 });
   }
 }

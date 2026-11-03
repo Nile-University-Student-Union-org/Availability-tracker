@@ -22,54 +22,67 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Calendar03Icon,
-  Clock01Icon,
   Shield01Icon,
   UserGroupIcon,
   Home01Icon,
   Logout02Icon,
   ArrowRight01Icon,
   Briefcase01Icon,
+  InboxIcon,
+  DashboardSquare01Icon,
 } from "@hugeicons/core-free-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/status-pill";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import dynamic from "next/dynamic";
-import {
-  AnalyticsDashboard,
-  type AnalyticsData,
-} from "@/components/admin/analytics-dashboard";
-import type { SemesterAnalyticsData } from "@/lib/semester-analytics";
-import type { ScheduleConfigData } from "@/components/admin/schedule-config-panel";
+import type { AdminPoll, PollViewer } from "@/components/admin/poll-badges";
+import { AdminOverview } from "@/components/admin/admin-overview";
 import type { AdminUserInfo } from "@/lib/admin";
+import { cn } from "@/lib/utils";
 import { NusuLogo } from "@/components/nusu-logo";
 
-const SemesterAnalyticsPanel = dynamic(
-  () =>
-    import("@/components/admin/semester-analytics-panel").then(
-      (m) => m.SemesterAnalyticsPanel,
-    ),
-  {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+function PanelSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading section" className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-5 w-40 rounded-full" />
+        <Skeleton className="h-9 w-24 rounded-full" />
       </div>
-    ),
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="flex min-h-[76px] items-center gap-4 rounded-3xl border border-border/60 bg-card/60 p-4"
+          >
+            <Skeleton className="size-11 rounded-2xl shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const PollsPanel = dynamic(
+  () => import("@/components/admin/polls-panel").then((m) => m.PollsPanel),
+  {
+    loading: () => <PanelSkeleton />,
   },
 );
 
-const ScheduleConfigPanel = dynamic(
+const PollRequestsPanel = dynamic(
   () =>
-    import("@/components/admin/schedule-config-panel").then(
-      (m) => m.ScheduleConfigPanel,
+    import("@/components/admin/poll-requests-panel").then(
+      (m) => m.PollRequestsPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -79,11 +92,7 @@ const AdminUsersPanel = dynamic(
       (m) => m.AdminUsersPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -93,11 +102,7 @@ const AdminMembersPanel = dynamic(
       (m) => m.AdminMembersPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -107,22 +112,57 @@ const AdminCommitteesPanel = dynamic(
       (m) => m.AdminCommitteesPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
 export type AdminTab =
-  | "specific-analytics"
-  | "semester-analytics"
-  | "analytics"
-  | "schedule"
+  | "overview"
+  | "polls"
+  | "requests"
   | "admins"
   | "members"
   | "committees";
+
+const ADMIN_TABS: AdminTab[] = [
+  "overview",
+  "polls",
+  "requests",
+  "admins",
+  "members",
+  "committees",
+];
+
+// Old links: the schedule page and the per-type analytics pages now live in Polls
+const LEGACY_TABS: Record<string, AdminTab> = {
+  schedule: "polls",
+  analytics: "polls",
+  "specific-analytics": "polls",
+  "semester-analytics": "polls",
+};
+
+function parseTab(value: string | null): AdminTab | null {
+  if (value && LEGACY_TABS[value]) return LEGACY_TABS[value];
+  return ADMIN_TABS.includes(value as AdminTab) ? (value as AdminTab) : null;
+}
+
+const TAB_TITLES: Record<AdminTab, string> = {
+  overview: "Overview",
+  polls: "Polls",
+  requests: "Poll Requests",
+  admins: "Administrator Management",
+  members: "Union Members Directory",
+  committees: "Union Committees Management",
+};
+
+const TAB_DESCRIPTIONS: Record<AdminTab, string> = {
+  overview: "What needs your attention and how live polls are doing.",
+  polls: "Create polls and read their results.",
+  requests: "Approve or reject polls sent to other committees.",
+  admins: "Who can open the admin console.",
+  members: "Everyone in the union and their committees.",
+  committees: "The union's committees.",
+};
 
 interface AdminLayoutShellProps {
   session: {
@@ -135,49 +175,107 @@ interface AdminLayoutShellProps {
       role?: string | null;
     };
   };
-  analytics: AnalyticsData;
-  semesterAnalytics: SemesterAnalyticsData;
   initialTab?: AdminTab;
-  initialConfig?: ScheduleConfigData | null;
   initialAdmins?: AdminUserInfo[];
+  viewer: PollViewer;
+  committees: string[];
+  pendingCount: number;
+  /** Visible polls with response counts, for the overview */
+  overviewPolls: AdminPoll[];
 }
 
 export function AdminLayoutShell({
   session,
-  analytics,
-  semesterAnalytics,
-  initialTab = "specific-analytics",
-  initialConfig = null,
+  initialTab = "overview",
   initialAdmins = [],
+  viewer,
+  committees,
+  pendingCount: initialPendingCount,
+  overviewPolls,
 }: AdminLayoutShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tabParam = (searchParams.get("tab") as AdminTab) || initialTab;
+  const tabParam = parseTab(searchParams.get("tab")) ?? initialTab;
   const [activeTab, setActiveTab] = React.useState<AdminTab>(tabParam);
+  // List-style sections read best in a narrow column; tables and poll results need the full width
+  const narrowTab =
+    activeTab === "overview" ||
+    activeTab === "requests" ||
+    activeTab === "admins" ||
+    (activeTab === "polls" && !searchParams.get("poll"));
+  const [pendingCount, setPendingCount] = React.useState(initialPendingCount);
 
   React.useEffect(() => {
-    const qTab = searchParams.get("tab") as AdminTab;
-    if (
-      qTab &&
-      [
-        "specific-analytics",
-        "semester-analytics",
-        "analytics",
-        "schedule",
-        "admins",
-        "members",
-      ].includes(qTab)
-    ) {
-      setActiveTab(qTab);
-    }
+    setPendingCount(initialPendingCount);
+  }, [initialPendingCount]);
+
+  React.useEffect(() => {
+    const qTab = parseTab(searchParams.get("tab"));
+    if (qTab) setActiveTab(qTab);
   }, [searchParams]);
 
-  const setTab = (tab: AdminTab) => {
+  /** Switch section; extra params (a poll to open) replace the old ones */
+  // Bumped on every navigation so a section reopens at its start (e.g. Polls list)
+  const [navKey, setNavKey] = React.useState(0);
+  const setTab = (tab: AdminTab, params: Record<string, string> = {}) => {
     setActiveTab(tab);
+    setNavKey((k) => k + 1);
     const url = new URL(window.location.href);
+    url.search = "";
     url.searchParams.set("tab", tab);
+    for (const [key, value] of Object.entries(params))
+      url.searchParams.set(key, value);
     window.history.replaceState({}, "", url.toString());
   };
+
+  // One glass lens glides to the active nav item instead of each item lighting up on its own
+  // State (not a plain ref) so the effect re-runs when the mobile sheet mounts its own nav
+  const [nav, setNav] = React.useState<HTMLDivElement | null>(null);
+  const lensRef = React.useRef<HTMLSpanElement>(null);
+  const placedNav = React.useRef<HTMLDivElement | null>(null);
+  React.useLayoutEffect(() => {
+    const lens = lensRef.current;
+    if (!nav || !lens) return;
+    // Writes straight to the DOM: a React state update per frame would re-render every panel
+    const place = (glide: boolean) => {
+      const active = nav.querySelector<HTMLElement>(
+        '[data-slot="sidebar-menu-button"][data-active]',
+      );
+      lens.style.opacity = active ? "1" : "0";
+      if (!active) return;
+      const a = active.getBoundingClientRect();
+      const n = nav.getBoundingClientRect();
+      lens.style.transitionDuration = glide ? "" : "0s";
+      lens.style.transform = `translate(${a.left - n.left}px, ${a.top - n.top + nav.scrollTop}px)`;
+      lens.style.width = `${a.width}px`;
+      lens.style.height = `${a.height}px`;
+    };
+    // Glide on a section switch, jump into place on first paint
+    place(placedNav.current === nav);
+    placedNav.current = nav;
+
+    // While the sidebar collapses or expands, track the item every frame with no lag
+    let frame = 0;
+    let until = 0;
+    const follow = () => {
+      place(false);
+      frame = performance.now() < until ? requestAnimationFrame(follow) : 0;
+    };
+    const onRun = (e: TransitionEvent) => {
+      if (
+        e.target === lens ||
+        !/width|height|margin|padding/.test(e.propertyName)
+      )
+        return;
+      until = performance.now() + 400;
+      if (!frame) frame = requestAnimationFrame(follow);
+    };
+    nav.addEventListener("transitionrun", onRun);
+    return () => {
+      nav.removeEventListener("transitionrun", onRun);
+      cancelAnimationFrame(frame);
+    };
+  }, [nav, activeTab]);
 
   const [signOutOpen, setSignOutOpen] = React.useState(false);
 
@@ -205,21 +303,23 @@ export function AdminLayoutShell({
                 <SidebarMenuButton
                   size="lg"
                   tooltip="NUSU Admin Console"
-                  onClick={() => setTab("analytics")}
-                  className="cursor-pointer"
+                  onClick={() => setTab("overview")}
+                  // Same height in both states so the nav below doesn't jump while the sidebar expands
+                  className="cursor-pointer group-data-[collapsible=icon]:h-14!"
                 >
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#0F3056] to-[#018BCE] text-white shadow-xs">
+                  <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#0F3056] to-[#018BCE] text-white shadow-xs">
                     <NusuLogo
                       size="sm"
                       showText={false}
                       className="size-5 brightness-0 invert"
                     />
                   </div>
-                  <div className="flex min-w-0 flex-col gap-0.5 leading-none">
-                    <span className="text-[11px] font-bold tracking-[0.25em] text-[#0F3056] uppercase dark:text-white">
+                  {/* nowrap: the label must not reflow while the panel animates its width */}
+                  <div className="flex min-w-0 flex-col gap-0.5 whitespace-nowrap transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
+                    <span className="text-[15px] leading-tight font-bold">
                       NUSU
                     </span>
-                    <span className="text-[8px] font-semibold tracking-[0.3em] text-[#018BCE] uppercase">
+                    <span className="text-xs leading-tight font-medium text-muted-foreground">
                       Admin Console
                     </span>
                   </div>
@@ -229,19 +329,37 @@ export function AdminLayoutShell({
           </SidebarHeader>
 
           {/* Navigation Groups */}
-          <SidebarContent>
+          <SidebarContent ref={setNav} className="relative">
+            <span
+              ref={lensRef}
+              aria-hidden
+              className="pointer-events-none absolute top-0 left-0 rounded-full opacity-0 glass-lens transition-[transform,width,height] duration-500 ease-(--ease-spring) motion-reduce:transition-none"
+            />
             <SidebarGroup>
-              <SidebarGroupLabel>Availability & Intelligence</SidebarGroupLabel>
+              <SidebarGroupLabel>Workspace</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      tooltip="Specific Date Analytics"
-                      isActive={
-                        activeTab === "specific-analytics" ||
-                        activeTab === "analytics"
-                      }
-                      onClick={() => setTab("specific-analytics")}
+                      tooltip="Overview"
+                      isActive={activeTab === "overview"}
+                      onClick={() => setTab("overview")}
+                      className="cursor-pointer font-medium"
+                    >
+                      <HugeiconsIcon
+                        icon={DashboardSquare01Icon}
+                        size={16}
+                        strokeWidth={2}
+                      />
+                      <span>Overview</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      tooltip="Polls"
+                      isActive={activeTab === "polls"}
+                      onClick={() => setTab("polls")}
                       className="cursor-pointer font-medium"
                     >
                       <HugeiconsIcon
@@ -249,49 +367,39 @@ export function AdminLayoutShell({
                         size={16}
                         strokeWidth={2}
                       />
-                      <span>Specific Date Analytics</span>
+                      <span>Polls</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
 
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      tooltip="Semester Availability Analytics"
-                      isActive={activeTab === "semester-analytics"}
-                      onClick={() => setTab("semester-analytics")}
-                      className="cursor-pointer font-medium"
-                    >
-                      <HugeiconsIcon
-                        icon={Clock01Icon}
-                        size={16}
-                        strokeWidth={2}
-                        className="text-emerald-500"
-                      />
-                      <span>Semester Analytics</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Schedule Settings</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      tooltip="Schedule Configuration"
-                      isActive={activeTab === "schedule"}
-                      onClick={() => setTab("schedule")}
-                      className="cursor-pointer font-medium"
-                    >
-                      <HugeiconsIcon
-                        icon={Calendar03Icon}
-                        size={16}
-                        strokeWidth={2}
-                      />
-                      <span>Schedule Config</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  {viewer.isSuperAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        tooltip={
+                          pendingCount
+                            ? `Requests (${pendingCount} waiting)`
+                            : "Requests"
+                        }
+                        isActive={activeTab === "requests"}
+                        onClick={() => setTab("requests")}
+                        className="cursor-pointer font-medium"
+                      >
+                        <HugeiconsIcon
+                          icon={InboxIcon}
+                          size={16}
+                          strokeWidth={2}
+                        />
+                        <span>Requests</span>
+                        {pendingCount > 0 && (
+                          <span
+                            aria-label={`${pendingCount} waiting`}
+                            className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 text-[11px] font-bold tabular-nums text-amber-700 dark:text-amber-400 group-data-[collapsible=icon]:hidden"
+                          >
+                            {pendingCount}
+                          </span>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -406,7 +514,7 @@ export function AdminLayoutShell({
                 variant="ghost"
                 size="icon"
                 onClick={handleSignOut}
-                className="size-8 cursor-pointer rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                className="size-8 cursor-pointer text-muted-foreground hover:text-destructive"
                 title="Sign out of Admin Console"
               >
                 <HugeiconsIcon icon={Logout02Icon} size={15} />
@@ -420,18 +528,14 @@ export function AdminLayoutShell({
           {/* Top Navbar */}
           <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur-md sm:px-6">
             <div className="flex items-center gap-3">
-              <SidebarTrigger className="cursor-pointer" />
+              <SidebarTrigger className="size-11 cursor-pointer touch-manipulation md:size-8" />
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">
                   Admin Console
                 </span>
                 <span>/</span>
-                <span className="capitalize">
-                  {activeTab === "analytics" && "Availability Analytics"}
-                  {activeTab === "schedule" && "Schedule Configuration"}
-                  {activeTab === "admins" && "Admin Access & Roles"}
-                  {activeTab === "members" && "Members Directory"}
-                  {activeTab === "committees" && "Committees Management"}
+                <span>
+                  {TAB_TITLES[activeTab].replace(/^Union | Management$/g, "")}
                 </span>
               </div>
             </div>
@@ -440,9 +544,12 @@ export function AdminLayoutShell({
               <ThemeToggle />
               <Link
                 href="/"
-                className="hidden items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-secondary/80 sm:inline-flex"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "hidden sm:inline-flex gap-1.5 text-xs min-h-[44px] md:min-h-8",
+                )}
               >
-                <HugeiconsIcon icon={Home01Icon} size={13} />
+                <HugeiconsIcon icon={Home01Icon} size={14} />
                 <span>Live Schedule</span>
               </Link>
             </div>
@@ -450,53 +557,70 @@ export function AdminLayoutShell({
           </header>
 
           {/* Main Content Area */}
-          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-8 sm:py-8">
-            {/* Header Banner */}
-            <div className="mb-8 flex flex-col justify-between gap-4 border-b border-border pb-5 sm:flex-row sm:items-end">
-              <div>
-                <p className="mb-1.5 text-[11px] font-semibold tracking-[0.25em] text-primary uppercase">
-                  NUSU Administration
-                </p>
-                <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-                  {(activeTab === "specific-analytics" ||
-                    activeTab === "analytics") &&
-                    "Specific Date Analytics"}
-                  {activeTab === "semester-analytics" &&
-                    "Semester Availability Analytics"}
-                  {activeTab === "schedule" && "Schedule Configuration"}
-                  {activeTab === "admins" && "Administrator Management"}
-                  {activeTab === "members" && "Union Members Directory"}
-                  {activeTab === "committees" && "Union Committees Management"}
+          {/* Header and body share one centred column; list-style tabs use a narrower one */}
+          <main
+            className={cn(
+              "mx-auto w-full flex-1 px-4 py-6 sm:px-8 sm:py-8",
+              narrowTab ? "max-w-3xl" : "max-w-6xl",
+            )}
+          >
+            <div
+              key={activeTab}
+              className="animate-in duration-300 ease-(--ease-smooth) fade-in-0 slide-in-from-bottom-1 motion-reduce:animate-none"
+            >
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold tracking-tight">
+                  {TAB_TITLES[activeTab]}
                 </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {TAB_DESCRIPTIONS[activeTab]}
+                </p>
               </div>
-            </div>
 
-            {/* Dynamic Tab Body */}
-            <div>
-              {(activeTab === "specific-analytics" ||
-                activeTab === "analytics") && (
-                <AnalyticsDashboard data={analytics} />
-              )}
-              {activeTab === "semester-analytics" && (
-                <SemesterAnalyticsPanel initialData={semesterAnalytics} />
-              )}
-              {activeTab === "schedule" && (
-                <div className="max-w-2xl">
-                  <ScheduleConfigPanel initialConfig={initialConfig} />
-                </div>
-              )}
-              {activeTab === "admins" && (
-                <div className="max-w-3xl">
-                  <AdminUsersPanel initialAdmins={initialAdmins} />
-                </div>
-              )}
-              {activeTab === "members" && (
-                <AdminMembersPanel
-                  currentUserId={session.user.id}
-                  currentUserEmail={session.user.email}
-                />
-              )}
-              {activeTab === "committees" && <AdminCommitteesPanel />}
+              {/* Dynamic Tab Body */}
+              <div>
+                {activeTab === "overview" && (
+                  <AdminOverview
+                    viewer={viewer}
+                    polls={overviewPolls}
+                    pendingCount={pendingCount}
+                    onOpenPoll={(id, view) =>
+                      setTab("polls", {
+                        poll: id,
+                        ...(view === "settings" ? { view } : {}),
+                      })
+                    }
+                    onOpenRequests={() => setTab("requests")}
+                    onNewPoll={() => setTab("polls", { new: "1" })}
+                  />
+                )}
+                {activeTab === "polls" && (
+                  <PollsPanel
+                    key={navKey}
+                    viewer={viewer}
+                    committees={committees}
+                  />
+                )}
+                {activeTab === "requests" && viewer.isSuperAdmin && (
+                  <PollRequestsPanel onCountChange={setPendingCount} />
+                )}
+                {activeTab === "admins" && (
+                  <AdminUsersPanel
+                    initialAdmins={initialAdmins}
+                    canManage={viewer.isSuperAdmin}
+                  />
+                )}
+                {activeTab === "members" && (
+                  <AdminMembersPanel
+                    currentUserId={session.user.id}
+                    currentUserEmail={session.user.email}
+                    viewer={viewer}
+                  />
+                )}
+                {activeTab === "committees" && (
+                  <AdminCommitteesPanel canManage={viewer.isSuperAdmin} />
+                )}
+              </div>
             </div>
           </main>
         </SidebarInset>

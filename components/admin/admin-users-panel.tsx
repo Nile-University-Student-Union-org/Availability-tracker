@@ -12,8 +12,10 @@ import {
   Delete02Icon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { HaramBadge } from "@/components/haram-badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/notify";
@@ -22,10 +24,13 @@ import type { AdminUserInfo } from "@/lib/admin";
 
 interface AdminUsersPanelProps {
   initialAdmins?: AdminUserInfo[];
+  /** Only superadmins grant or revoke admin access */
+  canManage?: boolean;
 }
 
 export function AdminUsersPanel({
   initialAdmins = [],
+  canManage = false,
 }: AdminUsersPanelProps = {}) {
   const { spinKey, spin } = useRefreshSpin();
   const [admins, setAdmins] = React.useState<AdminUserInfo[]>(initialAdmins);
@@ -133,49 +138,52 @@ export function AdminUsersPanel({
   return (
     <div className="space-y-6">
       {/* Grant Access Card */}
-      <div className="rounded-2xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-sm sm:p-6">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <HugeiconsIcon icon={UserAdd01Icon} size={18} />
+      {canManage && (
+        <div className="rounded-2xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-sm sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <HugeiconsIcon icon={UserAdd01Icon} size={18} />
+            </div>
+            <h3 className="font-heading text-lg leading-tight font-semibold">
+              Grant Admin Privileges
+            </h3>
           </div>
-          <h3 className="font-heading text-lg leading-tight font-semibold">
-            Grant Admin Privileges
-          </h3>
-        </div>
 
-        <form
-          onSubmit={handleGrantAccess}
-          className="mt-4 flex flex-col gap-2.5 sm:flex-row"
-        >
-          <div className="relative flex-1">
-            <Input
-              type="email"
-              placeholder="e.g. member@nu.edu.eg"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              className="h-10 rounded-xl bg-background/80 pr-10 font-sans text-sm"
-              disabled={submitting}
-            />
-          </div>
-          <Button
-            type="submit"
-            disabled={submitting || !newEmail.trim()}
-            className="h-10 rounded-xl px-5 text-sm font-semibold transition-all duration-200"
+          <form
+            onSubmit={handleGrantAccess}
+            className="mt-4 flex flex-col gap-2.5 sm:flex-row"
           >
-            {submitting ? (
-              <span className="flex items-center gap-2">
-                <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Granting...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <HugeiconsIcon icon={Shield01Icon} size={16} />
-                Grant Access
-              </span>
-            )}
-          </Button>
-        </form>
-      </div>
+            <div className="relative flex-1">
+              <Input
+                type="email"
+                placeholder="e.g. member@nu.edu.eg"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="h-10 rounded-xl bg-background/80 pr-10 font-sans text-sm"
+                disabled={submitting}
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={submitting || !newEmail.trim()}
+              aria-busy={submitting}
+              className="h-10 px-5 text-sm font-semibold"
+            >
+              {submitting ? (
+                <span className="flex items-center gap-2">
+                  <Spinner className="size-3.5" label="Granting" />
+                  Granting...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <HugeiconsIcon icon={Shield01Icon} size={16} />
+                  Grant Access
+                </span>
+              )}
+            </Button>
+          </form>
+        </div>
+      )}
 
       {/* Admin List Card */}
       <div className="rounded-2xl border border-border/80 bg-card/60 p-5 shadow-xs backdrop-blur-sm sm:p-6">
@@ -197,7 +205,7 @@ export function AdminUsersPanel({
               void fetchAdmins();
             }}
             disabled={loading}
-            className="size-9 rounded-xl p-0"
+            className="size-9 p-0"
             title="Refresh admin list"
           >
             <RefreshSpinIcon spinKey={spinKey} size={16} />
@@ -205,8 +213,12 @@ export function AdminUsersPanel({
         </div>
 
         {loading && admins.length === 0 ? (
-          <div className="divide-y divide-border/60">
-            {Array.from({ length: 2 }).map((_, i) => (
+          <div
+            className="divide-y divide-border/60"
+            aria-busy="true"
+            aria-label="Loading administrators"
+          >
+            {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
                 className="flex flex-col justify-between gap-3 py-3.5 first:pt-1 last:pb-1 sm:flex-row sm:items-center"
@@ -268,12 +280,7 @@ export function AdminUsersPanel({
                           {admin.name || "Pending Account Creation"}
                         </span>
                         {isEnvAdmin ? (
-                          <Badge
-                            variant="outline"
-                            className="border-primary/40 bg-primary/5 px-2 py-0 text-[10px] text-primary"
-                          >
-                            System Super-Admin
-                          </Badge>
+                          <HaramBadge />
                         ) : (
                           <Badge
                             variant="outline"
@@ -315,16 +322,17 @@ export function AdminUsersPanel({
                       <span className="px-2 py-1 text-[11px] text-muted-foreground/70 italic">
                         System Protected
                       </span>
-                    ) : (
+                    ) : !canManage ? null : (
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="sm"
                         onClick={() => handleRevokeAccess(admin.email)}
                         disabled={isRevoking}
-                        className="h-8 rounded-xl px-3 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+                        aria-busy={isRevoking}
+                        className="h-8 min-h-[44px] sm:min-h-8 px-3 text-xs font-semibold"
                       >
                         {isRevoking ? (
-                          <span className="mr-1.5 size-3 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
+                          <Spinner className="mr-1.5 size-3" label="Revoking" />
                         ) : (
                           <HugeiconsIcon
                             icon={Delete02Icon}

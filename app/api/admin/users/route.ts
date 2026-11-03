@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
   isAdminEmail,
+  isSuperAdmin,
   getAllAdminUsers,
   grantAdminAccess,
   revokeAdminAccess,
@@ -18,15 +19,14 @@ export async function GET() {
     const admins = await getAllAdminUsers();
     return NextResponse.json({ admins });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load admins";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("GET /api/admin/users failed:", error);
+    return NextResponse.json({ error: "Failed to load admins" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
+  if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -50,15 +50,14 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ message: result.message, email });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to grant admin access";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("POST /api/admin/users failed:", error);
+    return NextResponse.json({ error: "Failed to grant admin access" }, { status: 500 });
   }
 }
 
 export async function DELETE(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
+  if (!session?.user?.email || !isSuperAdmin(session.user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -86,8 +85,7 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ message: result.message, email });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to revoke admin access";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("DELETE /api/admin/users failed:", error);
+    return NextResponse.json({ error: "Failed to revoke admin access" }, { status: 500 });
   }
 }

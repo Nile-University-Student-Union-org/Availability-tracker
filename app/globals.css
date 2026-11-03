@@ -430,3 +430,279 @@ html[data-theme-transition="active"]::view-transition-new(root) {
     animation: fade-in 300ms ease;
   }
 }
+
+/* react-day-picker month change (the `animate` prop): a short slide with a
+   fade instead of the library's full-width slide; reduced motion just fades */
+.rdp-root {
+  --rdp-animation_duration: 260ms;
+  --rdp-animation_timing: cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes rdp-slide_in_left {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes rdp-slide_in_right {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes rdp-slide_out_left {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+@keyframes rdp-slide_out_right {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@keyframes rdp-fade_in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes rdp-fade_out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.rdp-weeks_before_enter {
+  animation: rdp-slide_in_left var(--rdp-animation_duration)
+    var(--rdp-animation_timing) forwards;
+}
+.rdp-weeks_before_exit {
+  animation: rdp-slide_out_left var(--rdp-animation_duration)
+    var(--rdp-animation_timing) forwards;
+}
+.rdp-weeks_after_enter {
+  animation: rdp-slide_in_right var(--rdp-animation_duration)
+    var(--rdp-animation_timing) forwards;
+}
+.rdp-weeks_after_exit {
+  animation: rdp-slide_out_right var(--rdp-animation_duration)
+    var(--rdp-animation_timing) forwards;
+}
+.rdp-caption_before_enter,
+.rdp-caption_after_enter {
+  animation: rdp-fade_in var(--rdp-animation_duration)
+    var(--rdp-animation_timing) forwards;
+}
+.rdp-caption_before_exit,
+.rdp-caption_after_exit {
+  animation: rdp-fade_out var(--rdp-animation_duration)
+    var(--rdp-animation_timing) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rdp-weeks_before_enter,
+  .rdp-weeks_after_enter {
+    animation-name: rdp-fade_in;
+  }
+  .rdp-weeks_before_exit,
+  .rdp-weeks_after_exit {
+    animation-name: rdp-fade_out;
+  }
+}
+
+/* ─── Liquid glass (Phase 4) ──────────────────────────────────────────────
+   One material for buttons, menus, tabs and the sidebar. Clear see-through
+   fill + heavy blur, light caught on two opposite edges (soft inset shadows,
+   which anti-alias cleanly on curves), and a soft lift. Tints stay
+   translucent; their edge and glow carry the hue. */
+
+:root {
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.22, 0.64, 1);
+
+  --glass: rgb(255 255 255 / 0.55);
+  --glass-hover: rgb(255 255 255 / 0.78);
+  --glass-thick: rgb(255 255 255 / 0.72);
+  --glass-blur: blur(20px) saturate(190%);
+  --glass-shadow: 0 8px 24px -10px rgb(15 48 86 / 0.22);
+  --edge:
+    inset 1px 1px 1.5px -0.5px #fff,
+    inset -1px -1px 1.5px -0.5px rgb(255 255 255 / 0.8),
+    inset 0 0 0 1px rgb(15 48 86 / 0.08);
+  --edge-nile:
+    inset 1px 1px 1.5px -0.5px rgb(200 236 255 / 0.6),
+    inset -1px -1px 1.5px -0.5px rgb(150 210 245 / 0.3),
+    inset 0 0 0 1px rgb(5 88 138 / 0.22);
+  --edge-emerald:
+    inset 1px 1px 1.5px -0.5px rgb(200 250 228 / 0.6),
+    inset -1px -1px 1.5px -0.5px rgb(150 230 195 / 0.3),
+    inset 0 0 0 1px rgb(3 105 72 / 0.22);
+  --edge-red:
+    inset 1px 1px 1.5px -0.5px #fff, inset 0 0 0 1px rgb(185 28 28 / 0.18);
+  --glow-nile: inset 0 0 16px rgb(160 220 255 / 0.3);
+  --glow-emerald: inset 0 0 16px rgb(160 240 205 / 0.28);
+  --lens: rgb(255 255 255 / 0.92);
+  --lens-nile: rgb(8 119 179 / 0.1);
+  --bloom: rgb(255 255 255 / 0.7);
+  --bloom-nile: rgb(200 240 255 / 0.45);
+  --bloom-emerald: rgb(200 255 230 / 0.42);
+  --glass-nile-fg: #0877b3;
+  --tint-emerald: rgb(3 105 72 / 0.85);
+  --tint-emerald-hover: rgb(4 115 79 / 0.88);
+  --tint-red: rgb(254 226 226 / 0.7);
+  --tint-red-hover: rgb(254 202 202 / 0.8);
+  --tint-red-fg: #b91c1c;
+  --edge-slot-on: inset 0 0 0 1px rgb(4 120 87 / 0.26);
+}
+
+.dark {
+  --glass: rgb(255 255 255 / 0.07);
+  --glass-hover: rgb(255 255 255 / 0.11);
+  --glass-thick: rgb(20 30 46 / 0.72);
+  --glass-blur: blur(20px) saturate(190%) brightness(1.08);
+  --glass-shadow:
+    inset 0 0 10px rgb(255 255 255 / 0.05), 0 10px 30px -10px rgb(0 0 0 / 0.5);
+  --edge:
+    inset 1px 1px 1.5px -0.5px rgb(255 255 255 / 0.4),
+    inset -1px -1px 1.5px -0.5px rgb(255 255 255 / 0.16),
+    inset 0 0 0 1px rgb(255 255 255 / 0.07);
+  --edge-nile:
+    inset 1px 1px 1.5px -0.5px rgb(190 235 255 / 0.55),
+    inset -1px -1px 1.5px -0.5px rgb(150 215 250 / 0.25),
+    inset 0 0 0 1px rgb(120 200 250 / 0.16);
+  --edge-emerald:
+    inset 1px 1px 1.5px -0.5px rgb(190 250 225 / 0.5),
+    inset -1px -1px 1.5px -0.5px rgb(140 235 195 / 0.22),
+    inset 0 0 0 1px rgb(110 231 183 / 0.16);
+  --edge-red:
+    inset 1px 1px 1.5px -0.5px rgb(254 202 202 / 0.35),
+    inset 0 0 0 1px rgb(248 113 113 / 0.22);
+  --glow-nile: inset 0 0 16px rgb(120 200 250 / 0.28);
+  --glow-emerald: inset 0 0 16px rgb(110 231 183 / 0.24);
+  --lens: rgb(255 255 255 / 0.14);
+  --lens-nile: rgb(56 180 242 / 0.16);
+  --bloom: rgb(255 255 255 / 0.26);
+  --bloom-nile: rgb(190 235 255 / 0.4);
+  --bloom-emerald: rgb(190 255 225 / 0.38);
+  --glass-nile-fg: #38b4f2;
+  --tint-emerald: rgb(16 185 129 / 0.48);
+  --tint-emerald-hover: rgb(30 200 142 / 0.58);
+  --tint-red: rgb(239 68 68 / 0.16);
+  --tint-red-hover: rgb(239 68 68 / 0.24);
+  --tint-red-fg: #fca5a5;
+  --edge-slot-on: inset 0 0 0 1px rgb(52 211 153 / 0.3);
+}
+
+/* Clear glass surface. Override --edge / --glass-inner per variant. */
+@utility glass {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--edge), var(--glass-inner, 0 0 #0000), var(--glass-shadow);
+  transition-property:
+    background-color, box-shadow, color, opacity, scale, translate, transform;
+  transition-duration: 320ms;
+  transition-timing-function: var(--ease-smooth);
+}
+
+/* Menus, bars and sheets: more opaque so text behind never competes */
+@utility glass-thick {
+  background-color: var(--glass-thick);
+}
+
+/* Selected item inside a glass bar (tab, nav item, segment) */
+@utility glass-lens {
+  background-color: var(--lens-nile);
+  box-shadow:
+    var(--edge-nile),
+    var(--glow-nile),
+    0 4px 14px -6px rgb(0 0 0 / 0.3);
+}
+
+/* Touch bloom: light gathers under the finger. GlassBloom sets --px/--py
+   and data-glass-pressed; z-index -1 paints it above the fill, below the label. */
+@utility glass-bloom {
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+      120px circle at var(--px, 50%) var(--py, 50%),
+      var(--bloom),
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 700ms var(--ease-smooth);
+  }
+  &[data-glass-pressed]::after {
+    opacity: 1;
+    transition-duration: 160ms;
+  }
+}
+
+/* Skeleton shimmer: a soft sheen crossing the placeholder */
+@keyframes glass-sheen {
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: var(--card);
+  }
+}
+
+/* Shake animation on save failure */
+@keyframes shake {
+  20% {
+    transform: translateX(-5px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+.animate-shake {
+  animation: shake 360ms var(--ease-smooth);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shake {
+    animation: none !important;
+  }
+}

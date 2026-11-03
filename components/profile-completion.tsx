@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -132,9 +133,17 @@ export function ProfileCompletion({
           type="button"
           onClick={save}
           disabled={!idValid || !committee || saving}
-          className="h-11 w-full cursor-pointer touch-manipulation rounded-xl font-semibold active:scale-[0.98]"
+          aria-busy={saving}
+          className="h-11 w-full cursor-pointer touch-manipulation font-semibold active:scale-[0.98]"
         >
-          {saving ? "Saving..." : "Continue"}
+          {saving ? (
+            <>
+              <Spinner className="size-4" label="Saving" />
+              <span>Saving...</span>
+            </>
+          ) : (
+            "Continue"
+          )}
         </Button>
       </div>
     </div>

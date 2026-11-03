@@ -2,9 +2,10 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdminEmail, isSuperAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { getScheduleConfig } from "@/lib/schedule";
+import { getPollConfig } from "@/lib/schedule";
+import { canSeePoll, canSeeResults } from "@/lib/poll-access";
 
 import { legacyWeeklySchedule } from "@/lib/weekly-slots";
 
@@ -33,19 +34,59 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const config = await getScheduleConfig();
+    const pollId = request.nextUrl.searchParams.get("pollId") ?? "";
+    const config = await getPollConfig(pollId);
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true },
+      select: { id: true, committee: true },
     });
 
     if (!user) {
       return NextResponse.json([]);
     }
+    const poll = await prisma.poll.findUnique({
+      where: { id: pollId },
+      select: {
+        id: true,
+        active: true,
+        allCommittees: true,
+        committees: true,
+        requestedCommittees: true,
+        createdById: true,
+      },
+    });
+    if (!poll) {
+      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    }
+
+    const isSelf = session.user.email.toLowerCase() === email;
+    if (isSelf) {
+      if (!canSeePoll(poll, { id: user.id, committee: user.committee })) {
+        return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+      }
+    } else {
+      const caller = await prisma.user.findUnique({
+        where: { email: session.user.email.toLowerCase() },
+        select: { id: true, committee: true },
+      });
+      if (
+        !caller ||
+        !canSeeResults(
+          poll,
+          caller.id,
+          caller.committee,
+          true,
+          isSuperAdmin(session.user.email),
+        )
+      ) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     const slots = await prisma.recurringAvailability.findMany({
       where: {
         userId: user.id,
+        pollId,
         OR: (config ?? legacyWeeklySchedule()).weeklySlots
           .filter(
             (slot) => !config || config.weeklyDays.includes(slot.dayOfWeek),
@@ -69,7 +110,7 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error: unknown) {
-    console.error("Error in GET /api/recurring-availability:", error);
+    console.error("GET /api/recurring-availability failed:", error);
     return NextResponse.json(
       { error: "Failed to fetch recurring availability records" },
       { status: 500 },
@@ -92,8 +133,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config = await getScheduleConfig();
-    if (config && !config.weeklyScheduleActive) {
+    const body = (await request.json()) as {
+      pollId?: string;
+      name?: string;
+      nuId?: string;
+      committee?: string;
+      slots: { dayOfWeek: number; startTime: string }[];
+    };
+    const pollId = body.pollId ?? "";
+    const config = await getPollConfig(pollId);
+    if (!config?.active) {
       return NextResponse.json(
         {
           error:
@@ -103,17 +152,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = (await request.json()) as {
-      name?: string;
-      nuId?: string;
-      committee?: string;
-      slots: { dayOfWeek: number; startTime: string }[];
-    };
+    const rawSlots = body.slots ?? [];
+    if (!Array.isArray(rawSlots) || rawSlots.length > 7 * 96) {
+      return NextResponse.json(
+        { error: "Too many slots: maximum 672 recurring slots allowed." },
+        { status: 400 },
+      );
+    }
+
+    const poll = await prisma.poll.findUnique({
+      where: { id: pollId },
+      select: { active: true, allCommittees: true, committees: true },
+    });
+    const currentUser = await prisma.user.findUnique({
+      where: { email: session.user.email.toLowerCase() },
+      select: { id: true, committee: true },
+    });
+    if (
+      !poll ||
+      !currentUser ||
+      !canSeePoll(poll, {
+        id: currentUser.id,
+        committee: currentUser.committee,
+      })
+    ) {
+      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    }
 
     const userEmail = session.user.email.toLowerCase();
     const user = await prisma.user.findUnique({
       where: { email: userEmail },
-      select: { id: true },
+      select: { id: true, committee: true },
     });
 
     if (!user) {
@@ -128,8 +197,18 @@ export async function POST(request: NextRequest) {
     if (body.nuId && /^\d{9}$/.test(body.nuId.trim())) {
       updateData.nuId = body.nuId.trim();
     }
-    if (body.committee && body.committee.trim().length > 0) {
-      updateData.committee = body.committee.trim();
+    if (!user.committee && body.committee && body.committee.trim().length > 0) {
+      const trimmedCommittee = body.committee.trim();
+      const committeeExists = await prisma.committee.findFirst({
+        where: { name: { equals: trimmedCommittee, mode: "insensitive" } },
+      });
+      if (!committeeExists) {
+        return NextResponse.json(
+          { error: "Invalid committee" },
+          { status: 400 },
+        );
+      }
+      updateData.committee = committeeExists.name;
     }
 
     if (Object.keys(updateData).length > 0) {
@@ -144,7 +223,7 @@ export async function POST(request: NextRequest) {
         .filter((slot) => !config || config.weeklyDays.includes(slot.dayOfWeek))
         .map((slot) => `${slot.dayOfWeek}_${slot.startTime}`),
     );
-    const validSlots = (body.slots ?? []).filter(
+    const validSlots = rawSlots.filter(
       (slot) => slot && allowed.has(`${slot.dayOfWeek}_${slot.startTime}`),
     );
 
@@ -162,13 +241,14 @@ export async function POST(request: NextRequest) {
     // Atomically replace the user's recurring availability records
     await prisma.$transaction(async (tx) => {
       await tx.recurringAvailability.deleteMany({
-        where: { userId: user.id },
+        where: { userId: user.id, pollId },
       });
 
       if (dedupedSlots.length > 0) {
         await tx.recurringAvailability.createMany({
           data: dedupedSlots.map((s) => ({
             userId: user.id,
+            pollId,
             dayOfWeek: s.dayOfWeek,
             startTime: s.startTime,
           })),
@@ -185,7 +265,7 @@ export async function POST(request: NextRequest) {
       count: dedupedSlots.length,
     });
   } catch (error: unknown) {
-    console.error("Error in POST /api/recurring-availability:", error);
+    console.error("POST /api/recurring-availability failed:", error);
     return NextResponse.json(
       { error: "Failed to save semester availability records" },
       { status: 500 },

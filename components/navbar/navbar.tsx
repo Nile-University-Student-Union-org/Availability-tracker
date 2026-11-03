@@ -11,7 +11,6 @@ import {
   DashboardSquare02Icon,
   Logout02Icon,
   Calendar03Icon,
-  Clock01Icon,
 } from "@hugeicons/core-free-icons";
 import { Sun, Moon, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,10 +23,6 @@ import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import { toast } from "@/lib/notify";
 
 export interface NavbarProps {
-  dateScheduleTitle?: string;
-  weeklyScheduleTitle?: string;
-  dateScheduleActive?: boolean;
-  weeklyScheduleActive?: boolean;
   initialUser?: {
     name?: string | null;
     email?: string | null;
@@ -36,13 +31,7 @@ export interface NavbarProps {
   initialIsAdmin?: boolean;
 }
 
-let globalAdminCache: { email: string; isAdmin: boolean } | null = null;
-
 export function Navbar({
-  dateScheduleTitle,
-  weeklyScheduleTitle,
-  dateScheduleActive = true,
-  weeklyScheduleActive = true,
   initialUser,
   initialIsAdmin = false,
 }: NavbarProps = {}) {
@@ -58,17 +47,13 @@ export function Navbar({
   const [mounted, setMounted] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [isScrolled, setIsScrolled] = React.useState(false);
-  const [isAdmin, setIsAdmin] = React.useState<boolean>(() => {
-    if (initialIsAdmin) return true;
-    if (
-      currentEmail &&
-      globalAdminCache &&
-      globalAdminCache.email === currentEmail
-    ) {
-      return globalAdminCache.isAdmin;
-    }
-    return false;
-  });
+  const userRole = (currentUser as Record<string, unknown> | undefined)?.role;
+  const isAdmin = Boolean(
+    initialIsAdmin ||
+    isSpecialAdmin ||
+    userRole === "admin" ||
+    userRole === "super-admin",
+  );
   const [signOutOpen, setSignOutOpen] = React.useState(false);
 
   // Dynamic sliding indicator rects for desktop nav (Apple-grade fluid liquid pill)
@@ -127,48 +112,6 @@ export function Navbar({
     }
   }, []);
 
-  // Admin access check for active session
-  React.useEffect(() => {
-    if (!currentEmail) {
-      setIsAdmin(false);
-      return;
-    }
-
-    if (isSpecialAdmin) {
-      setIsAdmin(true);
-      globalAdminCache = { email: currentEmail, isAdmin: true };
-      return;
-    }
-
-    const userRole = (currentUser as Record<string, unknown> | undefined)?.role;
-    if (userRole === "admin" || userRole === "super-admin") {
-      setIsAdmin(true);
-      globalAdminCache = { email: currentEmail, isAdmin: true };
-      return;
-    }
-
-    if (globalAdminCache && globalAdminCache.email === currentEmail) {
-      setIsAdmin(globalAdminCache.isAdmin);
-      return;
-    }
-
-    let cancelled = false;
-    fetch("/api/admin/check")
-      .then((r) => r.json())
-      .then((data) => {
-        const isAdm = Boolean(data?.isAdmin);
-        globalAdminCache = { email: currentEmail, isAdmin: isAdm };
-        if (!cancelled) setIsAdmin(isAdm);
-      })
-      .catch(() => {
-        if (!cancelled) setIsAdmin(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentEmail, isSpecialAdmin, currentUser]);
-
   // Aggressively prefetch the admin console as soon as user is recognized as admin
   React.useEffect(() => {
     if (isAdmin || isSpecialAdmin) {
@@ -217,9 +160,8 @@ export function Navbar({
 
   const isActiveRoute = React.useCallback(
     (href: string) => {
-      if (href === "/specific")
-        return pathname === "/specific" || pathname === "/";
-      if (href === "/weekly") return pathname.startsWith("/weekly");
+      if (href === "/polls")
+        return pathname.startsWith("/polls") || pathname === "/";
       if (href === "/admin") return pathname.startsWith("/admin");
       return pathname === href;
     },
@@ -243,9 +185,6 @@ export function Navbar({
       icon: Parameters<typeof HugeiconsIcon>[0]["icon"];
     }[] = [];
 
-    const specificLabel = dateScheduleTitle?.trim() || "Specific Date";
-    const weeklyLabel = weeklyScheduleTitle?.trim() || "Semester Availability";
-
     if (isSpecialAdmin) {
       links.push({
         label: "Admin Panel",
@@ -253,51 +192,25 @@ export function Navbar({
         icon: DashboardSquare02Icon,
       });
     } else if (isAdmin) {
-      if (dateScheduleActive) {
-        links.push({
-          label: specificLabel,
-          href: "/specific",
-          icon: Calendar03Icon,
-        });
-      }
-      if (weeklyScheduleActive) {
-        links.push({
-          label: weeklyLabel,
-          href: "/weekly",
-          icon: Clock01Icon,
-        });
-      }
+      links.push({
+        label: "Availability polls",
+        href: "/polls",
+        icon: Calendar03Icon,
+      });
       links.push({
         label: "Admin Panel",
         href: "/admin",
         icon: DashboardSquare02Icon,
       });
     } else if (currentUser) {
-      if (dateScheduleActive) {
-        links.push({
-          label: specificLabel,
-          href: "/specific",
-          icon: Calendar03Icon,
-        });
-      }
-      if (weeklyScheduleActive) {
-        links.push({
-          label: weeklyLabel,
-          href: "/weekly",
-          icon: Clock01Icon,
-        });
-      }
+      links.push({
+        label: "Availability polls",
+        href: "/polls",
+        icon: Calendar03Icon,
+      });
     }
     return links;
-  }, [
-    dateScheduleTitle,
-    weeklyScheduleTitle,
-    dateScheduleActive,
-    weeklyScheduleActive,
-    isSpecialAdmin,
-    isAdmin,
-    currentUser,
-  ]);
+  }, [isSpecialAdmin, isAdmin, currentUser]);
 
   // Synchronize the active indicator position smoothly with zero layout jumps
   const updateActiveRect = React.useCallback(() => {
@@ -436,24 +349,14 @@ export function Navbar({
             {navLinks.length > 0 && (
               <nav
                 onMouseLeave={handleNavMouseLeave}
-                className={cn(
-                  "relative ml-auto hidden items-center gap-1 rounded-full p-1 transition-colors duration-300 md:flex",
-                  isDark
-                    ? "bg-white/[0.08] ring-1 ring-white/15"
-                    : "bg-nusu-navy/[0.04] ring-1 ring-nusu-navy/[0.06]",
-                )}
+                className="relative ml-auto hidden items-center gap-0.5 md:flex"
                 aria-label="Primary"
               >
                 {/* 1. Ghost Hover Pill (Subtle frosted preview on inactive tabs) */}
                 {hoveredRect && (
                   <span
                     aria-hidden="true"
-                    className={cn(
-                      "pointer-events-none absolute rounded-full transition-all duration-200 ease-[cubic-bezier(0.25,1,0.35,1)]",
-                      isDark
-                        ? "bg-white/[0.08] ring-1 ring-white/10"
-                        : "bg-black/[0.04] ring-1 ring-black/[0.05]",
-                    )}
+                    className="pointer-events-none absolute rounded-full bg-foreground/5 transition-all duration-200 ease-[cubic-bezier(0.25,1,0.35,1)]"
                     style={{
                       left: `${hoveredRect.left}px`,
                       top: `${hoveredRect.top}px`,
@@ -463,16 +366,11 @@ export function Navbar({
                   />
                 )}
 
-                {/* 2. Apple Liquid Active Pill (Glides smoothly between active tabs) */}
+                {/* 2. Liquid Glass Active Pill (Glides smoothly between active tabs) */}
                 {activeRect && (
                   <span
                     aria-hidden="true"
-                    className={cn(
-                      "pointer-events-none absolute rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)]",
-                      isDark
-                        ? "bg-white/20 shadow-[0_2px_12px_rgba(255,255,255,0.08),inset_0_1px_1px_rgba(255,255,255,0.25)] ring-1 ring-white/25"
-                        : "bg-white shadow-[0_2px_8px_rgba(15,48,86,0.08),inset_0_1px_1px_rgba(255,255,255,0.95)] ring-1 ring-black/[0.06]",
-                    )}
+                    className="pointer-events-none absolute rounded-full bg-(--lens) shadow-[var(--edge),0_4px_14px_-6px_rgb(0_0_0/0.35)] transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)]"
                     style={{
                       left: `${activeRect.left}px`,
                       top: `${activeRect.top}px`,
@@ -501,12 +399,8 @@ export function Navbar({
                       className={cn(
                         "relative z-10 flex cursor-pointer items-center justify-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors duration-200 select-none",
                         active
-                          ? isDark
-                            ? "text-white"
-                            : "text-nusu-navy"
-                          : isDark
-                            ? "text-white/70 hover:text-white"
-                            : "text-nusu-navy/70 hover:text-nusu-navy",
+                          ? "text-foreground font-semibold"
+                          : "text-muted-foreground hover:text-foreground",
                       )}
                     >
                       <HugeiconsIcon
@@ -538,12 +432,7 @@ export function Navbar({
                   isDark ? "Switch to light mode" : "Switch to dark mode"
                 }
                 title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-                className={cn(
-                  "group/theme relative flex size-8 cursor-pointer items-center justify-center rounded-full transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)] select-none active:scale-90 touch-manipulation sm:size-9",
-                  isDark
-                    ? "bg-white/15 shadow-xs ring-1 ring-white/25 hover:bg-white/25"
-                    : "bg-nusu-navy/[0.05] shadow-2xs ring-1 ring-black/[0.06] hover:bg-nusu-navy/10",
-                )}
+                className="group/theme relative flex size-9 min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 cursor-pointer items-center justify-center rounded-full hover:bg-foreground/5 transition-all duration-300 ease-[cubic-bezier(0.25,1,0.35,1)] select-none active:scale-90 touch-manipulation"
               >
                 {isDark ? (
                   <Sun
@@ -555,7 +444,7 @@ export function Navbar({
                   <Moon
                     size={15}
                     strokeWidth={2.2}
-                    className="text-nusu-navy transition-transform duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover/theme:-rotate-12 group-hover/theme:text-nusu-blue"
+                    className="text-foreground transition-transform duration-400 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover/theme:-rotate-12 group-hover/theme:text-(--glass-nile-fg)"
                   />
                 )}
               </button>
@@ -567,30 +456,20 @@ export function Navbar({
                   onClick={handleSignOut}
                   aria-label="Sign out of your account"
                   title="Sign out"
-                  className={cn(
-                    "group relative flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-all duration-200 select-none active:scale-[0.97] sm:text-[13px]",
-                    isDark
-                      ? "bg-white/10 text-white/90 ring-1 ring-white/15 hover:bg-red-500/20 hover:text-red-300 hover:ring-red-400/30"
-                      : "bg-black/[0.04] text-nusu-navy ring-1 ring-black/[0.06] hover:bg-red-50 hover:text-red-600 hover:ring-red-200",
-                  )}
+                  className="group relative flex min-h-[44px] sm:min-h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs sm:text-[13px] font-semibold text-muted-foreground hover:bg-red-500/10 hover:text-(--tint-red-fg) transition-all duration-200 select-none active:scale-[0.97] touch-manipulation"
                 >
                   <HugeiconsIcon
                     icon={Logout02Icon}
                     size={14}
                     strokeWidth={2.2}
-                    className="text-red-500 transition-transform duration-200 group-hover:-translate-x-0.5"
+                    className="transition-transform duration-200 group-hover:-translate-x-0.5"
                   />
                   <span>Sign out</span>
                 </button>
               ) : (
                 <Link
                   href="/auth?mode=signin"
-                  className={cn(
-                    "group relative flex cursor-pointer items-center gap-2 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-all duration-200 select-none active:scale-[0.97] sm:text-[13px]",
-                    isDark
-                      ? "bg-white text-nusu-navy shadow-[0_4px_16px_rgba(0,0,0,0.35)] hover:bg-white/95"
-                      : "bg-nusu-navy text-white shadow-[0_4px_14px_rgba(15,48,86,0.22)] hover:bg-nusu-navy-light",
-                  )}
+                  className="group relative flex min-h-[44px] sm:min-h-9 cursor-pointer items-center gap-2 rounded-full glass glass-bloom px-4 py-1.5 text-xs sm:text-[13px] font-semibold text-(--glass-nile-fg) transition-all duration-200 select-none active:scale-[0.97] touch-manipulation"
                 >
                   <span>Login</span>
                 </Link>
@@ -601,12 +480,7 @@ export function Navbar({
                 <button
                   type="button"
                   onClick={() => setMobileOpen(!mobileOpen)}
-                  className={cn(
-                    "relative flex size-8 cursor-pointer items-center justify-center rounded-full transition-all duration-200 active:scale-90 md:hidden",
-                    isDark
-                      ? "bg-white/15 text-white ring-1 ring-white/25 hover:bg-white/25"
-                      : "bg-white/60 text-nusu-navy ring-1 ring-black/[0.06] hover:bg-white/90",
-                  )}
+                  className="relative flex size-9 min-h-[44px] min-w-[44px] sm:min-h-9 sm:min-w-9 cursor-pointer items-center justify-center rounded-full hover:bg-foreground/5 transition-all duration-200 active:scale-90 md:hidden touch-manipulation"
                   aria-expanded={mobileOpen}
                   aria-label={mobileOpen ? "Close menu" : "Open menu"}
                 >

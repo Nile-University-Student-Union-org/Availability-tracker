@@ -111,15 +111,15 @@ function Calendar({
           defaultClassNames.day,
         ),
         range_start: cn(
-          "relative isolate z-0 bg-transparent [&:has([data-range-start=true][data-range-end=true])]:after:hidden after:absolute after:inset-y-1 after:right-0 after:w-1/2 after:bg-[#0F3056]/10 dark:after:bg-emerald-500/15 after:z-[-1]",
+          "relative isolate z-0 bg-transparent [&:has([data-range-start=true][data-range-end=true])]:after:hidden after:absolute after:inset-y-1 after:right-0 after:w-1/2 after:bg-[#0F3056]/10 dark:after:bg-emerald-500/15 after:z-[-1] after:animate-in after:fade-in after:duration-200 motion-reduce:after:animate-none",
           defaultClassNames.range_start,
         ),
         range_middle: cn(
-          "relative isolate z-0 bg-transparent after:absolute after:inset-y-1 after:inset-x-0 after:bg-[#0F3056]/10 dark:after:bg-emerald-500/15 first:after:rounded-l-full last:after:rounded-r-full after:z-[-1]",
+          "relative isolate z-0 bg-transparent after:absolute after:inset-y-1 after:inset-x-0 after:bg-[#0F3056]/10 dark:after:bg-emerald-500/15 first:after:rounded-l-full last:after:rounded-r-full after:z-[-1] after:animate-in after:fade-in after:duration-200 motion-reduce:after:animate-none",
           defaultClassNames.range_middle,
         ),
         range_end: cn(
-          "relative isolate z-0 bg-transparent [&:has([data-range-start=true][data-range-end=true])]:after:hidden after:absolute after:inset-y-1 after:left-0 after:w-1/2 after:bg-[#0F3056]/10 dark:after:bg-emerald-500/15 after:z-[-1]",
+          "relative isolate z-0 bg-transparent [&:has([data-range-start=true][data-range-end=true])]:after:hidden after:absolute after:inset-y-1 after:left-0 after:w-1/2 after:bg-[#0F3056]/10 dark:after:bg-emerald-500/15 after:z-[-1] after:animate-in after:fade-in after:duration-200 motion-reduce:after:animate-none",
           defaultClassNames.range_end,
         ),
         today: cn("font-semibold", defaultClassNames.today),
@@ -237,12 +237,13 @@ function CalendarDayButton({
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
       className={cn(
-        "relative isolate z-10 flex size-9 sm:size-10 items-center justify-center p-0 border-0 leading-none font-medium text-xs rounded-full transition-colors duration-150 cursor-pointer select-none active:scale-90",
+        "relative isolate z-10 flex aspect-square h-auto w-full min-w-(--cell-size) max-w-9 sm:max-w-10 items-center justify-center p-0 border-0 leading-none font-medium text-xs rounded-full transition-[background-color,color,box-shadow,transform] duration-150 ease-out cursor-pointer select-none active:scale-[0.94] motion-reduce:transition-none",
         "group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-2 group-data-[focused=true]/day:ring-primary/40",
         "text-foreground hover:bg-[#0F3056]/10 hover:text-[#0F3056] dark:hover:bg-emerald-500/20 dark:hover:text-emerald-300 hover:ring-1 hover:ring-[#0F3056]/20 dark:hover:ring-emerald-400/25",
         "data-[today=true]:bg-muted/80 data-[today=true]:text-foreground data-[today=true]:font-semibold",
         "data-[has-slots=true]:bg-emerald-500/20 data-[has-slots=true]:text-emerald-700 dark:data-[has-slots=true]:text-emerald-400 data-[has-slots=true]:font-semibold data-[has-slots=true]:hover:bg-emerald-500/30",
         "data-[selected-single=true]:bg-[#0F3056] data-[selected-single=true]:text-white data-[selected-single=true]:font-bold data-[selected-single=true]:shadow-sm data-[selected-single=true]:ring-2 data-[selected-single=true]:ring-[#0F3056]/25 data-[selected-single=true]:hover:bg-[#0F3056]/90 dark:data-[selected-single=true]:bg-emerald-500 dark:data-[selected-single=true]:text-neutral-950 dark:data-[selected-single=true]:font-bold dark:data-[selected-single=true]:ring-emerald-400/35 dark:data-[selected-single=true]:shadow-emerald-950/40 dark:data-[selected-single=true]:hover:bg-emerald-400",
+        "data-[range-start=true]:animate-in data-[range-start=true]:zoom-in-90 data-[range-start=true]:duration-200 data-[range-end=true]:animate-in data-[range-end=true]:zoom-in-90 data-[range-end=true]:duration-200 data-[selected-single=true]:animate-in data-[selected-single=true]:zoom-in-90 data-[selected-single=true]:duration-200 motion-reduce:animate-none",
         "data-[range-start=true]:bg-[#0F3056] data-[range-start=true]:text-white data-[range-start=true]:font-bold data-[range-start=true]:shadow-sm data-[range-start=true]:ring-2 data-[range-start=true]:ring-[#0F3056]/25 data-[range-start=true]:hover:bg-[#0F3056]/90 dark:data-[range-start=true]:bg-emerald-500 dark:data-[range-start=true]:text-neutral-950 dark:data-[range-start=true]:font-bold dark:data-[range-start=true]:ring-emerald-400/35 dark:data-[range-start=true]:shadow-emerald-950/40 dark:data-[range-start=true]:hover:bg-emerald-400",
         "data-[range-end=true]:bg-[#0F3056] data-[range-end=true]:text-white data-[range-end=true]:font-bold data-[range-end=true]:shadow-sm data-[range-end=true]:ring-2 data-[range-end=true]:ring-[#0F3056]/25 data-[range-end=true]:hover:bg-[#0F3056]/90 dark:data-[range-end=true]:bg-emerald-500 dark:data-[range-end=true]:text-neutral-950 dark:data-[range-end=true]:font-bold dark:data-[range-end=true]:ring-emerald-400/35 dark:data-[range-end=true]:shadow-emerald-950/40 dark:data-[range-end=true]:hover:bg-emerald-400",
         "data-[range-middle=true]:rounded-full data-[range-middle=true]:bg-transparent data-[range-middle=true]:text-[#0F3056] dark:data-[range-middle=true]:text-emerald-300 data-[range-middle=true]:font-semibold data-[range-middle=true]:hover:bg-[#0F3056]/15 dark:data-[range-middle=true]:hover:bg-emerald-500/25 data-[range-middle=true]:hover:text-[#0F3056] dark:data-[range-middle=true]:hover:text-emerald-200",

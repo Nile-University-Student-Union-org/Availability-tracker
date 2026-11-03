@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogClose,
@@ -31,6 +32,7 @@ import {
   CalendarCheck2,
   AlertCircle,
 } from "lucide-react";
+import { formatDuration } from "@/lib/weekly-slots";
 
 function formatTime(time: string): string {
   const [h, m] = time.split(":").map(Number);
@@ -59,6 +61,7 @@ const DEFAULT_HOURS = [
 ];
 
 interface AvailabilityDialogProps {
+  pollId: string;
   date: string;
   initialSlots: string[];
   memberName: string;
@@ -67,6 +70,8 @@ interface AvailabilityDialogProps {
   memberCommittee: string;
   slotMode: "fixed" | "free";
   timeSlots: string[];
+  /** start → end for custom-length slots; missing ends are one hour */
+  slotEnds?: Record<string, string>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: (date: string, slots: string[]) => void;
@@ -76,6 +81,7 @@ interface AvailabilityDialogProps {
 }
 
 export function AvailabilityDialog({
+  pollId,
   date,
   initialSlots,
   memberName,
@@ -83,6 +89,7 @@ export function AvailabilityDialog({
   memberId,
   memberCommittee,
   timeSlots,
+  slotEnds,
   open,
   onOpenChange,
   onSaved,
@@ -108,6 +115,21 @@ export function AvailabilityDialog({
   const [selectedSlots, setSelectedSlots] = useState<Set<string>>(
     new Set(initialSlots),
   );
+  const totalSelectedMinutes = useMemo(() => {
+    let total = 0;
+    for (const slot of selectedSlots) {
+      const end = slotEnds?.[slot];
+      if (end) {
+        const [sh, sm] = slot.split(":").map(Number);
+        const [eh, em] = end.split(":").map(Number);
+        const diff = eh * 60 + em - (sh * 60 + sm);
+        total += diff > 0 ? diff : 60;
+      } else {
+        total += 60;
+      }
+    }
+    return total;
+  }, [selectedSlots, slotEnds]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -285,6 +307,7 @@ export function AvailabilityDialog({
           memberEmail,
           memberId,
           memberCommittee,
+          pollId,
         }),
       });
 
@@ -427,8 +450,8 @@ export function AvailabilityDialog({
             )}
           >
             <CalendarCheck2 className="size-3.5" />
-            {selectedSlots.size} {selectedSlots.size === 1 ? "slot" : "slots"} (
-            {selectedSlots.size}h)
+            {selectedSlots.size} {selectedSlots.size === 1 ? "slot" : "slots"} ·{" "}
+            {formatDuration(totalSelectedMinutes)}
           </Badge>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -454,7 +477,7 @@ export function AvailabilityDialog({
       <div className="grid grid-cols-2 gap-2">
         {effectiveSlots.map((slot) => {
           const isSelected = selectedSlots.has(slot);
-          const endTime = getSlotEndTime(slot);
+          const endTime = slotEnds?.[slot] ?? getSlotEndTime(slot);
 
           return (
             <div
@@ -464,7 +487,7 @@ export function AvailabilityDialog({
               className={cn(
                 "group relative flex min-h-[56px] cursor-pointer touch-manipulation items-center justify-between rounded-2xl border p-3 transition-all duration-150 active:scale-[0.97]",
                 isSelected
-                  ? "border-emerald-500/70 bg-emerald-500/15 shadow-sm ring-1 ring-emerald-500/30 dark:bg-emerald-500/20"
+                  ? "border-transparent bg-emerald-500/15 [box-shadow:var(--edge-slot-on)] dark:bg-emerald-500/20"
                   : "border-border/80 bg-card hover:border-primary/40 hover:bg-muted/30",
               )}
             >
@@ -517,7 +540,7 @@ export function AvailabilityDialog({
           <Button
             variant="ghost"
             size="sm"
-            className="min-h-[44px] touch-manipulation rounded-xl px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
+            className="min-h-[44px] touch-manipulation px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
           >
             Close
           </Button>
@@ -528,7 +551,7 @@ export function AvailabilityDialog({
             <Button
               variant="ghost"
               size="sm"
-              className="min-h-[36px] rounded-xl px-3 text-xs sm:text-sm"
+              className="min-h-[36px] px-3 text-xs sm:text-sm"
             >
               Cancel
             </Button>
@@ -544,19 +567,28 @@ export function AvailabilityDialog({
             size="sm"
             onClick={handleNext}
             disabled={isSaving}
-            className="min-h-[44px] touch-manipulation rounded-xl px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
+            className="min-h-[44px] touch-manipulation px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
           >
             Next →
           </Button>
         )}
 
         <Button
+          variant="success"
           onClick={handleSaveClick}
           disabled={isSaving}
+          aria-busy={isSaving}
           size="sm"
-          className="min-h-[44px] touch-manipulation rounded-xl px-3.5 text-xs font-semibold shadow-sm sm:min-h-[36px] sm:text-sm"
+          className="min-h-[44px] touch-manipulation px-3.5 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
         >
-          {isSaving ? "Saving..." : "Save Availability"}
+          {isSaving ? (
+            <>
+              <Spinner className="size-3.5" label="Saving" />
+              <span>Saving...</span>
+            </>
+          ) : (
+            "Save Availability"
+          )}
         </Button>
       </div>
     </div>

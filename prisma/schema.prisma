@@ -25,8 +25,12 @@ model User {
   accounts      Account[]
   availabilities          Availability[]
   recurringAvailabilities RecurringAvailability[]
+  createdPolls Poll[] @relation("PollCreator")
+  reviewedPolls Poll[] @relation("PollReviewer")
 
   @@unique([email])
+  @@index([committee])
+  @@index([role])
   @@map("user")
 }
 
@@ -103,13 +107,16 @@ model Availability {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
   date      DateTime @db.Date   // e.g. 2026-04-19
   startTime String              // e.g. "08:30"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // A user can only mark a given slot once per day
-  @@unique([userId, date, startTime])
+  @@unique([pollId, userId, date, startTime])
+  @@index([pollId])
   @@index([userId])
   @@index([date])
   @@map("availability")
@@ -121,63 +128,72 @@ model RecurringAvailability {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
   dayOfWeek Int      // 0 = Sunday, 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday
   startTime String   // e.g. "08:30"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, dayOfWeek, startTime])
+  @@unique([pollId, userId, dayOfWeek, startTime])
+  @@index([pollId])
   @@index([userId])
   @@index([dayOfWeek])
   @@map("recurring_availability")
 }
 
-// Singleton row (id = "default") — defines the active date range and slot mode.
-// slotMode: "fixed" = users pick from pre-defined time slots,
-//           "free"  = users can book any time within the day.
-model ScheduleConfig {
-  id                    String           @id @default("default")
-  startDate             DateTime         @db.Date
-  endDate               DateTime         @db.Date
-  slotMode              String           @default("fixed") // "fixed" | "free"
-  dateScheduleActive    Boolean          @default(true)
-  weeklyScheduleActive  Boolean          @default(true)
-  // Legacy: only read when no weekly slots exist.
-  weeklyIncludeSaturday Boolean          @default(false)
-  weeklyDays            Int[]            @default([0, 1, 2, 3, 4])
-  dateScheduleTitle     String           @default("Specific Date Availability")
-  weeklyScheduleTitle   String           @default("Semester Availability")
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  timeSlots             TimeSlotConfig[]
-  weeklySlots           WeeklySlotConfig[]
+model Poll {
+  id String @id @default(cuid())
+  name String
+  type String
+  active Boolean @default(true)
+  allCommittees Boolean @default(false)
+  committees String[] @default([])
+  requestedCommittees String[] @default([])
+  requestStatus String?
+  rejectionReason String?
+  createdById String?
+  createdBy User? @relation("PollCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedById String?
+  reviewedBy User? @relation("PollReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt DateTime?
+  startDate DateTime? @db.Date
+  endDate DateTime? @db.Date
+  slotMode String @default("fixed")
+  weeklyDays Int[] @default([0, 1, 2, 3, 4])
+  timeSlots PollTimeSlot[]
+  weeklySlots PollWeeklySlot[]
+  availabilities Availability[]
+  recurringAvailabilities RecurringAvailability[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@map("schedule_config")
+  @@index([createdById])
+  @@index([requestStatus])
+  @@map("poll")
 }
 
-// Each row is one bookable time slot (only used when slotMode = "fixed").
-model TimeSlotConfig {
-  id               String         @id @default(cuid())
-  scheduleConfigId String
-  scheduleConfig   ScheduleConfig @relation(fields: [scheduleConfigId], references: [id], onDelete: Cascade)
-  startTime        String         // "HH:mm" e.g. "08:30"
-  createdAt        DateTime       @default(now())
-
-  @@unique([scheduleConfigId, startTime])
-  @@index([scheduleConfigId])
-  @@map("time_slot_config")
+model PollTimeSlot {
+  id String @id @default(cuid())
+  pollId String
+  poll Poll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  startTime String
+  endTime String? // "HH:mm"; null means one hour after startTime (older slots)
+  createdAt DateTime @default(now())
+  @@unique([pollId, startTime])
+  @@index([pollId])
+  @@map("poll_time_slot")
 }
 
-model WeeklySlotConfig {
-  id               String         @id @default(cuid())
-  scheduleConfigId String
-  scheduleConfig   ScheduleConfig @relation(fields: [scheduleConfigId], references: [id], onDelete: Cascade)
-  dayOfWeek        Int
-  startTime        String         // "HH:mm"
-  endTime          String         // "HH:mm"
-  createdAt        DateTime       @default(now())
-
-  @@unique([scheduleConfigId, dayOfWeek, startTime])
-  @@index([scheduleConfigId])
-  @@map("weekly_slot_config")
+model PollWeeklySlot {
+  id String @id @default(cuid())
+  pollId String
+  poll Poll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  dayOfWeek Int
+  startTime String
+  endTime String
+  createdAt DateTime @default(now())
+  @@unique([pollId, dayOfWeek, startTime])
+  @@index([pollId])
+  @@map("poll_weekly_slot")
 }

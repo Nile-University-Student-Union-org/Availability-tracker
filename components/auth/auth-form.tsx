@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/notify";
@@ -34,7 +35,10 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
   );
 
   const authError = searchParams.get("error");
-  const [showPasswordLogin, setShowPasswordLogin] = useState(false);
+  // Password sign-in has no visible link; admins reach it at /auth?mode=password
+  const [showPasswordLogin, setShowPasswordLogin] = useState(
+    searchParams.get("mode") === "password",
+  );
   const [microsoftLoading, setMicrosoftLoading] = useState(false);
 
   // Signin Form State
@@ -65,6 +69,17 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
     try {
       setLoginLoading(true);
 
+      // Sign in first with the provided credentials
+      const { error } = await authClient.signIn.email({
+        email: trimmedEmail,
+        password: loginPassword,
+      });
+
+      if (error) {
+        toast.error(error.message || "Invalid credentials. Please try again.");
+        return;
+      }
+
       // Check if this member is flagged for a mandatory administrative password reset
       try {
         const checkRes = await fetch(
@@ -81,37 +96,7 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
           }
         }
       } catch {
-        // Fallback to standard sign in if check endpoint is unreachable
-      }
-
-      const { error } = await authClient.signIn.email({
-        email: trimmedEmail,
-        password: loginPassword,
-        callbackURL: resolvedCallback,
-      });
-
-      if (error) {
-        // Also check if invalid credentials was due to a pending reset
-        try {
-          const checkRes = await fetch(
-            `/api/auth/reset-first-login?email=${encodeURIComponent(trimmedEmail)}`,
-          );
-          if (checkRes.ok) {
-            const checkData = await checkRes.json();
-            if (checkData.mustResetPassword) {
-              setResetMode(true);
-              toast.info(
-                "An administrator has reset your password. Please set a new password below.",
-              );
-              return;
-            }
-          }
-        } catch {
-          // Ignore
-        }
-
-        toast.error(error.message || "Invalid credentials. Please try again.");
-        return;
+        // Continue if check endpoint is unreachable
       }
 
       toast.success("Signed in successfully!");
@@ -227,7 +212,7 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
             Sign in
           </h1>
           <p className="text-xs text-muted-foreground sm:text-sm">
-            Use your Nile University Microsoft account (@nu.edu.eg).
+            Use your Nile University Microsoft account.
           </p>
         </div>
 
@@ -248,27 +233,26 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
           size="lg"
           onClick={handleMicrosoft}
           disabled={microsoftLoading}
-          className="min-h-[48px] w-full cursor-pointer touch-manipulation gap-3 rounded-xl font-semibold active:scale-[0.98]"
+          aria-busy={microsoftLoading}
+          className="h-[52px] w-full gap-3 text-[15px]"
         >
-          <svg aria-hidden viewBox="0 0 21 21" className="size-[18px]">
-            <rect x="1" y="1" width="9" height="9" fill="#f25022" />
-            <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
-            <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
-            <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
-          </svg>
-          {microsoftLoading ? "Redirecting..." : "Sign in with Microsoft"}
+          {microsoftLoading ? (
+            <>
+              <Spinner className="size-[18px]" label="Redirecting" />
+              <span>Redirecting to Microsoft…</span>
+            </>
+          ) : (
+            <>
+              <svg aria-hidden viewBox="0 0 21 21" className="size-[18px]">
+                <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+                <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+                <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+                <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+              </svg>
+              <span>Sign in with Microsoft</span>
+            </>
+          )}
         </Button>
-
-        <p className="text-center text-xs text-muted-foreground">
-          Union administrator?{" "}
-          <button
-            type="button"
-            onClick={() => setShowPasswordLogin(true)}
-            className="inline-flex min-h-[44px] cursor-pointer touch-manipulation items-center font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            Sign in with password
-          </button>
-        </p>
       </div>
     );
   }
@@ -427,16 +411,21 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
 
           <Button
             type="submit"
-            className="min-h-[46px] w-full cursor-pointer touch-manipulation rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm active:scale-[0.98]"
+            variant="success"
+            className="min-h-[46px] w-full cursor-pointer touch-manipulation font-semibold active:scale-[0.98]"
             size="lg"
             disabled={
               resetSubmitting ||
               resetNewPassword.length < 8 ||
               resetNewPassword !== resetConfirmPassword
             }
+            aria-busy={resetSubmitting}
           >
             {resetSubmitting ? (
-              "Updating & Signing In..."
+              <>
+                <Spinner className="size-4" label="Updating" />
+                <span>Updating & Signing In...</span>
+              </>
             ) : (
               <span className="flex items-center gap-2">
                 Set New Password & Sign In
@@ -513,12 +502,16 @@ export function AuthForm({ callbackUrl }: AuthFormProps) {
 
           <Button
             type="submit"
-            className="min-h-[46px] w-full cursor-pointer touch-manipulation rounded-xl font-semibold active:scale-[0.98]"
+            className="min-h-[46px] w-full cursor-pointer touch-manipulation font-semibold active:scale-[0.98]"
             size="lg"
             disabled={loginLoading}
+            aria-busy={loginLoading}
           >
             {loginLoading ? (
-              "Signing in..."
+              <>
+                <Spinner className="size-4" label="Signing in" />
+                <span>Signing in...</span>
+              </>
             ) : (
               <span className="flex items-center gap-2">
                 Sign In

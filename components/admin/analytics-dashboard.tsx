@@ -4,13 +4,14 @@ import {
   RefreshSpinIcon,
   useRefreshSpin,
 } from "@/components/admin/refresh-spin";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { COMMITTEES } from "@/lib/constants";
 import { useLivePoll } from "@/hooks/use-live-poll";
 import { AnimatedNumber } from "@/components/admin/animated-number";
 import { HeatmapPulse } from "@/components/admin/heatmap-pulse";
@@ -47,17 +48,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { COMMITTEES } from "@/lib/constants";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +92,8 @@ export type AnalyticsData = {
   users: UserEntry[];
   dates: string[];
   timeSlots: string[];
+  /** start → end for custom-length slots; missing means one hour */
+  slotEnds?: Record<string, string>;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -202,21 +204,28 @@ function UserAvatar({
   );
 }
 
-async function fetchDateAnalytics(signal: AbortSignal): Promise<AnalyticsData> {
-  const response = await fetch("/api/admin/analytics", {
-    signal,
-    cache: "no-store",
-  });
-  if (!response.ok) throw new Error("Failed to load date analytics");
-  return response.json();
-}
-
 // ─── Main dashboard ───────────────────────────────────────────────────────────
 export function AnalyticsDashboard({
   data: initialData,
+  pollId,
+  pollCommittees,
 }: {
   data: AnalyticsData;
+  pollId: string;
+  /** The poll's committees; omit for a poll open to every committee */
+  pollCommittees?: string[];
 }) {
+  const fetchDateAnalytics = useCallback(
+    async (signal: AbortSignal): Promise<AnalyticsData> => {
+      const response = await fetch(
+        `/api/admin/analytics?pollId=${encodeURIComponent(pollId)}`,
+        { signal, cache: "no-store" },
+      );
+      if (!response.ok) throw new Error("Failed to load date analytics");
+      return response.json();
+    },
+    [pollId],
+  );
   const {
     data = initialData,
     lastUpdated,
@@ -224,7 +233,19 @@ export function AnalyticsDashboard({
     refresh,
   } = useLivePoll(fetchDateAnalytics, 10000, initialData);
   const { spinKey, spin } = useRefreshSpin();
-  const { slotMatrix, users, dates, timeSlots } = data;
+  const { slotMatrix, users, dates, timeSlots, slotEnds } = data;
+  const slotMinutes = (start: string) => {
+    const end = slotEnds?.[start];
+    if (!end) return 60;
+    const [sh, sm] = start.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
+    return eh * 60 + em - (sh * 60 + sm);
+  };
+  const slotLabel = (start: string) =>
+    slotEnds?.[start]
+      ? `${formatTime(start)} → ${formatTime(slotEnds[start])}`
+      : formatTime(start);
+  const isMobile = useIsMobile();
   const [activeCell, setActiveCell] = useState<{
     date: string;
     startTime: string;
@@ -232,32 +253,30 @@ export function AnalyticsDashboard({
   const [viewingUser, setViewingUser] = useState<UserEntry | null>(null);
 
   const [selectedCommittees, setSelectedCommittees] = useState<string[]>([]);
-  const [availableCommittees, setAvailableCommittees] =
-    useState<string[]>(COMMITTEES);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [committeeSearch, setCommitteeSearch] = useState("");
 
+  // The poll's own committees, or every committee for an all-committee poll
+  const [globalCommittees, setGlobalCommittees] =
+    useState<string[]>(COMMITTEES);
   useEffect(() => {
+    if (pollCommittees) return;
     fetch("/api/committees")
       .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data?.committees) && data.committees.length > 0) {
-          setAvailableCommittees(data.committees);
+      .then((d) => {
+        if (Array.isArray(d?.committees) && d.committees.length > 0) {
+          setGlobalCommittees(d.committees);
         }
       })
-      .catch(() => {
-        // Fallback to static COMMITTEES
-      });
-  }, []);
-
-  // Merge static/dynamic committees with any committee present in user records
+      .catch(() => {});
+  }, [pollCommittees]);
   const allKnownCommittees = useMemo(() => {
-    const set = new Set<string>(availableCommittees);
+    const set = new Set<string>(pollCommittees ?? globalCommittees);
     for (const u of users) {
       if (u.committee) set.add(u.committee);
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [availableCommittees, users]);
+  }, [pollCommittees, globalCommittees, users]);
 
   // Precompute count of users per committee
   const committeeMemberCounts = useMemo(() => {
@@ -287,10 +306,6 @@ export function AnalyticsDashboard({
       }
       return [...prev, c];
     });
-  };
-
-  const handleSelectAllCommittees = () => {
-    setSelectedCommittees([...allKnownCommittees]);
   };
 
   const handleClearCommittees = () => {
@@ -367,10 +382,19 @@ export function AnalyticsDashboard({
       .sort((a, b) => b.slots - a.slots);
   }, [allKnownCommittees, selectedCommittees, users]);
 
+  const maxCommitteeSlots = useMemo(
+    () => committeeStats.reduce((max, c) => Math.max(max, c.slots), 0),
+    [committeeStats],
+  );
+
   const topCommittee = committeeStats[0]?.slots > 0 ? committeeStats[0] : null;
 
   function handleExportSlotIcs(slot: SlotEntry) {
-    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime);
+    const { startDate, endDate } = slotToDateRange(
+      slot.date,
+      slot.startTime,
+      slotMinutes(slot.startTime),
+    );
     const attendeeList = slot.users
       .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
       .join("\n");
@@ -390,7 +414,11 @@ export function AnalyticsDashboard({
   }
 
   function handleOpenSlotGoogleCalendar(slot: SlotEntry) {
-    const { startDate, endDate } = slotToDateRange(slot.date, slot.startTime);
+    const { startDate, endDate } = slotToDateRange(
+      slot.date,
+      slot.startTime,
+      slotMinutes(slot.startTime),
+    );
     const attendeeList = slot.users
       .map((u) => `${u.name || u.email} (${u.committee || "Member"})`)
       .join(", ");
@@ -431,7 +459,11 @@ export function AnalyticsDashboard({
     const rows: string[] = [csvHeaders.join(",")];
 
     for (const slot of validSlots) {
-      const { endDate } = slotToDateRange(slot.date, slot.startTime);
+      const { endDate } = slotToDateRange(
+        slot.date,
+        slot.startTime,
+        slotMinutes(slot.startTime),
+      );
       const endH = String(endDate.getHours()).padStart(2, "0");
       const endM = String(endDate.getMinutes()).padStart(2, "0");
       const endTimeStr = formatTime(`${endH}:${endM}`);
@@ -443,7 +475,7 @@ export function AnalyticsDashboard({
           escapeCsvCell(slot.date),
           escapeCsvCell(formatTime(slot.startTime)),
           escapeCsvCell(endTimeStr),
-          escapeCsvCell("60 mins"),
+          escapeCsvCell(`${slotMinutes(slot.startTime)} mins`),
           escapeCsvCell(
             selectedCommittees.length === 0
               ? "All Committees"
@@ -574,203 +606,167 @@ export function AnalyticsDashboard({
       {/* ── Multi-Committee Filter Bar ───────────────────────────────── */}
       <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2.5 min-w-0 max-w-full flex-1">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <Label
-              htmlFor="committee-filter-btn"
-              className="text-xs font-semibold tracking-widest text-muted-foreground uppercase shrink-0"
-            >
-              Filter by Committee:
-            </Label>
-
-            {/* Apple-grade Interactive Multi-Select Popover */}
-            <Popover
-              open={filterPopoverOpen}
-              onOpenChange={setFilterPopoverOpen}
-            >
-              <PopoverTrigger
-                id="committee-filter-btn"
-                type="button"
-                className={cn(
-                  "group relative flex min-h-[42px] sm:min-h-[38px] w-full sm:w-auto sm:min-w-[220px] max-w-full items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-left text-xs font-semibold shadow-2xs transition-all hover:border-primary/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
-                  selectedCommittees.length > 0 &&
-                    "border-primary/40 bg-primary/5 text-primary ring-1 ring-primary/20",
-                )}
+          {/* A single-committee poll has nothing to filter */}
+          {allKnownCommittees.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Label
+                htmlFor="committee-filter-btn"
+                className="text-xs font-semibold tracking-widest text-muted-foreground uppercase shrink-0"
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <Filter className="size-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
-                  <span className="truncate text-foreground font-medium">
-                    {selectedCommittees.length === 0
-                      ? "All Committees"
-                      : selectedCommittees.length === 1
-                        ? selectedCommittees[0]
-                        : selectedCommittees.length === 2
-                          ? `${selectedCommittees[0]}, ${selectedCommittees[1]}`
-                          : `${selectedCommittees.length} Committees`}
-                  </span>
-                </div>
+                Filter by Committee:
+              </Label>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {selectedCommittees.length > 0 && (
-                    <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-2xs">
-                      {selectedCommittees.length}
-                    </span>
+              {/* Apple-grade Interactive Multi-Select Popover */}
+              <Popover
+                open={filterPopoverOpen}
+                onOpenChange={setFilterPopoverOpen}
+              >
+                <PopoverTrigger
+                  id="committee-filter-btn"
+                  type="button"
+                  className={cn(
+                    "group relative flex min-h-[44px] md:min-h-[38px] w-full sm:w-auto sm:min-w-[220px] max-w-full items-center justify-between gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-left text-xs font-semibold shadow-2xs transition-all hover:border-primary/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/30 active:scale-[0.98] cursor-pointer touch-manipulation",
+                    selectedCommittees.length > 0 &&
+                      "border-primary/40 bg-primary/5 text-primary ring-1 ring-primary/20",
                   )}
-                  <ChevronsUpDown className="size-3.5 text-muted-foreground/60" />
-                </div>
-              </PopoverTrigger>
-
-              <PopoverContent
-                align="start"
-                className="w-[calc(100vw-2rem)] sm:w-88 max-w-md rounded-2xl border border-border/80 bg-popover/98 p-3 shadow-2xl backdrop-blur-xl space-y-2.5 overflow-hidden"
-              >
-                {/* Popover Header */}
-                <div className="flex items-center justify-between border-b border-border/60 pb-2">
-                  <div className="flex items-center gap-1.5">
-                    <Filter className="size-3.5 text-primary" />
-                    <span className="text-xs font-bold text-foreground">
-                      Select Committees
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Filter className="size-3.5 shrink-0 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="truncate text-foreground font-medium">
+                      {selectedCommittees.length === 0
+                        ? "All Committees"
+                        : selectedCommittees.length === 1
+                          ? selectedCommittees[0]
+                          : selectedCommittees.length === 2
+                            ? `${selectedCommittees[0]}, ${selectedCommittees[1]}`
+                            : `${selectedCommittees.length} Committees`}
                     </span>
                   </div>
-                  {selectedCommittees.length > 0 && (
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {selectedCommittees.length > 0 && (
+                      <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-2xs">
+                        {selectedCommittees.length}
+                      </span>
+                    )}
+                    <ChevronsUpDown className="size-3.5 text-muted-foreground/60" />
+                  </div>
+                </PopoverTrigger>
+
+                <PopoverContent
+                  align="start"
+                  className="w-[calc(100vw-2rem)] sm:w-88 max-w-md rounded-2xl border border-border/80 bg-popover/98 p-3 shadow-2xl backdrop-blur-xl space-y-2.5 overflow-hidden"
+                >
+                  {/* Popover Header */}
+                  <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Filter className="size-3.5 text-primary" />
+                      <span className="text-xs font-bold text-foreground">
+                        Select Committees
+                      </span>
+                    </div>
+                    {selectedCommittees.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={handleClearCommittees}
+                        className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Search Input */}
+                  {allKnownCommittees.length > 8 && (
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 size-3 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Search committees..."
+                        value={committeeSearch}
+                        onChange={(e) => setCommitteeSearch(e.target.value)}
+                        className="h-8 pl-8 pr-7 text-xs bg-muted/40 rounded-xl"
+                      />
+                      {committeeSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setCommitteeSearch("")}
+                          className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Committees Checkbox List */}
+                  <div className="max-h-72 space-y-0.5 overflow-x-hidden overflow-y-auto overscroll-contain py-1 [mask-image:linear-gradient(to_bottom,transparent,black_12px,black_calc(100%-12px),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {filteredAvailableCommittees.map((c) => {
+                      const isSelected = selectedCommittees.includes(c);
+                      const memberCount = committeeMemberCounts.get(c) ?? 0;
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => toggleCommittee(c)}
+                          className={cn(
+                            "group flex w-full min-h-[44px] items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-colors cursor-pointer select-none touch-manipulation active:scale-[0.99] md:min-h-10",
+                            isSelected
+                              ? "bg-primary/10 text-primary font-semibold"
+                              : "text-foreground hover:bg-muted/60",
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div
+                              className={cn(
+                                "flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors",
+                                isSelected
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-muted-foreground/40 bg-background group-hover:border-primary/50",
+                              )}
+                            >
+                              {isSelected && (
+                                <Check className="size-3 stroke-[2.5]" />
+                              )}
+                            </div>
+                            <span className="truncate text-left block flex-1 font-medium">
+                              {c}
+                            </span>
+                          </div>
+                          <span className="shrink-0 whitespace-nowrap pl-1 text-xs tabular-nums text-muted-foreground">
+                            {memberCount} answered
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {filteredAvailableCommittees.length === 0 && (
+                      <p className="py-4 text-center text-xs text-muted-foreground">
+                        No committees match &quot;{committeeSearch}&quot;
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Popover Footer */}
+                  <div className="flex items-center justify-between border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
+                    <span>
+                      {selectedCommittees.length === 0
+                        ? `${filteredUsers.length} answered in all committees`
+                        : `${filteredUsers.length} answered in ${selectedCommittees.length} ${selectedCommittees.length === 1 ? "committee" : "committees"}`}
+                    </span>
                     <Button
                       type="button"
-                      variant="ghost"
                       size="xs"
-                      onClick={handleClearCommittees}
-                      className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                      onClick={() => setFilterPopoverOpen(false)}
+                      className="h-9 px-4 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.97]"
                     >
-                      Reset to All
+                      Done
                     </Button>
-                  )}
-                </div>
-
-                {/* Quick Action Toggle Buttons */}
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    type="button"
-                    variant={
-                      selectedCommittees.length === 0 ? "secondary" : "outline"
-                    }
-                    size="xs"
-                    onClick={handleClearCommittees}
-                    className={cn(
-                      "h-7 flex-1 text-[11px] rounded-lg cursor-pointer font-medium",
-                      selectedCommittees.length === 0 &&
-                        "bg-primary/15 text-primary border-primary/30 font-semibold",
-                    )}
-                  >
-                    All Committees
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={
-                      selectedCommittees.length === allKnownCommittees.length &&
-                      allKnownCommittees.length > 0
-                        ? "secondary"
-                        : "outline"
-                    }
-                    size="xs"
-                    onClick={handleSelectAllCommittees}
-                    className={cn(
-                      "h-7 flex-1 text-[11px] rounded-lg cursor-pointer font-medium",
-                      selectedCommittees.length === allKnownCommittees.length &&
-                        allKnownCommittees.length > 0 &&
-                        "bg-primary/15 text-primary border-primary/30 font-semibold",
-                    )}
-                  >
-                    Select All
-                  </Button>
-                </div>
-
-                {/* Search Input */}
-                {allKnownCommittees.length > 5 && (
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 size-3 text-muted-foreground pointer-events-none" />
-                    <Input
-                      placeholder="Search committees..."
-                      value={committeeSearch}
-                      onChange={(e) => setCommitteeSearch(e.target.value)}
-                      className="h-8 pl-8 pr-7 text-xs bg-muted/40 rounded-xl"
-                    />
-                    {committeeSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setCommitteeSearch("")}
-                        className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    )}
                   </div>
-                )}
-
-                {/* Committees Checkbox List */}
-                <div className="max-h-60 overflow-y-auto overflow-x-hidden space-y-1 pr-0.5 scrollbar-thin">
-                  {filteredAvailableCommittees.map((c) => {
-                    const isSelected = selectedCommittees.includes(c);
-                    const memberCount = committeeMemberCounts.get(c) ?? 0;
-                    return (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => toggleCommittee(c)}
-                        className={cn(
-                          "group flex w-full min-h-[38px] items-center justify-between gap-2.5 rounded-xl px-2.5 py-2 text-xs transition-colors cursor-pointer select-none touch-manipulation active:scale-[0.99]",
-                          isSelected
-                            ? "bg-primary/10 text-primary font-semibold"
-                            : "text-foreground hover:bg-muted/60",
-                        )}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div
-                            className={cn(
-                              "flex size-4 shrink-0 items-center justify-center rounded-[5px] border transition-colors",
-                              isSelected
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-muted-foreground/40 bg-background group-hover:border-primary/50",
-                            )}
-                          >
-                            {isSelected && (
-                              <Check className="size-3 stroke-[2.5]" />
-                            )}
-                          </div>
-                          <span className="truncate text-left block flex-1 font-medium">
-                            {c}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground/80 font-mono shrink-0 whitespace-nowrap pl-1">
-                          {memberCount}{" "}
-                          {memberCount === 1 ? "member" : "members"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                  {filteredAvailableCommittees.length === 0 && (
-                    <p className="py-4 text-center text-xs text-muted-foreground">
-                      No committees match &quot;{committeeSearch}&quot;
-                    </p>
-                  )}
-                </div>
-
-                {/* Popover Footer */}
-                <div className="flex items-center justify-between border-t border-border/60 pt-2 text-[11px] text-muted-foreground">
-                  <span>
-                    {selectedCommittees.length === 0
-                      ? `All members (${filteredUsers.length})`
-                      : `${selectedCommittees.length} selected · ${filteredUsers.length} members`}
-                  </span>
-                  <Button
-                    type="button"
-                    size="xs"
-                    onClick={() => setFilterPopoverOpen(false)}
-                    className="h-6 px-2.5 text-[11px] font-semibold rounded-lg cursor-pointer"
-                  >
-                    Done
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
 
           <LiveIndicator lastUpdated={lastUpdated} status={status} />
           {/* Interactive Selected Committee Pills / Badges */}
@@ -821,13 +817,13 @@ export function AnalyticsDashboard({
             )}
           >
             {selectedCommittees.length === 0
-              ? `All Committees (${filteredUsers.length} members)`
+              ? `All committees (${filteredUsers.length} answered)`
               : `Showing ${filteredUsers.length} member${filteredUsers.length === 1 ? "" : "s"} across ${selectedCommittees.length} committee${selectedCommittees.length === 1 ? "" : "s"}`}
           </Badge>
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 rounded-xl text-xs cursor-pointer active:scale-95"
+            className="h-11 gap-1.5 text-xs cursor-pointer touch-manipulation active:scale-95 md:h-8"
             onClick={handleExportScheduleCsv}
             title="Export finalized meetings schedule as CSV"
           >
@@ -837,7 +833,7 @@ export function AnalyticsDashboard({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 rounded-xl text-xs cursor-pointer active:scale-95"
+            className="h-11 gap-1.5 text-xs cursor-pointer touch-manipulation active:scale-95 md:h-8"
             onClick={handleExportMatrixCsv}
             title="Export full member availability matrix as CSV"
           >
@@ -881,7 +877,7 @@ export function AnalyticsDashboard({
         />
       </div>
 
-      {/* ── NEW: Committee Breakdown Chart ────────────────────────────── */}
+      {/* ── Committee Breakdown ────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-3xl border bg-card">
         <div className="border-b px-5 py-4">
           <h2 className="font-heading text-base font-semibold">
@@ -891,52 +887,53 @@ export function AnalyticsDashboard({
             Distribution of members and total availability slots per committee
           </p>
         </div>
-        <div className="h-64 w-full min-w-0 p-4">
-          <ResponsiveContainer
-            width="100%"
-            height="100%"
-            minWidth={0}
-            minHeight={200}
-          >
-            <BarChart
-              data={committeeStats}
-              layout="vertical"
-              margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
-            >
-              <XAxis type="number" hide />
-              <YAxis
-                dataKey="name"
-                type="category"
-                width={80}
-                tick={{ fontSize: 10 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip
-                cursor={{ fill: "transparent" }}
-                contentStyle={{
-                  borderRadius: "16px",
-                  border: "none",
-                  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                  fontSize: "12px",
-                }}
-              />
-              <Bar dataKey="slots" radius={[0, 4, 4, 0]} barSize={20}>
-                {committeeStats.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={
-                      index % 2 === 0
-                        ? "var(--color-primary)"
-                        : "var(--color-primary-foreground)"
-                    }
-                    className="fill-primary"
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {maxCommitteeSlots === 0 ? (
+          <div className="px-5 py-10 text-center">
+            <p className="font-heading text-sm font-semibold text-foreground">
+              No answers yet
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              The breakdown appears once members mark their availability.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y p-5">
+            {committeeStats.map((entry) => {
+              const ratio =
+                maxCommitteeSlots > 0 ? entry.slots / maxCommitteeSlots : 0;
+              return (
+                // Name and numbers on one line, a full-width bar under them,
+                // so the bar stays readable on narrow phones
+                <div
+                  key={entry.name}
+                  className="space-y-1.5 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span
+                      className="min-w-0 truncate text-sm font-medium text-foreground"
+                      title={entry.name}
+                    >
+                      {entry.name}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      <span className="font-semibold text-foreground">
+                        {entry.slots}
+                      </span>{" "}
+                      {entry.slots === 1 ? "slot" : "slots"} · {entry.users}{" "}
+                      {entry.users === 1 ? "member" : "members"}
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-foreground/[0.06]">
+                    <div
+                      className="h-full w-full origin-left rounded-full bg-emerald-500 transition-transform duration-500 ease-out motion-reduce:transition-none"
+                      style={{ transform: `scaleX(${ratio})` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Availability table ─────────────────────────────────────────── */}
@@ -970,7 +967,7 @@ export function AnalyticsDashboard({
                 spin();
                 refresh();
               }}
-              className="min-h-[44px] rounded-xl px-3 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.97]"
+              className="min-h-[44px] px-3 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.97]"
               title="Refresh availability table data"
             >
               <RefreshSpinIcon spinKey={spinKey} size={14} />
@@ -987,7 +984,7 @@ export function AnalyticsDashboard({
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto p-4">
+            <div className="overflow-x-auto p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]">
               <table className="w-full min-w-90 text-xs">
                 <thead>
                   <tr>
@@ -1069,7 +1066,7 @@ export function AnalyticsDashboard({
             <p className="text-sm font-medium">
               {formatDayFull(activeCellData.date)}
               {" · "}
-              {formatTime(activeCellData.startTime)}
+              {slotLabel(activeCellData.startTime)}
               <span className="ml-2 text-muted-foreground">
                 — {activeCellData.count}{" "}
                 {activeCellData.count === 1 ? "user" : "users"} available
@@ -1089,7 +1086,7 @@ export function AnalyticsDashboard({
               <Button
                 variant="outline"
                 size="xs"
-                className="h-7 gap-1 px-2.5 text-[11px] text-emerald-600 dark:text-emerald-400"
+                className="h-7 gap-1 px-2.5 text-[11px]"
                 onClick={() => handleOpenSlotGoogleCalendar(activeCellData)}
                 title="Schedule this meeting slot in Google Calendar"
               >
@@ -1171,7 +1168,7 @@ export function AnalyticsDashboard({
                       {formatDayFull(slot.date)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatTime(slot.startTime)}
+                      {slotLabel(slot.startTime)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -1261,7 +1258,7 @@ export function AnalyticsDashboard({
             Number of unique members available each day per committee
           </p>
         </div>
-        <div className="overflow-x-auto p-4">
+        <div className="overflow-x-auto p-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]">
           <table className="w-full text-xs">
             <thead>
               <tr>
@@ -1405,67 +1402,140 @@ export function AnalyticsDashboard({
         )}
       </div>
 
-      {/* ── Individual member schedule dialog ──────────────────────────── */}
-      <Dialog
-        open={!!viewingUser}
-        onOpenChange={(open) => !open && setViewingUser(null)}
-      >
-        <DialogContent className="max-w-md rounded-3xl">
-          {viewingUser && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-3">
-                  <UserAvatar
-                    name={viewingUser.name}
-                    email={viewingUser.email}
-                    image={viewingUser.image}
-                    size="sm"
-                  />
-                  <div className="text-left">
-                    <DialogTitle className="font-heading text-lg">
-                      {viewingUser.name ?? "Member Schedule"}
-                    </DialogTitle>
-                    <DialogDescription className="text-xs">
-                      {viewingUser.email}{" "}
-                      {viewingUser.nuId && `· ID: ${viewingUser.nuId}`}
-                    </DialogDescription>
+      {/* ── Individual member schedule dialog / drawer ───────────────────── */}
+      {isMobile ? (
+        <Drawer
+          open={!!viewingUser}
+          onOpenChange={(open) => !open && setViewingUser(null)}
+        >
+          <DrawerContent className="max-h-[85vh] px-4 pb-6">
+            {viewingUser && (
+              <>
+                <DrawerHeader className="px-0 text-left">
+                  <div className="flex items-center gap-3">
+                    <UserAvatar
+                      name={viewingUser.name}
+                      email={viewingUser.email}
+                      image={viewingUser.image}
+                      size="sm"
+                    />
+                    <div className="text-left">
+                      <DrawerTitle className="font-heading text-lg">
+                        {viewingUser.name ?? "Member Schedule"}
+                      </DrawerTitle>
+                      <DrawerDescription className="text-xs">
+                        {viewingUser.email}{" "}
+                        {viewingUser.nuId && `· ID: ${viewingUser.nuId}`}
+                      </DrawerDescription>
+                    </div>
+                  </div>
+                </DrawerHeader>
+
+                <div className="mt-2 flex-1 overflow-y-auto overscroll-contain pr-2">
+                  <div className="space-y-6 pb-2">
+                    {Object.entries(viewingUser.byDate)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([date, slots]) => (
+                        <div key={date}>
+                          <p className="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+                            {formatDayFull(date)}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {slots.sort().map((slot) => (
+                              <Badge
+                                key={slot}
+                                variant="secondary"
+                                className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                              >
+                                {formatTime(slot)}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    {Object.keys(viewingUser.byDate).length === 0 && (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        No availability marked yet.
+                      </p>
+                    )}
                   </div>
                 </div>
-              </DialogHeader>
 
-              <ScrollArea className="mt-4 max-h-[60vh] pr-4">
-                <div className="space-y-6 pb-2">
-                  {Object.entries(viewingUser.byDate)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([date, slots]) => (
-                      <div key={date}>
-                        <p className="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-                          {formatDayFull(date)}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {slots.sort().map((slot) => (
-                            <Badge
-                              key={slot}
-                              variant="secondary"
-                              className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                            >
-                              {formatTime(slot)}
-                            </Badge>
-                          ))}
+                <DrawerFooter className="sticky bottom-0 mt-3 border-t bg-background px-0 pt-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setViewingUser(null)}
+                    className="h-11 min-h-[44px] w-full text-sm font-semibold touch-manipulation active:scale-[0.98]"
+                  >
+                    Close
+                  </Button>
+                </DrawerFooter>
+              </>
+            )}
+          </DrawerContent>
+        </Drawer>
+      ) : (
+        <Dialog
+          open={!!viewingUser}
+          onOpenChange={(open) => !open && setViewingUser(null)}
+        >
+          <DialogContent className="max-w-md rounded-3xl">
+            {viewingUser && (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-3">
+                    <UserAvatar
+                      name={viewingUser.name}
+                      email={viewingUser.email}
+                      image={viewingUser.image}
+                      size="sm"
+                    />
+                    <div className="text-left">
+                      <DialogTitle className="font-heading text-lg">
+                        {viewingUser.name ?? "Member Schedule"}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs">
+                        {viewingUser.email}{" "}
+                        {viewingUser.nuId && `· ID: ${viewingUser.nuId}`}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <ScrollArea className="mt-4 max-h-[60vh] pr-4">
+                  <div className="space-y-6 pb-2">
+                    {Object.entries(viewingUser.byDate)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([date, slots]) => (
+                        <div key={date}>
+                          <p className="mb-2 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
+                            {formatDayFull(date)}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {slots.sort().map((slot) => (
+                              <Badge
+                                key={slot}
+                                variant="secondary"
+                                className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                              >
+                                {formatTime(slot)}
+                              </Badge>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  {Object.keys(viewingUser.byDate).length === 0 && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">
-                      No availability marked yet.
-                    </p>
-                  )}
-                </div>
-              </ScrollArea>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+                      ))}
+                    {Object.keys(viewingUser.byDate).length === 0 && (
+                      <p className="py-8 text-center text-sm text-muted-foreground">
+                        No availability marked yet.
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

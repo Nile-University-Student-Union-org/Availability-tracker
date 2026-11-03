@@ -84,8 +84,9 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
                 type="button"
                 variant="destructive"
                 disabled={isSigningOut}
+                aria-busy={isSigningOut}
                 onClick={handleConfirmSignOut}
-                className="h-12 min-h-[48px] w-full rounded-2xl text-sm font-semibold shadow-xs touch-manipulation active:scale-[0.98]"
+                className="h-12 min-h-[48px] w-full text-sm font-semibold touch-manipulation active:scale-[0.98]"
               >
                 {isSigningOut ? (
                   <>
@@ -110,7 +111,7 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
                 variant="outline"
                 disabled={isSigningOut}
                 onClick={() => onOpenChange(false)}
-                className="h-12 min-h-[48px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98]"
+                className="h-12 min-h-[48px] w-full text-sm font-semibold touch-manipulation active:scale-[0.98]"
               >
                 Cancel
               </Button>
@@ -147,7 +148,7 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
             variant="outline"
             disabled={isSigningOut}
             onClick={() => onOpenChange(false)}
-            className="h-10 rounded-xl px-5 text-xs font-semibold cursor-pointer active:scale-[0.98]"
+            className="h-10 px-5 text-xs font-semibold cursor-pointer active:scale-[0.98]"
           >
             Cancel
           </Button>
@@ -156,8 +157,9 @@ export function SignOutDialog({ open, onOpenChange }: SignOutDialogProps) {
             type="button"
             variant="destructive"
             disabled={isSigningOut}
+            aria-busy={isSigningOut}
             onClick={handleConfirmSignOut}
-            className="h-10 rounded-xl px-5 text-xs font-semibold cursor-pointer shadow-xs active:scale-[0.98]"
+            className="h-10 px-5 text-xs font-semibold cursor-pointer active:scale-[0.98]"
           >
             {isSigningOut ? (
               <>

@@ -1,43 +1,37 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type DateRange } from "react-day-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils";
 import {
   DAY_OF_WEEK_MAP,
+  fromMinutes,
+  toMinutes,
   legacyWeeklySchedule,
   validateWeeklySlots,
   type WeeklySlot,
 } from "@/lib/weekly-slots";
 import { WeeklySlotsEditor } from "@/components/admin/weekly-slots-editor";
+import { DateSlotsEditor } from "@/components/admin/date-slots-editor";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Calendar03Icon,
-  Clock01Icon,
-  Delete02Icon,
-  PlusSignIcon,
-  Tick01Icon,
-  CheckmarkCircle02Icon,
-} from "@hugeicons/core-free-icons";
+import { Calendar03Icon } from "@hugeicons/core-free-icons";
 
 export type ScheduleConfigData = {
   startDate: string;
   endDate: string;
   slotMode: "fixed" | "free";
   timeSlots: string[];
+  /** start → end for custom-length date slots */
+  slotEnds?: Record<string, string>;
   dateScheduleActive?: boolean;
   weeklyScheduleActive?: boolean;
   weeklyDays?: number[];
@@ -45,21 +39,6 @@ export type ScheduleConfigData = {
   dateScheduleTitle?: string;
   weeklyScheduleTitle?: string;
 };
-
-function formatTime(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const suffix = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
-}
-
-function getSlotEndTime(startTime: string): string {
-  const [h, m] = startTime.split(":").map(Number);
-  const endH = (h + 1) % 24;
-  const suffix = endH >= 12 ? "PM" : "AM";
-  const hour = endH % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
-}
 
 function formatDateLabel(iso: string): string {
   if (!iso) return "Pick date";
@@ -205,14 +184,43 @@ function Reveal({
   );
 }
 
+/** Returns the first problem with one form's settings, or null when valid */
+export function validateScheduleConfig(
+  config: ScheduleConfigData,
+  mode: "date" | "weekly",
+): string | null {
+  if (mode === "date") {
+    if (!config.startDate || !config.endDate) {
+      return "Please set both start and end dates.";
+    }
+    if (config.startDate > config.endDate) {
+      return "Start date must be before or equal to end date.";
+    }
+    if (config.slotMode === "fixed" && config.timeSlots.length === 0) {
+      return "Please add at least one time slot for fixed mode.";
+    }
+    return null;
+  }
+  const weeklyDays = config.weeklyDays ?? [];
+  const weeklySlots = (config.weeklySlots ?? []).filter((s) =>
+    weeklyDays.includes(s.dayOfWeek),
+  );
+  const weeklyError = validateWeeklySlots(weeklyDays, weeklySlots);
+  return weeklyError ? `Semester timetable: ${weeklyError}` : null;
+}
+
 interface ScheduleConfigPanelProps {
   initialConfig?: ScheduleConfigData | null;
+  /** Edit a single poll's schedule; the caller owns naming, status and saving */
+  mode: "date" | "weekly";
+  onConfigChange?: (config: ScheduleConfigData) => void;
 }
 
 export function ScheduleConfigPanel({
   initialConfig = null,
-}: ScheduleConfigPanelProps = {}) {
-  const router = useRouter();
+  mode,
+  onConfigChange,
+}: ScheduleConfigPanelProps) {
   const [config, setConfig] = useState<ScheduleConfigData>(() => ({
     startDate: initialConfig?.startDate ?? "",
     endDate: initialConfig?.endDate ?? "",
@@ -228,112 +236,10 @@ export function ScheduleConfigPanel({
     weeklyScheduleTitle:
       initialConfig?.weeklyScheduleTitle ?? "Semester Availability",
   }));
-  // Last saved/loaded config, to know whether there is anything to save
-  const [savedJson, setSavedJson] = useState(() => JSON.stringify(config));
-  const isDirty = JSON.stringify(config) !== savedJson;
-  const [isLoading, setIsLoading] = useState(!initialConfig);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [newSlotTime, setNewSlotTime] = useState("09:00");
-
-  const fetchConfig = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/schedule-config?_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: {
-          Pragma: "no-cache",
-          "Cache-Control": "no-cache",
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const next: ScheduleConfigData = {
-          startDate: data.startDate,
-          endDate: data.endDate,
-          slotMode: data.slotMode,
-          timeSlots: data.timeSlots ?? [],
-          dateScheduleActive: data.dateScheduleActive ?? true,
-          weeklyScheduleActive: data.weeklyScheduleActive ?? true,
-          weeklyDays: data.weeklyDays ?? [],
-          weeklySlots: data.weeklySlots ?? [],
-          dateScheduleTitle:
-            data.dateScheduleTitle || "Specific Date Availability",
-          weeklyScheduleTitle:
-            data.weeklyScheduleTitle || "Semester Availability",
-        };
-        setConfig(next);
-        setSavedJson(JSON.stringify(next));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
-    if (!initialConfig) {
-      void fetchConfig();
-    }
-  }, [fetchConfig, initialConfig]);
-
-  async function handleSave() {
-    setError(null);
-    setSaved(false);
-
-    // Closed forms keep their settings as they are, so only check open ones
-    if (config.dateScheduleActive) {
-      if (!config.startDate || !config.endDate) {
-        setError("Please set both start and end dates.");
-        return;
-      }
-      if (config.startDate > config.endDate) {
-        setError("Start date must be before or equal to end date.");
-        return;
-      }
-      if (config.slotMode === "fixed" && config.timeSlots.length === 0) {
-        setError("Please add at least one time slot for fixed mode.");
-        return;
-      }
-    }
-
-    const weeklyDays = config.weeklyDays ?? [];
-    // Slots of closed days stay in local state but are not saved
-    const weeklySlots = (config.weeklySlots ?? []).filter((s) =>
-      weeklyDays.includes(s.dayOfWeek),
-    );
-    const weeklyError = config.weeklyScheduleActive
-      ? validateWeeklySlots(weeklyDays, weeklySlots)
-      : null;
-    if (weeklyError) {
-      setError(`Semester timetable: ${weeklyError}`);
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const res = await fetch("/api/admin/schedule-config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...config, weeklySlots }),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        throw new Error(errData?.error || "Failed to save");
-      }
-      setSaved(true);
-      router.refresh();
-      await fetchConfig();
-      setTimeout(() => setSaved(false), 2500);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to save configuration. Please try again.",
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  }
+    onConfigChange?.(config);
+  }, [config, onConfigChange]);
 
   function toggleWeeklyDay(day: number) {
     setConfig((prev) => {
@@ -345,43 +251,6 @@ export function ScheduleConfigPanel({
           : [...days, day].sort((a, b) => a - b),
       };
     });
-  }
-
-  function addTimeSlot() {
-    if (!newSlotTime) return;
-    const normalized =
-      newSlotTime.length === 5 ? newSlotTime : `0${newSlotTime}`;
-    if (config.timeSlots.includes(normalized)) return;
-
-    setConfig((prev) => ({
-      ...prev,
-      timeSlots: [...prev.timeSlots, normalized].sort(),
-    }));
-  }
-
-  function removeTimeSlot(slot: string) {
-    setConfig((prev) => ({
-      ...prev,
-      timeSlots: prev.timeSlots.filter((s) => s !== slot),
-    }));
-  }
-
-  function addDefaultSlots() {
-    const defaults = [
-      "08:30",
-      "09:30",
-      "10:30",
-      "11:30",
-      "12:30",
-      "13:30",
-      "14:30",
-      "15:30",
-      "16:30",
-    ];
-    setConfig((prev) => ({
-      ...prev,
-      timeSlots: Array.from(new Set([...prev.timeSlots, ...defaults])).sort(),
-    }));
   }
 
   const [selectingStart, setSelectingStart] = useState<string | null>(null);
@@ -410,8 +279,32 @@ export function ScheduleConfigPanel({
     }));
   }
 
+  function commitRange(a: string, b: string) {
+    setConfig((prev) => ({
+      ...prev,
+      startDate: a < b ? a : b,
+      endDate: a < b ? b : a,
+    }));
+    setSelectingStart(null);
+    setHoveredDate(null);
+    // A short tick on phones that support it, on the commit itself
+    navigator.vibrate?.(8);
+  }
+
+  // Drag across days to pick a range. It only starts once the pointer
+  // reaches another day, so a plain click keeps the click-click flow.
+  const drag = useRef<{ origin: string; moved: boolean } | null>(null);
+  const skipClick = useRef(false);
+  const dayAt = (x: number, y: number) =>
+    document
+      .elementFromPoint(x, y)
+      ?.closest("td[data-day]")
+      ?.getAttribute("data-day") ?? null;
+
   function handleDayClick(day?: Date) {
     if (!day) return;
+    // The click that ends a drag was already handled on pointer up
+    if (skipClick.current) return;
     const iso = toISO(day);
 
     if (!selectingStart) {
@@ -423,15 +316,7 @@ export function ScheduleConfigPanel({
         endDate: iso,
       }));
     } else {
-      const start = selectingStart < iso ? selectingStart : iso;
-      const end = selectingStart < iso ? iso : selectingStart;
-      setConfig((prev) => ({
-        ...prev,
-        startDate: start,
-        endDate: end,
-      }));
-      setSelectingStart(null);
-      setHoveredDate(null);
+      commitRange(selectingStart, iso);
     }
   }
 
@@ -488,171 +373,64 @@ export function ScheduleConfigPanel({
   const activeDays = getDaysInRange(displayStart, displayEnd);
   const dateCount = activeDays.length;
 
-  const calendarDisplayMonth = useMemo(() => {
-    if (config.startDate) return new Date(config.startDate + "T00:00:00");
-    return new Date();
-  }, [config.startDate]);
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[360px] w-full flex-col items-center justify-center rounded-3xl border border-border/80 bg-card p-8 shadow-xs">
-        <div className="size-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
+  // Controlled month, so typing a date or using a preset brings that month
+  // into view; clicks inside the visible month leave it alone
+  const [calendarMonth, setCalendarMonth] = useState(() =>
+    config.startDate ? new Date(config.startDate + "T00:00:00") : new Date(),
+  );
+  const [prevStartDate, setPrevStartDate] = useState(config.startDate);
+  if (prevStartDate !== config.startDate) {
+    setPrevStartDate(config.startDate);
+    if (config.startDate) {
+      const start = new Date(config.startDate + "T00:00:00");
+      if (
+        calendarMonth.getFullYear() !== start.getFullYear() ||
+        calendarMonth.getMonth() !== start.getMonth()
+      ) {
+        setCalendarMonth(start);
+      }
+    }
   }
+
+  const openDaysPicker = (
+    <div className="space-y-1">
+      <Label className="text-xs font-semibold text-foreground/80">
+        Open Days
+      </Label>
+      <div
+        role="group"
+        aria-label="Open days"
+        className="grid grid-cols-7 gap-1"
+      >
+        {DAY_OF_WEEK_MAP.map(({ day, short, label }) => {
+          const isOpen = config.weeklyDays?.includes(day) ?? false;
+          return (
+            <button
+              key={day}
+              type="button"
+              aria-pressed={isOpen}
+              aria-label={label}
+              onClick={() => toggleWeeklyDay(day)}
+              className={cn(
+                "min-h-[44px] min-w-0 rounded-xl border text-[11px] font-semibold transition-press cursor-pointer touch-manipulation active:scale-[0.97] md:min-h-9",
+                isOpen
+                  ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                  : "border-border/60 bg-background/40 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+              )}
+            >
+              {short}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-5 pb-8">
-      {/* ─── 1. Channel Controls (2-Column Grid) ─────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Specific Date Polls Card */}
-        <div className="rounded-3xl border border-border/70 bg-card/60 backdrop-blur-xl p-5 shadow-xs flex flex-col justify-between">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex size-8.5 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 ring-1 ring-blue-500/20 shrink-0">
-                  <HugeiconsIcon icon={Calendar03Icon} size={18} />
-                </div>
-                <h2 className="text-sm font-bold tracking-tight">
-                  Specific Date Polls
-                </h2>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px] font-bold py-0 h-5",
-                    config.dateScheduleActive
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                      : "border-muted-foreground/30 text-muted-foreground bg-muted/40",
-                  )}
-                >
-                  {config.dateScheduleActive ? "Active" : "Closed"}
-                </Badge>
-                <Switch
-                  checked={config.dateScheduleActive ?? true}
-                  onCheckedChange={(checked) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      dateScheduleActive: checked,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Page title
-              </Label>
-              <Input
-                value={config.dateScheduleTitle ?? "Specific Date Availability"}
-                onChange={(e) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    dateScheduleTitle: e.target.value,
-                  }))
-                }
-                placeholder="Specific Date Availability"
-                className="h-8.5 text-xs bg-background/60 rounded-xl"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Semester Recurring Availability Card */}
-        <div className="rounded-3xl border border-border/70 bg-card/60 backdrop-blur-xl p-5 shadow-xs flex flex-col justify-between">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex size-8.5 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/20 shrink-0">
-                  <HugeiconsIcon icon={Clock01Icon} size={18} />
-                </div>
-                <h2 className="text-sm font-bold tracking-tight">
-                  Semester Timetable
-                </h2>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px] font-bold py-0 h-5",
-                    config.weeklyScheduleActive
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                      : "border-muted-foreground/30 text-muted-foreground bg-muted/40",
-                  )}
-                >
-                  {config.weeklyScheduleActive ? "Active" : "Closed"}
-                </Badge>
-                <Switch
-                  checked={config.weeklyScheduleActive ?? true}
-                  onCheckedChange={(checked) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      weeklyScheduleActive: checked,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Open Days
-              </Label>
-              <div
-                role="group"
-                aria-label="Open days"
-                className="grid grid-cols-7 gap-1"
-              >
-                {DAY_OF_WEEK_MAP.map(({ day, short, label }) => {
-                  const isOpen = config.weeklyDays?.includes(day) ?? false;
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      aria-pressed={isOpen}
-                      aria-label={label}
-                      onClick={() => toggleWeeklyDay(day)}
-                      className={cn(
-                        "min-h-[44px] min-w-0 rounded-xl border text-[11px] font-semibold transition-press cursor-pointer touch-manipulation active:scale-[0.97] md:min-h-9",
-                        isOpen
-                          ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                          : "border-border/60 bg-background/40 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
-                      )}
-                    >
-                      {short}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Page title
-              </Label>
-              <Input
-                value={config.weeklyScheduleTitle ?? "Semester Availability"}
-                onChange={(e) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    weeklyScheduleTitle: e.target.value,
-                  }))
-                }
-                placeholder="Semester Availability"
-                className="h-8.5 text-xs bg-background/60 rounded-xl"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Reveal open={Boolean(config.dateScheduleActive)}>
+      <Reveal open={mode === "date"}>
         {/* ─── 2. Apple-Grade Interactive Date Range Studio ────────────────────── */}
-        <div className="rounded-3xl border border-border/70 bg-card/60 backdrop-blur-2xl p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="rounded-3xl border border-border/70 bg-card/60 backdrop-blur-2xl p-3.5 sm:p-6 shadow-sm space-y-4">
           {/* Header with Title and Segmented Presets */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3.5">
             <div className="flex items-center gap-2.5">
@@ -687,7 +465,7 @@ export function ScheduleConfigPanel({
                 variant="outline"
                 size="xs"
                 onClick={() => setPresetRange(3)}
-                className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
+                className="h-11 min-w-11 md:h-7 md:min-w-0 text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation transition-press active:scale-[0.97]"
               >
                 3D
               </Button>
@@ -696,7 +474,7 @@ export function ScheduleConfigPanel({
                 variant="outline"
                 size="xs"
                 onClick={() => setPresetRange(5)}
-                className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
+                className="h-11 min-w-11 md:h-7 md:min-w-0 text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation transition-press active:scale-[0.97]"
               >
                 5D
               </Button>
@@ -705,7 +483,7 @@ export function ScheduleConfigPanel({
                 variant="outline"
                 size="xs"
                 onClick={() => setPresetRange(7)}
-                className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
+                className="h-11 min-w-11 md:h-7 md:min-w-0 text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation transition-press active:scale-[0.97]"
               >
                 7D
               </Button>
@@ -714,17 +492,17 @@ export function ScheduleConfigPanel({
                 variant="outline"
                 size="xs"
                 onClick={() => setPresetRange(14)}
-                className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
+                className="h-11 min-w-11 md:h-7 md:min-w-0 text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation transition-press active:scale-[0.97]"
               >
                 14D
               </Button>
               {dateCount > 0 && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="destructive"
                   size="xs"
                   onClick={clearRange}
-                  className="h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-press active:scale-[0.97]"
+                  className="h-11 md:h-7 text-[11px] font-semibold cursor-pointer px-2 touch-manipulation transition-press active:scale-[0.97]"
                 >
                   Clear
                 </Button>
@@ -773,23 +551,66 @@ export function ScheduleConfigPanel({
 
             <div
               onMouseLeave={() => {
-                if (selectingStart) setHoveredDate(selectingStart);
+                if (selectingStart && !drag.current?.moved)
+                  setHoveredDate(selectingStart);
               }}
-              className="lg:col-span-7 flex flex-col items-center justify-center p-4 rounded-3xl bg-background/50 border border-border/70 shadow-2xs"
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                const origin = (e.target as HTMLElement)
+                  .closest("td[data-day]")
+                  ?.getAttribute("data-day");
+                drag.current = origin ? { origin, moved: false } : null;
+              }}
+              onPointerMove={(e) => {
+                const d = drag.current;
+                if (!d) return;
+                const iso = dayAt(e.clientX, e.clientY);
+                if (!iso) return;
+                if (!d.moved && iso !== d.origin) {
+                  d.moved = true;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  setSelectingStart(d.origin);
+                }
+                if (d.moved) setHoveredDate(iso);
+              }}
+              onPointerUp={(e) => {
+                const d = drag.current;
+                drag.current = null;
+                if (!d?.moved) return;
+                commitRange(
+                  d.origin,
+                  dayAt(e.clientX, e.clientY) ?? hoveredDate ?? d.origin,
+                );
+                skipClick.current = true;
+                setTimeout(() => (skipClick.current = false), 0);
+              }}
+              onPointerCancel={() => {
+                if (drag.current?.moved) {
+                  setSelectingStart(null);
+                  setHoveredDate(null);
+                }
+                drag.current = null;
+              }}
+              className="lg:col-span-7 flex flex-col items-center justify-center p-1.5 sm:p-4 rounded-3xl bg-background/50 border border-border/70 shadow-2xs [touch-action:pan-y]"
             >
               <Calendar
+                animate
                 mode="range"
-                defaultMonth={calendarDisplayMonth}
+                month={calendarMonth}
+                onMonthChange={setCalendarMonth}
                 selected={activeEffectiveRange}
+                // Without onSelect, react-day-picker keeps its own range and
+                // drifts from the inputs; clicks are handled by onDayClick
+                onSelect={() => {}}
                 onDayClick={handleDayClick}
                 onDayMouseEnter={handleDayMouseEnter}
-                className="rounded-3xl p-1 w-full max-w-sm"
+                className="rounded-3xl p-0 sm:p-1 w-full max-w-sm [--cell-size:--spacing(7)] sm:[--cell-size:--spacing(8)]"
               />
               {selectingStart && (
                 <div className="mt-2.5 flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px] font-medium animate-in fade-in duration-200">
                   <span className="size-1.5 rounded-full bg-primary animate-pulse" />
-                  <span>Click a date to set range end</span>
-                  <span className="text-muted-foreground ml-1">
+                  <span>Now pick the end date, or drag across days</span>
+                  <span className="ml-1 hidden text-muted-foreground md:inline">
                     (Esc to cancel)
                   </span>
                 </div>
@@ -798,156 +619,35 @@ export function ScheduleConfigPanel({
           </div>
         </div>
 
-        {/* ─── 3. Time Slots Card ─────────────────────────────────────────────── */}
-        <div className="rounded-3xl border border-border/70 bg-card/60 backdrop-blur-xl p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-8.5 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 ring-1 ring-amber-500/20 shrink-0">
-                <HugeiconsIcon icon={Clock01Icon} size={18} />
-              </div>
-              <h2 className="text-sm font-bold tracking-tight">
-                Date Poll Time Slots
-              </h2>
-            </div>
-
-            <div className="flex items-center gap-1 p-0.5 rounded-xl bg-muted/60 border border-border/60">
-              <button
-                type="button"
-                onClick={() =>
-                  setConfig((prev) => ({ ...prev, slotMode: "fixed" }))
-                }
-                className={cn(
-                  "px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-press cursor-pointer",
-                  config.slotMode === "fixed"
-                    ? "bg-background text-foreground shadow-xs font-bold"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Fixed Slots
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setConfig((prev) => ({ ...prev, slotMode: "free" }))
-                }
-                className={cn(
-                  "px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-press cursor-pointer",
-                  config.slotMode === "free"
-                    ? "bg-background text-foreground shadow-xs font-bold"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Free Manual
-              </button>
-            </div>
-          </div>
-
-          {config.slotMode === "fixed" ? (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-end gap-2.5 p-3 rounded-2xl bg-background/50 border border-border/60">
-                <div className="flex-1 space-y-1">
-                  <Label htmlFor="new-slot" className="text-xs font-semibold">
-                    Add Time Slot
-                  </Label>
-                  <TimePicker
-                    id="new-slot"
-                    value={newSlotTime}
-                    onChange={setNewSlotTime}
-                    placeholder="Pick start time..."
-                    className="rounded-xl"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    onClick={addTimeSlot}
-                    disabled={
-                      !newSlotTime || config.timeSlots.includes(newSlotTime)
-                    }
-                    className="h-9 px-3.5 rounded-xl gap-1.5 bg-primary text-primary-foreground font-semibold text-xs cursor-pointer shadow-xs"
-                  >
-                    <HugeiconsIcon icon={PlusSignIcon} size={14} />
-                    <span>Add Slot</span>
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addDefaultSlots}
-                    className="h-9 px-3 text-xs font-semibold rounded-xl cursor-pointer"
-                  >
-                    Presets (8:30–5:30)
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Configured Slots ({config.timeSlots.length})
-                  </span>
-                  {config.timeSlots.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setConfig((prev) => ({ ...prev, timeSlots: [] }))
-                      }
-                      className="text-xs text-muted-foreground hover:text-destructive transition-colors cursor-pointer font-medium"
-                    >
-                      Clear All
-                    </button>
-                  )}
-                </div>
-
-                {config.timeSlots.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-border/80 p-5 text-center">
-                    <p className="text-xs text-muted-foreground">
-                      No time slots configured.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                    {config.timeSlots.map((slot) => (
-                      <div
-                        key={slot}
-                        className="group flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl border border-border/70 bg-card hover:border-primary/40 hover:bg-accent/30 transition-press"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold tracking-tight text-foreground truncate">
-                            {formatTime(slot)}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            → {getSlotEndTime(slot)}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => removeTimeSlot(slot)}
-                          aria-label={`Remove slot ${slot}`}
-                          className="size-5 shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer opacity-60 group-hover:opacity-100"
-                        >
-                          <HugeiconsIcon icon={Delete02Icon} size={13} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-border/80 bg-background/40 p-5 text-center">
-              <p className="text-xs font-semibold text-foreground">
-                Freeform Manual Booking Active
-              </p>
-            </div>
-          )}
-        </div>
+        {/* ─── 3. Time Slots ─────────────────────────────────────────────────── */}
+        <DateSlotsEditor
+          slotMode={config.slotMode}
+          onSlotModeChange={(slotMode) =>
+            setConfig((prev) => ({ ...prev, slotMode }))
+          }
+          slots={config.timeSlots.map((startTime) => ({
+            startTime,
+            endTime:
+              config.slotEnds?.[startTime] ??
+              fromMinutes(Math.min(toMinutes(startTime) + 60, 1439)),
+          }))}
+          onChange={(slots) =>
+            setConfig((prev) => ({
+              ...prev,
+              timeSlots: slots.map((s) => s.startTime),
+              slotEnds: Object.fromEntries(
+                slots.map((s) => [s.startTime, s.endTime]),
+              ),
+            }))
+          }
+        />
       </Reveal>
 
       {/* ─── 4. Semester Time Slots ─────────────────────────────────────────── */}
-      <Reveal open={Boolean(config.weeklyScheduleActive)}>
+      <Reveal open={mode === "weekly"}>
+        <div className="rounded-3xl border border-border/70 bg-card/60 p-5 shadow-xs">
+          {openDaysPicker}
+        </div>
         <WeeklySlotsEditor
           days={config.weeklyDays ?? []}
           slots={config.weeklySlots ?? []}
@@ -956,85 +656,6 @@ export function ScheduleConfigPanel({
           }
         />
       </Reveal>
-
-      {/* ─── 5. Sticky Save Bar ─────────────────────────────────────────────── */}
-      <div className="sticky bottom-3 z-30 space-y-2">
-        {error && (
-          <div
-            role="alert"
-            className="rounded-2xl border border-destructive/30 bg-card px-4 py-2.5 text-xs font-medium text-destructive shadow-sm"
-          >
-            {error}
-          </div>
-        )}
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card/95 p-2 pl-4 shadow-[0_8px_30px_-12px_rgb(15_23_42/0.25)] backdrop-blur-xl">
-          <div
-            aria-live="polite"
-            className="flex min-w-0 items-center gap-2 text-xs font-medium"
-          >
-            {saved ? (
-              <span
-                key="saved"
-                className="motion-enter flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"
-              >
-                <HugeiconsIcon icon={CheckmarkCircle02Icon} size={15} />
-                Saved
-              </span>
-            ) : isDirty ? (
-              <span
-                key="dirty"
-                className="motion-enter flex items-center gap-2 text-foreground"
-              >
-                <span className="size-2 shrink-0 rounded-full bg-amber-500" />
-                <span className="whitespace-nowrap">
-                  Unsaved<span className="hidden sm:inline"> changes</span>
-                </span>
-              </span>
-            ) : (
-              <span key="clean" className="motion-enter text-muted-foreground">
-                No changes
-              </span>
-            )}
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1.5">
-            {isDirty && !isSaving && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setConfig(JSON.parse(savedJson));
-                  setError(null);
-                }}
-                className="min-h-[42px] cursor-pointer rounded-xl px-3 text-xs font-semibold text-muted-foreground"
-              >
-                Discard
-              </Button>
-            )}
-            <Button
-              onClick={handleSave}
-              disabled={!isDirty || isSaving}
-              className="min-h-[42px] cursor-pointer gap-2 rounded-xl px-5 text-xs font-semibold shadow-sm transition-press active:scale-[0.97] sm:text-sm"
-            >
-              {isSaving ? (
-                <>
-                  <div className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <HugeiconsIcon
-                    icon={Tick01Icon}
-                    size={15}
-                    strokeWidth={2.5}
-                  />
-                  <span>Save changes</span>
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

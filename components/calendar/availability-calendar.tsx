@@ -4,6 +4,8 @@ import { isSameDay } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +27,7 @@ type ScheduleConfig = {
   endDate: string;
   slotMode: "fixed" | "free";
   timeSlots: string[];
+  slotEnds?: Record<string, string>;
   dates: string[];
 };
 
@@ -55,6 +58,7 @@ function getInitials(name?: string | null, email?: string | null): string {
 }
 
 interface AvailabilityCalendarProps {
+  pollId?: string;
   user?: {
     id?: string;
     name?: string | null;
@@ -68,6 +72,7 @@ interface AvailabilityCalendarProps {
 }
 
 export function AvailabilityCalendar({
+  pollId = "legacy-date",
   user,
   initialConfig = null,
   initialAvailability = [],
@@ -130,7 +135,7 @@ export function AvailabilityCalendar({
       try {
         setIsAvailabilityLoading(true);
         const availRes = await fetch(
-          `/api/availability?email=${encodeURIComponent(memberEmail)}&_t=${Date.now()}`,
+          `/api/availability?pollId=${encodeURIComponent(pollId)}&email=${encodeURIComponent(memberEmail)}&_t=${Date.now()}`,
           {
             cache: "no-store",
             headers: {
@@ -161,19 +166,22 @@ export function AvailabilityCalendar({
         setIsAvailabilityLoading(false);
       }
     },
-    [memberEmail, memberSaved, config],
+    [memberEmail, memberSaved, config, pollId],
   );
 
   const fetchConfig = useCallback(async () => {
     try {
       setIsConfigLoading(true);
-      const configRes = await fetch(`/api/schedule-config?_t=${Date.now()}`, {
-        cache: "no-store",
-        headers: {
-          Pragma: "no-cache",
-          "Cache-Control": "no-cache",
+      const configRes = await fetch(
+        `/api/polls/${encodeURIComponent(pollId)}?_t=${Date.now()}`,
+        {
+          cache: "no-store",
+          headers: {
+            Pragma: "no-cache",
+            "Cache-Control": "no-cache",
+          },
         },
-      });
+      );
       if (configRes.ok) {
         const configData: ScheduleConfig = await configRes.json();
         setConfig(configData);
@@ -190,7 +198,7 @@ export function AvailabilityCalendar({
     } finally {
       setIsConfigLoading(false);
     }
-  }, [memberEmail, memberSaved, fetchAvailability]);
+  }, [memberEmail, memberSaved, fetchAvailability, pollId]);
 
   useEffect(() => {
     if (activeUser) {
@@ -298,6 +306,7 @@ export function AvailabilityCalendar({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          pollId,
           date,
           slots: [],
           memberName,
@@ -469,11 +478,20 @@ export function AvailabilityCalendar({
       )}
 
       {isConfigLoading ? (
-        <div className="flex h-72 w-full max-w-sm flex-col items-center justify-center rounded-3xl border border-border/80 bg-card p-6 shadow-xs">
-          <div className="size-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="mt-3 text-xs font-medium text-muted-foreground">
-            Loading schedule calendar...
-          </p>
+        <div
+          aria-busy="true"
+          className="flex h-72 w-full max-w-sm flex-col justify-between rounded-3xl border border-border/80 bg-card p-6 shadow-xs"
+        >
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-28 rounded-full" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {Array.from({ length: 14 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-8 rounded-full mx-auto" />
+            ))}
+          </div>
+          <Skeleton className="h-3 w-3/4 mx-auto rounded-full" />
         </div>
       ) : !memberSaved ? (
         <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
@@ -508,10 +526,13 @@ export function AvailabilityCalendar({
       {/* Availability summary */}
       {isAvailabilityLoading && !config ? null : isAvailabilityLoading &&
         datesWithSlotsISO.length === 0 ? (
-        <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            Syncing availability...
-          </p>
+        <div
+          aria-busy="true"
+          className="w-full max-w-sm space-y-2.5 rounded-3xl border border-border/70 p-4"
+        >
+          <Skeleton className="h-4 w-32 rounded-full" />
+          <Skeleton className="h-8 w-full rounded-xl" />
+          <Skeleton className="h-8 w-3/4 rounded-xl" />
         </div>
       ) : config && datesWithSlotsISO.length > 0 ? (
         <div className="w-full max-w-sm overflow-hidden rounded-3xl border bg-card">
@@ -534,13 +555,21 @@ export function AvailabilityCalendar({
                   <div className="mb-2 flex items-center justify-between">
                     <p className="text-sm font-medium">{label}</p>
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="xs"
                       disabled={isClearing}
-                      className="h-6 px-2 text-xs text-destructive hover:text-destructive cursor-pointer disabled:opacity-50"
+                      aria-busy={isClearing}
+                      className="h-6 px-2 text-xs cursor-pointer disabled:opacity-50"
                       onClick={() => handleClear(iso)}
                     >
-                      {isClearing ? "Clearing..." : "Clear"}
+                      {isClearing ? (
+                        <>
+                          <Spinner className="size-3" label="Clearing" />
+                          <span>Clearing...</span>
+                        </>
+                      ) : (
+                        "Clear"
+                      )}
                     </Button>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -570,6 +599,7 @@ export function AvailabilityCalendar({
 
       {dialogDate !== null && config && (
         <AvailabilityDialog
+          pollId={pollId}
           date={dialogDate}
           initialSlots={Array.from(availability.get(dialogDate) ?? [])}
           memberName={memberName}
@@ -578,6 +608,7 @@ export function AvailabilityCalendar({
           memberCommittee={memberCommittee}
           slotMode={config.slotMode}
           timeSlots={config.timeSlots}
+          slotEnds={config.slotEnds}
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           onSaved={handleSaved}

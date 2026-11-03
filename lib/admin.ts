@@ -14,6 +14,17 @@ export function getEnvAdminEmails(): string[] {
     .filter(Boolean);
 }
 
+export function getSuperAdminEmails(): string[] {
+  return [...new Set([
+    ...(process.env.SUPER_ADMIN_EMAILS ?? "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean),
+    (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase(),
+  ].filter(Boolean))];
+}
+
+export function isSuperAdmin(email?: string | null): boolean {
+  return Boolean(email && getSuperAdminEmails().includes(email.trim().toLowerCase()));
+}
+
 /**
  * Checks if the given email belongs to an admin.
  * Uses React cache() to deduplicate checks within the same render cycle.
@@ -28,6 +39,7 @@ export const isAdminEmail = cache(
     if (getEnvAdminEmails().includes(normalized)) {
       return true;
     }
+    if (getSuperAdminEmails().includes(normalized)) return true;
 
     try {
       // 2. Check AdminEmail table and User table concurrently in a single parallel round trip
@@ -71,7 +83,7 @@ export type AdminUserInfo = {
  * Returns all admin emails with metadata.
  */
 export async function getAllAdminUsers(): Promise<AdminUserInfo[]> {
-  const envEmails = getEnvAdminEmails();
+  const envEmails = [...new Set([...getEnvAdminEmails(), ...getSuperAdminEmails()])];
 
   let dbAdminEmails: {
     email: string;
@@ -147,6 +159,7 @@ export async function grantAdminAccess(
   addedBy?: string,
 ): Promise<{ success: boolean; message: string }> {
   const normalized = email.trim().toLowerCase();
+  if (isSuperAdmin(normalized)) return { success: true, message: `Superadmin access retained for ${normalized}` };
   if (!normalized || !normalized.endsWith("@nu.edu.eg")) {
     return {
       success: false,
@@ -165,7 +178,7 @@ export async function grantAdminAccess(
 
       // If user already exists in DB, update their role
       await tx.user.updateMany({
-        where: { email: normalized },
+        where: { email: normalized, role: { not: "super-admin" } },
         data: { role: "admin" },
       });
     });
@@ -188,11 +201,15 @@ export async function revokeAdminAccess(
   email: string,
 ): Promise<{ success: boolean; message: string }> {
   const normalized = email.trim().toLowerCase();
-  if (getEnvAdminEmails().includes(normalized)) {
+  if (isSuperAdmin(normalized)) {
     return {
       success: false,
       message: "Cannot revoke access for system environment administrators.",
     };
+  }
+
+  if ((await prisma.user.findUnique({ where: { email: normalized }, select: { role: true } }))?.role === "super-admin") {
+    return { success: false, message: "Cannot revoke access for a superadmin account." };
   }
 
   try {
@@ -202,7 +219,7 @@ export async function revokeAdminAccess(
       });
 
       await tx.user.updateMany({
-        where: { email: normalized },
+        where: { email: normalized, role: { not: "super-admin" } },
         data: { role: "user" },
       });
     });

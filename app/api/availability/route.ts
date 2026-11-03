@@ -1,9 +1,10 @@
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { isAdminEmail, isSuperAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
-import { getScheduleConfig } from "@/lib/schedule";
+import { getPollConfig } from "@/lib/schedule";
+import { canSeePoll, canSeeResults } from "@/lib/poll-access";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -30,17 +31,56 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const config = await getScheduleConfig();
+    const pollId = request.nextUrl.searchParams.get("pollId") ?? "";
+    const config = await getPollConfig(pollId);
     if (!config) {
       return NextResponse.json([]);
     }
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true },
+      select: { id: true, committee: true },
     });
     if (!user) {
       return NextResponse.json([]);
+    }
+    const poll = await prisma.poll.findUnique({
+      where: { id: pollId },
+      select: {
+        id: true,
+        active: true,
+        allCommittees: true,
+        committees: true,
+        requestedCommittees: true,
+        createdById: true,
+      },
+    });
+    if (!poll) {
+      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    }
+
+    const isSelf = session.user.email.toLowerCase() === email;
+    if (isSelf) {
+      if (!canSeePoll(poll, { id: user.id, committee: user.committee })) {
+        return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+      }
+    } else {
+      const caller = await prisma.user.findUnique({
+        where: { email: session.user.email.toLowerCase() },
+        select: { id: true, committee: true },
+      });
+      if (
+        !caller ||
+        !canSeeResults(
+          poll,
+          caller.id,
+          caller.committee,
+          true,
+          isSuperAdmin(session.user.email),
+        )
+      ) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const targetDates = config.dates.map((d) => new Date(d + "T00:00:00.000Z"));
@@ -48,6 +88,7 @@ export async function GET(request: NextRequest) {
     const slots = await prisma.availability.findMany({
       where: {
         userId: user.id,
+        pollId,
         date: { in: targetDates },
         // In fixed mode, hide any old free-booking records that no longer
         // match the configured time slots after a mode switch.
@@ -71,7 +112,7 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error: unknown) {
-    console.error("Error in GET /api/availability:", error);
+    console.error("GET /api/availability failed:", error);
     return NextResponse.json(
       { error: "Failed to fetch availability records" },
       { status: 500 },
@@ -94,25 +135,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const config = await getScheduleConfig();
-    if (!config) {
-      return NextResponse.json(
-        { error: "No schedule configured" },
-        { status: 400 },
-      );
-    }
-
-    if (!config.dateScheduleActive) {
-      return NextResponse.json(
-        {
-          error:
-            "Specific Date availability submissions are currently closed by the Student Union.",
-        },
-        { status: 403 },
-      );
-    }
-
     const body = (await request.json()) as {
+      pollId?: string;
       date?: string;
       slots?: string[];
       updates?: Array<{ date: string; slots?: string[] }>;
@@ -121,6 +145,39 @@ export async function POST(request: NextRequest) {
       memberId?: string;
       memberCommittee?: string;
     };
+    const pollId = body.pollId ?? "";
+    const config = await getPollConfig(pollId);
+    if (!config) {
+      return NextResponse.json(
+        { error: "No schedule configured" },
+        { status: 400 },
+      );
+    }
+
+    const poll = await prisma.poll.findUnique({
+      where: { id: pollId },
+      select: { active: true, allCommittees: true, committees: true },
+    });
+    const caller = await prisma.user.findUnique({
+      where: { email: session.user.email.toLowerCase() },
+      select: { id: true, committee: true },
+    });
+    if (
+      !poll ||
+      !caller ||
+      !canSeePoll(poll, { id: caller.id, committee: caller.committee })
+    ) {
+      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    }
+    if (!config.active) {
+      return NextResponse.json(
+        {
+          error:
+            "Specific Date availability submissions are currently closed by the Student Union.",
+        },
+        { status: 403 },
+      );
+    }
 
     const memberEmail = (body.memberEmail || session.user.email)
       ?.trim()
@@ -153,11 +210,36 @@ export async function POST(request: NextRequest) {
 
     const existingUser = await prisma.user.findUnique({
       where: { email: memberEmail },
+      select: { id: true, name: true, nuId: true, committee: true },
     });
 
     const resolvedName = memberName || existingUser?.name;
     const resolvedId = memberId || existingUser?.nuId;
-    const resolvedCommittee = memberCommittee || existingUser?.committee;
+
+    let resolvedCommittee = existingUser?.committee ?? null;
+    if (!resolvedCommittee && memberCommittee) {
+      const committeeExists = await prisma.committee.findFirst({
+        where: {
+          name: { equals: memberCommittee.trim(), mode: "insensitive" },
+        },
+      });
+      if (!committeeExists) {
+        return NextResponse.json(
+          { error: "Invalid committee" },
+          { status: 400 },
+        );
+      }
+      resolvedCommittee = committeeExists.name;
+    }
+
+    if (
+      !canSeePoll(poll, {
+        id: existingUser?.id ?? caller.id,
+        committee: existingUser?.committee ?? null,
+      })
+    ) {
+      return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+    }
 
     if (!resolvedName || !resolvedId || !resolvedCommittee) {
       return NextResponse.json(
@@ -187,6 +269,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (rawUpdates.length > 62) {
+      return NextResponse.json(
+        { error: "Too many dates: maximum 62 dates per request allowed." },
+        { status: 400 },
+      );
+    }
+
     // Validate dates and sanitize slots
     const validatedUpdates: Array<{ date: Date; validSlots: string[] }> = [];
     const timeRegex = /^\d{2}:\d{2}$/;
@@ -200,6 +289,13 @@ export async function POST(request: NextRequest) {
       }
 
       const slots = Array.isArray(update.slots) ? update.slots : [];
+      if (slots.length > 96) {
+        return NextResponse.json(
+          { error: "Too many slots: maximum 96 slots per date allowed." },
+          { status: 400 },
+        );
+      }
+
       let validSlots: string[];
       if (config.slotMode === "fixed") {
         validSlots = slots.filter((s) => config.timeSlots.includes(s));
@@ -235,7 +331,7 @@ export async function POST(request: NextRequest) {
     for (const item of validatedUpdates) {
       transactionOps.push(
         prisma.availability.deleteMany({
-          where: { userId: user.id, date: item.date },
+          where: { userId: user.id, pollId, date: item.date },
         }),
       );
       if (item.validSlots.length > 0) {
@@ -243,6 +339,7 @@ export async function POST(request: NextRequest) {
           prisma.availability.createMany({
             data: item.validSlots.map((startTime) => ({
               userId: user.id,
+              pollId,
               date: item.date,
               startTime,
             })),
@@ -255,9 +352,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    console.error("Error in POST /api/availability:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to save availability";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("POST /api/availability failed:", error);
+    return NextResponse.json(
+      { error: "Failed to save availability" },
+      { status: 500 },
+    );
   }
 }

@@ -5,9 +5,15 @@ import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const secret = searchParams.get("secret");
-  const expectedSecret =
-    process.env.ADMIN_SETUP_SECRET || process.env.BETTER_AUTH_SECRET;
+
+  // In production, return 404 unless a ?token= query param equals SETUP_ADMIN_TOKEN (and that env var is set)
+  if (process.env.NODE_ENV === "production") {
+    const token = searchParams.get("token");
+    const expectedToken = process.env.SETUP_ADMIN_TOKEN;
+    if (!expectedToken || !token || token !== expectedToken) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+  }
 
   const adminEmail = process.env.ADMIN_EMAIL || "admin@nu.edu.eg";
   const adminPassword = process.env.ADMIN_PASSWORD;
@@ -17,19 +23,6 @@ export async function GET(req: Request) {
       { error: "ADMIN_PASSWORD environment variable is not configured" },
       { status: 500 },
     );
-  }
-
-  // In production, require an explicit, matching secret before allowing admin setup/reset
-  if (process.env.NODE_ENV === "production") {
-    if (!expectedSecret || secret !== expectedSecret) {
-      return NextResponse.json(
-        {
-          error:
-            "Unauthorized. Provide ?secret=<ADMIN_SETUP_SECRET> to manage admin in production.",
-        },
-        { status: 403 },
-      );
-    }
   }
 
   try {
@@ -52,8 +45,7 @@ export async function GET(req: Request) {
       email: adminEmail,
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "Failed to setup admin";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("GET /api/setup-admin failed:", error);
+    return NextResponse.json({ error: "Failed to setup admin" }, { status: 500 });
   }
 }

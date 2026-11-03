@@ -19,8 +19,10 @@ import {
   UserEdit01Icon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { HaramBadge } from "@/components/haram-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
@@ -52,6 +54,7 @@ import {
 import { toast } from "@/lib/notify";
 import { cn } from "@/lib/utils";
 import { COMMITTEES } from "@/lib/constants";
+import { canManageMember } from "@/lib/member-access";
 
 export interface MemberData {
   id: string;
@@ -72,11 +75,17 @@ export interface MemberData {
 interface AdminMembersPanelProps {
   currentUserId?: string;
   currentUserEmail?: string;
+  viewer?: {
+    id: string;
+    committee: string | null;
+    isSuperAdmin: boolean;
+  };
 }
 
 export function AdminMembersPanel({
   currentUserId,
   currentUserEmail,
+  viewer,
 }: AdminMembersPanelProps) {
   const { spinKey, spin } = useRefreshSpin();
   const [members, setMembers] = React.useState<MemberData[]>([]);
@@ -462,7 +471,7 @@ export function AdminMembersPanel({
               void fetchMembers();
             }}
             disabled={loading}
-            className="h-10 w-10 shrink-0 cursor-pointer rounded-xl"
+            className="h-10 w-10 shrink-0 cursor-pointer"
             title="Refresh members directory"
           >
             <RefreshSpinIcon spinKey={spinKey} size={16} />
@@ -484,7 +493,11 @@ export function AdminMembersPanel({
         </div>
 
         {loading ? (
-          <div className="divide-y divide-border/40 p-4 space-y-4">
+          <div
+            className="divide-y divide-border/40 p-4 space-y-4"
+            aria-busy="true"
+            aria-label="Loading members"
+          >
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 pt-4 first:pt-0">
                 <Skeleton className="size-10 rounded-full" />
@@ -511,9 +524,6 @@ export function AdminMembersPanel({
         ) : (
           <div className="divide-y divide-border/40">
             {filteredMembers.map((member) => {
-              const isSelf =
-                member.id === currentUserId ||
-                member.email.toLowerCase() === currentUserEmail?.toLowerCase();
               const isRootAdmin =
                 member.email.toLowerCase() === "admin@nu.edu.eg";
 
@@ -552,8 +562,9 @@ export function AdminMembersPanel({
                           {member.name}
                         </span>
 
-                        {member.role === "admin" ||
-                        member.role === "super-admin" ? (
+                        {member.role === "super-admin" ? (
+                          <HaramBadge />
+                        ) : member.role === "admin" ? (
                           <Badge
                             variant="secondary"
                             className="bg-primary/15 text-primary border-primary/20 text-[10px] py-0 px-1.5 font-medium"
@@ -620,59 +631,89 @@ export function AdminMembersPanel({
                   </div>
 
                   {/* Right: Actions */}
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    {/* Edit Member details button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditMember(member)}
-                      className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl border-border/80 hover:border-primary/40 hover:bg-primary/10 hover:text-primary touch-manipulation active:scale-[0.98]"
-                      title={`Edit ${member.name}'s details`}
-                    >
-                      <HugeiconsIcon
-                        icon={UserEdit01Icon}
-                        className="size-3.5"
-                      />
-                      <span>Edit</span>
-                    </Button>
+                  {(() => {
+                    const isTargetSuper =
+                      member.role === "super-admin" || isRootAdmin;
+                    const isTargetAdm =
+                      isTargetSuper || member.role === "admin";
+                    const actor = {
+                      id: viewer?.id ?? currentUserId ?? "",
+                      email: currentUserEmail ?? "",
+                      committee: viewer?.committee ?? null,
+                      isAdmin: true,
+                      isSuperAdmin: Boolean(viewer?.isSuperAdmin),
+                    };
+                    const target = {
+                      id: member.id,
+                      email: member.email,
+                      committee: member.committee ?? null,
+                      isAdmin: isTargetAdm,
+                      isSuperAdmin: isTargetSuper,
+                    };
+                    const canEdit = canManageMember(actor, target, "edit");
+                    const canReset = canManageMember(
+                      actor,
+                      target,
+                      "reset-password",
+                    );
+                    const canDelete = canManageMember(actor, target, "delete");
 
-                    {/* Change / Reset Password button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setMemberToReset(member)}
-                      className="h-8 gap-1.5 text-xs font-medium cursor-pointer rounded-xl border-border/80 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 touch-manipulation active:scale-[0.98]"
-                      title="Reset member password and force new password on next login"
-                    >
-                      <HugeiconsIcon
-                        icon={LockPasswordIcon}
-                        className="size-3.5"
-                      />
-                      Reset Password
-                    </Button>
+                    if (!canEdit && !canReset && !canDelete) return null;
 
-                    {/* Delete Member button */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setMemberToDelete(member)}
-                      disabled={isSelf || isRootAdmin}
-                      className={cn(
-                        "size-8 rounded-xl cursor-pointer text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive touch-manipulation active:scale-[0.96]",
-                        (isSelf || isRootAdmin) &&
-                          "opacity-40 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground",
-                      )}
-                      title={
-                        isSelf
-                          ? "You cannot delete your own account"
-                          : isRootAdmin
-                            ? "Primary administrator cannot be deleted"
-                            : `Delete ${member.name}`
-                      }
-                    >
-                      <HugeiconsIcon icon={Delete02Icon} className="size-4" />
-                    </Button>
-                  </div>
+                    return (
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        {/* Edit Member details button */}
+                        {canEdit && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditMember(member)}
+                            className="h-8 min-h-[44px] sm:min-h-8 gap-1.5 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.98]"
+                            title={`Edit ${member.name}'s details`}
+                          >
+                            <HugeiconsIcon
+                              icon={UserEdit01Icon}
+                              className="size-3.5"
+                            />
+                            <span>Edit</span>
+                          </Button>
+                        )}
+
+                        {/* Change / Reset Password button */}
+                        {canReset && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setMemberToReset(member)}
+                            className="h-8 min-h-[44px] sm:min-h-8 gap-1.5 text-xs font-semibold cursor-pointer touch-manipulation active:scale-[0.98]"
+                            title="Reset member password and force new password on next login"
+                          >
+                            <HugeiconsIcon
+                              icon={LockPasswordIcon}
+                              className="size-3.5"
+                            />
+                            Reset Password
+                          </Button>
+                        )}
+
+                        {/* Delete Member button */}
+                        {canDelete && (
+                          <Button
+                            variant="destructive"
+                            size="icon-sm"
+                            onClick={() => setMemberToDelete(member)}
+                            className="size-8 cursor-pointer touch-manipulation active:scale-[0.96]"
+                            title={`Delete ${member.name}`}
+                          >
+                            <HugeiconsIcon
+                              icon={Delete02Icon}
+                              className="size-4"
+                            />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -707,21 +748,27 @@ export function AdminMembersPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4 gap-2">
-            <AlertDialogCancel
-              disabled={deleting}
-              className="rounded-xl cursor-pointer"
-            >
+            <AlertDialogCancel disabled={deleting} className="cursor-pointer">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={(e) => {
                 e.preventDefault();
                 void confirmDeleteMember();
               }}
               disabled={deleting}
-              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+              aria-busy={deleting}
+              className="cursor-pointer"
             >
-              {deleting ? "Deleting..." : "Yes, Delete Member"}
+              {deleting ? (
+                <>
+                  <Spinner className="size-4" label="Deleting" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                "Yes, Delete Member"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -755,10 +802,7 @@ export function AdminMembersPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4 gap-2">
-            <AlertDialogCancel
-              disabled={resetting}
-              className="rounded-xl cursor-pointer"
-            >
+            <AlertDialogCancel disabled={resetting} className="cursor-pointer">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -767,9 +811,17 @@ export function AdminMembersPanel({
                 void confirmResetPassword();
               }}
               disabled={resetting}
-              className="rounded-xl bg-amber-600 text-white hover:bg-amber-700 cursor-pointer"
+              aria-busy={resetting}
+              className="cursor-pointer"
             >
-              {resetting ? "Resetting..." : "Reset Password"}
+              {resetting ? (
+                <>
+                  <Spinner className="size-4" label="Resetting" />
+                  <span>Resetting...</span>
+                </>
+              ) : (
+                "Reset Password"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -925,19 +977,20 @@ export function AdminMembersPanel({
                 variant="outline"
                 disabled={savingEdit}
                 onClick={() => setMemberToEdit(null)}
-                className="rounded-xl cursor-pointer"
+                className="cursor-pointer"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={savingEdit}
-                className="gap-1.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
+                aria-busy={savingEdit}
+                className="gap-1.5 cursor-pointer"
               >
                 {savingEdit ? (
                   <>
-                    <div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Saving Changes...
+                    <Spinner className="size-4" label="Saving" />
+                    <span>Saving Changes...</span>
                   </>
                 ) : (
                   <>
@@ -945,7 +998,7 @@ export function AdminMembersPanel({
                       icon={CheckmarkCircle02Icon}
                       className="size-4"
                     />
-                    Save Changes
+                    <span>Save Changes</span>
                   </>
                 )}
               </Button>

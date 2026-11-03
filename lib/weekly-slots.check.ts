@@ -6,6 +6,7 @@ import {
   fromMinutes,
   formatDuration,
   sortSlots,
+  parseDateSlots,
 } from "./weekly-slots";
 
 assert.deepEqual(
@@ -68,3 +69,14 @@ assert.deepEqual(sortSlots([{ ...slot, dayOfWeek: 1 }, slot]), [
   { ...slot, dayOfWeek: 1 },
 ]);
 console.log("Weekly slot checks passed.");
+
+// Date-poll slots: custom ends kept, missing ends default to one hour, bad ends rejected
+{
+  const ok = parseDateSlots(["09:00", "13:30"], { "09:00": "09:45" });
+  assert.ok("slots" in ok);
+  assert.deepEqual(ok.slots, [
+    { startTime: "09:00", endTime: "09:45" },
+    { startTime: "13:30", endTime: "14:30" },
+  ]);
+  assert.ok("error" in parseDateSlots(["10:00"], { "10:00": "09:00" }));
+}

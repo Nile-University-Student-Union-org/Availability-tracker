@@ -20,14 +20,11 @@ export async function GET() {
       tables: tables,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    const stack = error instanceof Error ? error.stack : undefined;
-
+    console.error("GET /api/debug-db failed:", error);
     return NextResponse.json(
       {
         success: false,
-        error: message,
-        stack,
+        error: "Database check failed",
       },
       { status: 500 },
     );

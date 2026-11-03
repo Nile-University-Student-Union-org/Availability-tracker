@@ -16,6 +16,7 @@ import {
   DragDropVerticalIcon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,7 +40,12 @@ export interface CommitteeData {
   createdAt: string;
 }
 
-export function AdminCommitteesPanel() {
+/** canManage: only superadmins add, reorder or delete committees */
+export function AdminCommitteesPanel({
+  canManage = false,
+}: {
+  canManage?: boolean;
+}) {
   const { spinKey, spin } = useRefreshSpin();
   const [committees, setCommittees] = React.useState<CommitteeData[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -311,44 +317,56 @@ export function AdminCommitteesPanel() {
       </div>
 
       {/* Add Committee Bar */}
-      <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-xs backdrop-blur-sm sm:p-5">
-        <h2 className="text-sm font-semibold text-foreground font-heading">
-          Create New Committee
-        </h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Add a new Nile University Student Union committee or initiative. It
-          will immediately appear in member registration and filters.
-        </p>
+      {canManage && (
+        <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-xs backdrop-blur-sm sm:p-5">
+          <h2 className="text-sm font-semibold text-foreground font-heading">
+            Create New Committee
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Add a new Nile University Student Union committee or initiative. It
+            will immediately appear in member registration and filters.
+          </p>
 
-        <form
-          onSubmit={handleAddCommittee}
-          className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center"
-        >
-          <div className="relative flex-1">
-            <HugeiconsIcon
-              icon={Briefcase01Icon}
-              className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
-            />
-            <Input
-              type="text"
-              placeholder="e.g. Media & Design, Sponsorship, Events..."
-              value={newCommitteeName}
-              onChange={(e) => setNewCommitteeName(e.target.value)}
-              className="min-h-[44px] rounded-xl pl-10 text-sm"
-              disabled={adding}
-            />
-          </div>
-
-          <Button
-            type="submit"
-            disabled={adding || !newCommitteeName.trim()}
-            className="min-h-[44px] cursor-pointer touch-manipulation rounded-xl px-5 font-semibold active:scale-[0.98]"
+          <form
+            onSubmit={handleAddCommittee}
+            className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center"
           >
-            <HugeiconsIcon icon={Add01Icon} className="mr-1.5 size-4" />
-            {adding ? "Creating..." : "Add Committee"}
-          </Button>
-        </form>
-      </div>
+            <div className="relative flex-1">
+              <HugeiconsIcon
+                icon={Briefcase01Icon}
+                className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                type="text"
+                placeholder="e.g. Media & Design, Sponsorship, Events..."
+                value={newCommitteeName}
+                onChange={(e) => setNewCommitteeName(e.target.value)}
+                className="min-h-[44px] rounded-xl pl-10 text-sm"
+                disabled={adding}
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={adding || !newCommitteeName.trim()}
+              aria-busy={adding}
+              className="min-h-[44px] cursor-pointer touch-manipulation px-5 font-semibold active:scale-[0.98]"
+            >
+              {adding ? (
+                <>
+                  <Spinner className="mr-1.5 size-4" label="Creating" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <HugeiconsIcon icon={Add01Icon} className="mr-1.5 size-4" />
+                  Add Committee
+                </>
+              )}
+            </Button>
+          </form>
+        </div>
+      )}
 
       {/* Committees Directory Controls */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -382,7 +400,7 @@ export function AdminCommitteesPanel() {
             void fetchCommittees();
           }}
           disabled={loading}
-          className="h-10 cursor-pointer rounded-xl text-xs gap-1.5 self-start sm:self-auto"
+          className="h-10 cursor-pointer text-xs gap-1.5 self-start sm:self-auto"
         >
           <RefreshSpinIcon spinKey={spinKey} size={14} />
           Refresh List
@@ -392,7 +410,11 @@ export function AdminCommitteesPanel() {
       {/* Committees List Table */}
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/60 shadow-xs backdrop-blur-sm">
         {loading ? (
-          <div className="divide-y divide-border/40 p-4 space-y-3">
+          <div
+            className="divide-y divide-border/40 p-4 space-y-3"
+            aria-busy="true"
+            aria-label="Loading committees"
+          >
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-3">
@@ -448,7 +470,7 @@ export function AdminCommitteesPanel() {
                 )}
               >
                 <div className="flex items-center gap-2 min-w-0 sm:gap-3">
-                  {!searchQuery && (
+                  {canManage && !searchQuery && (
                     <button
                       type="button"
                       data-drag-handle
@@ -505,16 +527,18 @@ export function AdminCommitteesPanel() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCommitteeToDelete(committee)}
-                    className="min-h-[38px] cursor-pointer rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive text-xs gap-1.5"
-                    title={`Delete committee ${committee.name}`}
-                  >
-                    <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
-                    <span className="hidden sm:inline">Delete</span>
-                  </Button>
+                  {canManage && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setCommitteeToDelete(committee)}
+                      className="min-h-[38px] cursor-pointer text-xs gap-1.5"
+                      title={`Delete committee ${committee.name}`}
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
+                      <span className="hidden sm:inline">Delete</span>
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -558,18 +582,24 @@ export function AdminCommitteesPanel() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel
-              disabled={deleting}
-              className="cursor-pointer rounded-xl"
-            >
+            <AlertDialogCancel disabled={deleting} className="cursor-pointer">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
+              variant="destructive"
               onClick={confirmDeleteCommittee}
               disabled={deleting}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground cursor-pointer rounded-xl"
+              aria-busy={deleting}
+              className="cursor-pointer"
             >
-              {deleting ? "Deleting..." : "Confirm & Delete Committee"}
+              {deleting ? (
+                <>
+                  <Spinner className="size-4" label="Deleting" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                "Confirm & Delete Committee"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

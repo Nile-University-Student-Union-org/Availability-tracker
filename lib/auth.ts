@@ -103,11 +103,49 @@ export const auth = betterAuth({
     },
   },
   databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { email: true, role: true } });
+          const { isSuperAdmin } = await import("@/lib/admin");
+          if (user && isSuperAdmin(user.email) && user.role !== "super-admin") await prisma.user.update({ where: { id: session.userId }, data: { role: "super-admin" } });
+
+        },
+      },
+    },
     user: {
       update: {
-        before: async (user) => {
+        before: async (user, ctx) => {
           // Never store inline base64 photos (see disableProfilePhoto above)
           if (user.image?.startsWith("data:")) user.image = null;
+          const { isSuperAdmin } = await import("@/lib/admin");
+          if (isSuperAdmin(user.email)) user.role = "super-admin";
+
+          const updateCommittee = (user as Record<string, unknown>).committee;
+          if (updateCommittee !== undefined) {
+            // The update payload is partial and has no id; the caller's session does
+            const userId =
+              (user as { id?: string }).id ?? ctx?.context?.session?.user?.id;
+            const existing = userId
+              ? await prisma.user.findUnique({
+                  where: { id: userId },
+                  select: { committee: true },
+                })
+              : null;
+            if (existing?.committee) {
+              (user as Record<string, unknown>).committee = existing.committee;
+            } else if (typeof updateCommittee === "string" && updateCommittee.trim()) {
+              const committeeExists = await prisma.committee.findFirst({
+                where: { name: { equals: updateCommittee.trim(), mode: "insensitive" } },
+              });
+              if (!committeeExists) {
+                throw new APIError("BAD_REQUEST", {
+                  message: "Invalid committee",
+                });
+              }
+              (user as Record<string, unknown>).committee = committeeExists.name;
+            }
+          }
         },
       },
       create: {
@@ -129,10 +167,21 @@ export const auth = betterAuth({
               message: "NU ID must be exactly 9 digits",
             });
           }
-          const { isAdminEmail } = await import("@/lib/admin");
-          if (await isAdminEmail(user.email)) {
-            user.role = "admin";
+          const committee = (user as Record<string, unknown>).committee;
+          if (typeof committee === "string" && committee.trim()) {
+            const committeeExists = await prisma.committee.findFirst({
+              where: { name: { equals: committee.trim(), mode: "insensitive" } },
+            });
+            if (!committeeExists) {
+              throw new APIError("BAD_REQUEST", {
+                message: "Invalid committee",
+              });
+            }
+            (user as Record<string, unknown>).committee = committeeExists.name;
           }
+          const { isAdminEmail, isSuperAdmin } = await import("@/lib/admin");
+          if (isSuperAdmin(user.email)) user.role = "super-admin";
+          else if (await isAdminEmail(user.email)) user.role = "admin";
         },
       },
     },
