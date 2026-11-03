@@ -228,6 +228,39 @@ export function AdminLayoutShell({
     window.history.replaceState({}, "", url.toString());
   };
 
+  // One glass lens glides to the active nav item instead of each item lighting up on its own
+  const navRef = React.useRef<HTMLDivElement>(null);
+  const [lens, setLens] = React.useState<DOMRectReadOnly>();
+  React.useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const measure = () => {
+      const active = nav.querySelector<HTMLElement>(
+        '[data-slot="sidebar-menu-button"][data-active]',
+      );
+      if (!active) return setLens(undefined);
+      const a = active.getBoundingClientRect();
+      const n = nav.getBoundingClientRect();
+      setLens(
+        new DOMRectReadOnly(
+          a.left - n.left,
+          a.top - n.top + nav.scrollTop,
+          a.width,
+          a.height,
+        ),
+      );
+    };
+    measure();
+    // Collapsing slides the group labels away without resizing the nav, so also re-measure after transitions
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);
+    nav.addEventListener("transitionend", measure);
+    return () => {
+      observer.disconnect();
+      nav.removeEventListener("transitionend", measure);
+    };
+  }, [activeTab]);
+
   const [signOutOpen, setSignOutOpen] = React.useState(false);
 
   function handleSignOut() {
@@ -280,7 +313,18 @@ export function AdminLayoutShell({
           </SidebarHeader>
 
           {/* Navigation Groups */}
-          <SidebarContent>
+          <SidebarContent ref={navRef} className="relative">
+            {lens && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute top-0 left-0 rounded-full glass-lens transition-[transform,width,height] duration-500 ease-(--ease-spring) motion-reduce:transition-none"
+                style={{
+                  transform: `translate(${lens.x}px, ${lens.y}px)`,
+                  width: lens.width,
+                  height: lens.height,
+                }}
+              />
+            )}
             <SidebarGroup>
               <SidebarGroupLabel>Workspace</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -510,58 +554,63 @@ export function AdminLayoutShell({
               narrowTab ? "max-w-3xl" : "max-w-6xl",
             )}
           >
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold tracking-tight">
-                {TAB_TITLES[activeTab]}
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {TAB_DESCRIPTIONS[activeTab]}
-              </p>
-            </div>
+            <div
+              key={activeTab}
+              className="animate-in duration-300 ease-(--ease-smooth) fade-in-0 slide-in-from-bottom-1 motion-reduce:animate-none"
+            >
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold tracking-tight">
+                  {TAB_TITLES[activeTab]}
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {TAB_DESCRIPTIONS[activeTab]}
+                </p>
+              </div>
 
-            {/* Dynamic Tab Body */}
-            <div>
-              {activeTab === "overview" && (
-                <AdminOverview
-                  viewer={viewer}
-                  polls={overviewPolls}
-                  pendingCount={pendingCount}
-                  onOpenPoll={(id, view) =>
-                    setTab("polls", {
-                      poll: id,
-                      ...(view === "settings" ? { view } : {}),
-                    })
-                  }
-                  onOpenRequests={() => setTab("requests")}
-                  onNewPoll={() => setTab("polls", { new: "1" })}
-                />
-              )}
-              {activeTab === "polls" && (
-                <PollsPanel
-                  key={navKey}
-                  viewer={viewer}
-                  committees={committees}
-                />
-              )}
-              {activeTab === "requests" && viewer.isSuperAdmin && (
-                <PollRequestsPanel onCountChange={setPendingCount} />
-              )}
-              {activeTab === "admins" && (
-                <AdminUsersPanel
-                  initialAdmins={initialAdmins}
-                  canManage={viewer.isSuperAdmin}
-                />
-              )}
-              {activeTab === "members" && (
-                <AdminMembersPanel
-                  currentUserId={session.user.id}
-                  currentUserEmail={session.user.email}
-                  viewer={viewer}
-                />
-              )}
-              {activeTab === "committees" && (
-                <AdminCommitteesPanel canManage={viewer.isSuperAdmin} />
-              )}
+              {/* Dynamic Tab Body */}
+              <div>
+                {activeTab === "overview" && (
+                  <AdminOverview
+                    viewer={viewer}
+                    polls={overviewPolls}
+                    pendingCount={pendingCount}
+                    onOpenPoll={(id, view) =>
+                      setTab("polls", {
+                        poll: id,
+                        ...(view === "settings" ? { view } : {}),
+                      })
+                    }
+                    onOpenRequests={() => setTab("requests")}
+                    onNewPoll={() => setTab("polls", { new: "1" })}
+                  />
+                )}
+                {activeTab === "polls" && (
+                  <PollsPanel
+                    key={navKey}
+                    viewer={viewer}
+                    committees={committees}
+                  />
+                )}
+                {activeTab === "requests" && viewer.isSuperAdmin && (
+                  <PollRequestsPanel onCountChange={setPendingCount} />
+                )}
+                {activeTab === "admins" && (
+                  <AdminUsersPanel
+                    initialAdmins={initialAdmins}
+                    canManage={viewer.isSuperAdmin}
+                  />
+                )}
+                {activeTab === "members" && (
+                  <AdminMembersPanel
+                    currentUserId={session.user.id}
+                    currentUserEmail={session.user.email}
+                    viewer={viewer}
+                  />
+                )}
+                {activeTab === "committees" && (
+                  <AdminCommitteesPanel canManage={viewer.isSuperAdmin} />
+                )}
+              </div>
             </div>
           </main>
         </SidebarInset>
