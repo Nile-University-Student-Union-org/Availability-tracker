@@ -1,3 +1,7 @@
+-- Phase A (expand). Safe while the OLD code is still live on main:
+-- adds the poll tables and copies the schedule into them, gives every answer a poll,
+-- and keeps the old tables and uniques. The pollId DEFAULTs file answers the old
+-- code saves (it doesn't know pollId) under the right legacy poll.
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS poll (
@@ -82,28 +86,19 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-ALTER TABLE availability ADD COLUMN IF NOT EXISTS "pollId" TEXT;
+ALTER TABLE availability ADD COLUMN IF NOT EXISTS "pollId" TEXT DEFAULT 'legacy-date';
 UPDATE availability SET "pollId" = 'legacy-date' WHERE "pollId" IS NULL;
 ALTER TABLE availability ALTER COLUMN "pollId" SET NOT NULL;
-ALTER TABLE recurring_availability ADD COLUMN IF NOT EXISTS "pollId" TEXT;
+ALTER TABLE recurring_availability ADD COLUMN IF NOT EXISTS "pollId" TEXT DEFAULT 'legacy-weekly';
 UPDATE recurring_availability SET "pollId" = 'legacy-weekly' WHERE "pollId" IS NULL;
 ALTER TABLE recurring_availability ALTER COLUMN "pollId" SET NOT NULL;
 
--- Prisma made the old per-user uniques as indexes, and unquoted names fold to lowercase, so drop them by quoted name
-ALTER TABLE availability DROP CONSTRAINT IF EXISTS "availability_userId_date_startTime_key";
-DROP INDEX IF EXISTS "availability_userId_date_startTime_key";
 ALTER TABLE availability ADD CONSTRAINT "availability_pollId_fkey" FOREIGN KEY ("pollId") REFERENCES poll(id) ON DELETE CASCADE ON UPDATE CASCADE;
 CREATE UNIQUE INDEX IF NOT EXISTS "availability_pollId_userId_date_startTime_key" ON availability("pollId", "userId", date, "startTime");
 CREATE INDEX IF NOT EXISTS "availability_pollId_idx" ON availability("pollId");
-ALTER TABLE recurring_availability DROP CONSTRAINT IF EXISTS "recurring_availability_userId_dayOfWeek_startTime_key";
-DROP INDEX IF EXISTS "recurring_availability_userId_dayOfWeek_startTime_key";
 ALTER TABLE recurring_availability ADD CONSTRAINT "recurring_availability_pollId_fkey" FOREIGN KEY ("pollId") REFERENCES poll(id) ON DELETE CASCADE ON UPDATE CASCADE;
 CREATE UNIQUE INDEX IF NOT EXISTS "recurring_availability_pollId_userId_dayOfWeek_startTime_key" ON recurring_availability("pollId", "userId", "dayOfWeek", "startTime");
 CREATE INDEX IF NOT EXISTS "recurring_availability_pollId_idx" ON recurring_availability("pollId");
-
-DROP TABLE IF EXISTS weekly_slot_config;
-DROP TABLE IF EXISTS time_slot_config;
-DROP TABLE IF EXISTS schedule_config;
 
 CREATE INDEX IF NOT EXISTS user_committee_idx ON "user"(committee);
 CREATE INDEX IF NOT EXISTS user_role_idx ON "user"(role);
