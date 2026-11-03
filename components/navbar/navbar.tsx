@@ -24,10 +24,6 @@ import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import { toast } from "@/lib/notify";
 
 export interface NavbarProps {
-  dateScheduleTitle?: string;
-  weeklyScheduleTitle?: string;
-  dateScheduleActive?: boolean;
-  weeklyScheduleActive?: boolean;
   initialUser?: {
     name?: string | null;
     email?: string | null;
@@ -36,13 +32,7 @@ export interface NavbarProps {
   initialIsAdmin?: boolean;
 }
 
-let globalAdminCache: { email: string; isAdmin: boolean } | null = null;
-
 export function Navbar({
-
-
-
-
   initialUser,
   initialIsAdmin = false,
 }: NavbarProps = {}) {
@@ -58,17 +48,13 @@ export function Navbar({
   const [mounted, setMounted] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [isScrolled, setIsScrolled] = React.useState(false);
-  const [isAdmin, setIsAdmin] = React.useState<boolean>(() => {
-    if (initialIsAdmin) return true;
-    if (
-      currentEmail &&
-      globalAdminCache &&
-      globalAdminCache.email === currentEmail
-    ) {
-      return globalAdminCache.isAdmin;
-    }
-    return false;
-  });
+  const userRole = (currentUser as Record<string, unknown> | undefined)?.role;
+  const isAdmin = Boolean(
+    initialIsAdmin ||
+      isSpecialAdmin ||
+      userRole === "admin" ||
+      userRole === "super-admin",
+  );
   const [signOutOpen, setSignOutOpen] = React.useState(false);
 
   // Dynamic sliding indicator rects for desktop nav (Apple-grade fluid liquid pill)
@@ -126,48 +112,6 @@ export function Navbar({
       }
     }
   }, []);
-
-  // Admin access check for active session
-  React.useEffect(() => {
-    if (!currentEmail) {
-      setIsAdmin(false);
-      return;
-    }
-
-    if (isSpecialAdmin) {
-      setIsAdmin(true);
-      globalAdminCache = { email: currentEmail, isAdmin: true };
-      return;
-    }
-
-    const userRole = (currentUser as Record<string, unknown> | undefined)?.role;
-    if (userRole === "admin" || userRole === "super-admin") {
-      setIsAdmin(true);
-      globalAdminCache = { email: currentEmail, isAdmin: true };
-      return;
-    }
-
-    if (globalAdminCache && globalAdminCache.email === currentEmail) {
-      setIsAdmin(globalAdminCache.isAdmin);
-      return;
-    }
-
-    let cancelled = false;
-    fetch("/api/admin/check")
-      .then((r) => r.json())
-      .then((data) => {
-        const isAdm = Boolean(data?.isAdmin);
-        globalAdminCache = { email: currentEmail, isAdmin: isAdm };
-        if (!cancelled) setIsAdmin(isAdm);
-      })
-      .catch(() => {
-        if (!cancelled) setIsAdmin(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentEmail, isSpecialAdmin, currentUser]);
 
   // Aggressively prefetch the admin console as soon as user is recognized as admin
   React.useEffect(() => {
