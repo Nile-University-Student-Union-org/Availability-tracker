@@ -52,7 +52,7 @@ export default function GlobalError({
               reset();
               window.location.reload();
             }}
-            className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold shadow-xs touch-manipulation active:scale-[0.98] sm:flex-1 cursor-pointer"
+            className="h-11 min-h-[44px] w-full text-sm font-semibold touch-manipulation active:scale-[0.98] sm:flex-1 cursor-pointer"
             variant="default"
           >
             <HugeiconsIcon
@@ -67,7 +67,7 @@ export default function GlobalError({
               window.location.href = "/";
             }}
             variant="outline"
-            className="h-11 min-h-[44px] w-full rounded-2xl text-sm font-semibold touch-manipulation active:scale-[0.98] sm:flex-1 cursor-pointer"
+            className="h-11 min-h-[44px] w-full text-sm font-semibold touch-manipulation active:scale-[0.98] sm:flex-1 cursor-pointer"
           >
             <HugeiconsIcon
               icon={Home01Icon}

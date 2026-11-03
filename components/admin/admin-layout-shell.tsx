@@ -33,7 +33,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusPill } from "@/components/status-pill";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import dynamic from "next/dynamic";
@@ -43,14 +44,35 @@ import type { AdminUserInfo } from "@/lib/admin";
 import { cn } from "@/lib/utils";
 import { NusuLogo } from "@/components/nusu-logo";
 
+function PanelSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading section" className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-5 w-40 rounded-full" />
+        <Skeleton className="h-9 w-24 rounded-full" />
+      </div>
+      <div className="space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="flex min-h-[76px] items-center gap-4 rounded-3xl border border-border/60 bg-card/60 p-4"
+          >
+            <Skeleton className="size-11 rounded-2xl shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const PollsPanel = dynamic(
   () => import("@/components/admin/polls-panel").then((m) => m.PollsPanel),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -60,11 +82,7 @@ const PollRequestsPanel = dynamic(
       (m) => m.PollRequestsPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -74,11 +92,7 @@ const AdminUsersPanel = dynamic(
       (m) => m.AdminUsersPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -88,11 +102,7 @@ const AdminMembersPanel = dynamic(
       (m) => m.AdminMembersPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -102,11 +112,7 @@ const AdminCommitteesPanel = dynamic(
       (m) => m.AdminCommitteesPanel,
     ),
   {
-    loading: () => (
-      <div className="flex h-40 items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    ),
+    loading: () => <PanelSkeleton />,
   },
 );
 
@@ -222,6 +228,55 @@ export function AdminLayoutShell({
     window.history.replaceState({}, "", url.toString());
   };
 
+  // One glass lens glides to the active nav item instead of each item lighting up on its own
+  // State (not a plain ref) so the effect re-runs when the mobile sheet mounts its own nav
+  const [nav, setNav] = React.useState<HTMLDivElement | null>(null);
+  const lensRef = React.useRef<HTMLSpanElement>(null);
+  const placedNav = React.useRef<HTMLDivElement | null>(null);
+  React.useLayoutEffect(() => {
+    const lens = lensRef.current;
+    if (!nav || !lens) return;
+    // Writes straight to the DOM: a React state update per frame would re-render every panel
+    const place = (glide: boolean) => {
+      const active = nav.querySelector<HTMLElement>(
+        '[data-slot="sidebar-menu-button"][data-active]',
+      );
+      lens.style.opacity = active ? "1" : "0";
+      if (!active) return;
+      const a = active.getBoundingClientRect();
+      const n = nav.getBoundingClientRect();
+      lens.style.transitionDuration = glide ? "" : "0s";
+      lens.style.transform = `translate(${a.left - n.left}px, ${a.top - n.top + nav.scrollTop}px)`;
+      lens.style.width = `${a.width}px`;
+      lens.style.height = `${a.height}px`;
+    };
+    // Glide on a section switch, jump into place on first paint
+    place(placedNav.current === nav);
+    placedNav.current = nav;
+
+    // While the sidebar collapses or expands, track the item every frame with no lag
+    let frame = 0;
+    let until = 0;
+    const follow = () => {
+      place(false);
+      frame = performance.now() < until ? requestAnimationFrame(follow) : 0;
+    };
+    const onRun = (e: TransitionEvent) => {
+      if (
+        e.target === lens ||
+        !/width|height|margin|padding/.test(e.propertyName)
+      )
+        return;
+      until = performance.now() + 400;
+      if (!frame) frame = requestAnimationFrame(follow);
+    };
+    nav.addEventListener("transitionrun", onRun);
+    return () => {
+      nav.removeEventListener("transitionrun", onRun);
+      cancelAnimationFrame(frame);
+    };
+  }, [nav, activeTab]);
+
   const [signOutOpen, setSignOutOpen] = React.useState(false);
 
   function handleSignOut() {
@@ -274,7 +329,12 @@ export function AdminLayoutShell({
           </SidebarHeader>
 
           {/* Navigation Groups */}
-          <SidebarContent>
+          <SidebarContent ref={setNav} className="relative">
+            <span
+              ref={lensRef}
+              aria-hidden
+              className="pointer-events-none absolute top-0 left-0 rounded-full opacity-0 glass-lens transition-[transform,width,height] duration-500 ease-(--ease-spring) motion-reduce:transition-none"
+            />
             <SidebarGroup>
               <SidebarGroupLabel>Workspace</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -332,7 +392,7 @@ export function AdminLayoutShell({
                         {pendingCount > 0 && (
                           <span
                             aria-label={`${pendingCount} waiting`}
-                            className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold tabular-nums text-amber-950 group-data-[collapsible=icon]:hidden"
+                            className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 text-[11px] font-bold tabular-nums text-amber-700 dark:text-amber-400 group-data-[collapsible=icon]:hidden"
                           >
                             {pendingCount}
                           </span>
@@ -454,7 +514,7 @@ export function AdminLayoutShell({
                 variant="ghost"
                 size="icon"
                 onClick={handleSignOut}
-                className="size-8 cursor-pointer rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                className="size-8 cursor-pointer text-muted-foreground hover:text-destructive"
                 title="Sign out of Admin Console"
               >
                 <HugeiconsIcon icon={Logout02Icon} size={15} />
@@ -484,9 +544,12 @@ export function AdminLayoutShell({
               <ThemeToggle />
               <Link
                 href="/"
-                className="hidden items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-secondary/80 sm:inline-flex"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "hidden sm:inline-flex gap-1.5 text-xs min-h-[44px] md:min-h-8",
+                )}
               >
-                <HugeiconsIcon icon={Home01Icon} size={13} />
+                <HugeiconsIcon icon={Home01Icon} size={14} />
                 <span>Live Schedule</span>
               </Link>
             </div>
@@ -501,58 +564,63 @@ export function AdminLayoutShell({
               narrowTab ? "max-w-3xl" : "max-w-6xl",
             )}
           >
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold tracking-tight">
-                {TAB_TITLES[activeTab]}
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {TAB_DESCRIPTIONS[activeTab]}
-              </p>
-            </div>
+            <div
+              key={activeTab}
+              className="animate-in duration-300 ease-(--ease-smooth) fade-in-0 slide-in-from-bottom-1 motion-reduce:animate-none"
+            >
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold tracking-tight">
+                  {TAB_TITLES[activeTab]}
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {TAB_DESCRIPTIONS[activeTab]}
+                </p>
+              </div>
 
-            {/* Dynamic Tab Body */}
-            <div>
-              {activeTab === "overview" && (
-                <AdminOverview
-                  viewer={viewer}
-                  polls={overviewPolls}
-                  pendingCount={pendingCount}
-                  onOpenPoll={(id, view) =>
-                    setTab("polls", {
-                      poll: id,
-                      ...(view === "settings" ? { view } : {}),
-                    })
-                  }
-                  onOpenRequests={() => setTab("requests")}
-                  onNewPoll={() => setTab("polls", { new: "1" })}
-                />
-              )}
-              {activeTab === "polls" && (
-                <PollsPanel
-                  key={navKey}
-                  viewer={viewer}
-                  committees={committees}
-                />
-              )}
-              {activeTab === "requests" && viewer.isSuperAdmin && (
-                <PollRequestsPanel onCountChange={setPendingCount} />
-              )}
-              {activeTab === "admins" && (
-                <AdminUsersPanel
-                  initialAdmins={initialAdmins}
-                  canManage={viewer.isSuperAdmin}
-                />
-              )}
-              {activeTab === "members" && (
-                <AdminMembersPanel
-                  currentUserId={session.user.id}
-                  currentUserEmail={session.user.email}
-                  viewer={viewer}
-                />
-              )}
-              {activeTab === "committees" && (
-                <AdminCommitteesPanel canManage={viewer.isSuperAdmin} />
-              )}
+              {/* Dynamic Tab Body */}
+              <div>
+                {activeTab === "overview" && (
+                  <AdminOverview
+                    viewer={viewer}
+                    polls={overviewPolls}
+                    pendingCount={pendingCount}
+                    onOpenPoll={(id, view) =>
+                      setTab("polls", {
+                        poll: id,
+                        ...(view === "settings" ? { view } : {}),
+                      })
+                    }
+                    onOpenRequests={() => setTab("requests")}
+                    onNewPoll={() => setTab("polls", { new: "1" })}
+                  />
+                )}
+                {activeTab === "polls" && (
+                  <PollsPanel
+                    key={navKey}
+                    viewer={viewer}
+                    committees={committees}
+                  />
+                )}
+                {activeTab === "requests" && viewer.isSuperAdmin && (
+                  <PollRequestsPanel onCountChange={setPendingCount} />
+                )}
+                {activeTab === "admins" && (
+                  <AdminUsersPanel
+                    initialAdmins={initialAdmins}
+                    canManage={viewer.isSuperAdmin}
+                  />
+                )}
+                {activeTab === "members" && (
+                  <AdminMembersPanel
+                    currentUserId={session.user.id}
+                    currentUserEmail={session.user.email}
+                    viewer={viewer}
+                  />
+                )}
+                {activeTab === "committees" && (
+                  <AdminCommitteesPanel canManage={viewer.isSuperAdmin} />
+                )}
+              </div>
             </div>
           </main>
         </SidebarInset>

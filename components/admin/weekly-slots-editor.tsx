@@ -269,7 +269,7 @@ export function WeeklySlotsEditor({
                   type="button"
                   onClick={addSlot}
                   disabled={Boolean(addReason)}
-                  className="h-9 w-full rounded-xl gap-1.5 text-xs font-semibold cursor-pointer"
+                  className="h-9 w-full gap-1.5 text-xs font-semibold cursor-pointer"
                 >
                   <HugeiconsIcon icon={PlusSignIcon} size={14} />
                   Add to {dayLabel}
@@ -360,7 +360,7 @@ export function WeeklySlotsEditor({
                   variant="outline"
                   onClick={() => replaceDay(generated)}
                   disabled={generated.length === 0}
-                  className="h-9 w-full rounded-xl text-xs font-semibold cursor-pointer"
+                  className="h-9 w-full text-xs font-semibold cursor-pointer"
                 >
                   {generated.length === 0
                     ? "No slots fit this range"
@@ -383,7 +383,7 @@ export function WeeklySlotsEditor({
                       size="xs"
                       onClick={copyToAllDays}
                       disabled={daySlots.length === 0}
-                      className="h-8 rounded-xl gap-1 px-2 text-[11px] font-semibold cursor-pointer"
+                      className="h-8 gap-1 px-2 text-[11px] font-semibold cursor-pointer"
                     >
                       <HugeiconsIcon icon={Copy01Icon} size={13} />
                       Copy to all days
@@ -391,11 +391,11 @@ export function WeeklySlotsEditor({
                   )}
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="destructive"
                     size="xs"
                     onClick={() => replaceDay([])}
                     disabled={daySlots.length === 0}
-                    className="h-8 rounded-xl px-2 text-[11px] font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                    className="h-8 px-2 text-[11px] font-semibold cursor-pointer"
                   >
                     Clear day
                   </Button>

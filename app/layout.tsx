@@ -4,6 +4,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeBeam } from "@/components/theme-beam";
+import { GlassBloom } from "@/components/glass-bloom";
 import { cn } from "@/lib/utils";
 
 // Poppins — brand body font (Poppins in the SU brand guidelines)
@@ -40,6 +41,7 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
           <ThemeBeam />
+          <GlassBloom />
         </ThemeProvider>
       </body>
     </html>

@@ -465,7 +465,7 @@ export function ScheduleConfigPanel({
                 variant="outline"
                 size="xs"
                 onClick={() => setPresetRange(3)}
-                className="h-11 min-w-11 md:h-7 md:min-w-0 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
+                className="h-11 min-w-11 md:h-7 md:min-w-0 text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation transition-press active:scale-[0.97]"
               >
                 3D
               </Button>
@@ -474,7 +474,7 @@ export function ScheduleConfigPanel({
                 variant="outline"
                 size="xs"
                 onClick={() => setPresetRange(5)}
-                className="h-11 min-w-11 md:h-7 md:min-w-0 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
+                className="h-11 min-w-11 md:h-7 md:min-w-0 text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation transition-press active:scale-[0.97]"
               >
                 5D
               </Button>
@@ -483,7 +483,7 @@ export function ScheduleConfigPanel({
                 variant="outline"
                 size="xs"
                 onClick={() => setPresetRange(7)}
-                className="h-11 min-w-11 md:h-7 md:min-w-0 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
+                className="h-11 min-w-11 md:h-7 md:min-w-0 text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation transition-press active:scale-[0.97]"
               >
                 7D
               </Button>
@@ -492,17 +492,17 @@ export function ScheduleConfigPanel({
                 variant="outline"
                 size="xs"
                 onClick={() => setPresetRange(14)}
-                className="h-11 min-w-11 md:h-7 md:min-w-0 rounded-xl text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation hover:bg-primary/10 hover:text-primary transition-press active:scale-[0.97]"
+                className="h-11 min-w-11 md:h-7 md:min-w-0 text-[11px] font-semibold cursor-pointer px-2.5 touch-manipulation transition-press active:scale-[0.97]"
               >
                 14D
               </Button>
               {dateCount > 0 && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="destructive"
                   size="xs"
                   onClick={clearRange}
-                  className="h-11 md:h-7 rounded-xl text-[11px] font-semibold cursor-pointer px-2 touch-manipulation text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-press active:scale-[0.97]"
+                  className="h-11 md:h-7 text-[11px] font-semibold cursor-pointer px-2 touch-manipulation transition-press active:scale-[0.97]"
                 >
                   Clear
                 </Button>

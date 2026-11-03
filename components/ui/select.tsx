@@ -49,7 +49,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "group/select-trigger flex w-full touch-manipulation items-center justify-between gap-2 rounded-xl border border-input bg-card/60 px-3.5 text-sm font-medium shadow-2xs transition-all outline-none hover:border-primary/40 hover:bg-card/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 data-placeholder:font-normal data-placeholder:text-muted-foreground data-[size=default]:min-h-[44px] data-[size=sm]:h-9 data-[size=sm]:min-h-[36px] data-[size=sm]:px-2.5 data-[size=sm]:text-xs *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 dark:bg-card/40 dark:hover:bg-card/60 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "group/select-trigger flex w-full touch-manipulation items-center justify-between gap-2 glass rounded-full px-4 text-sm font-medium outline-none hover:bg-(--glass-hover) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:[--edge:var(--edge-red)] data-placeholder:font-normal data-placeholder:text-muted-foreground data-[size=default]:min-h-[44px] data-[size=sm]:h-9 data-[size=sm]:min-h-[36px] data-[size=sm]:px-2.5 data-[size=sm]:text-xs *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}
@@ -96,7 +96,7 @@ function SelectContent({
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
           className={cn(
-            "relative isolate z-50 max-h-72 w-auto min-w-[max(var(--anchor-width,10rem),13rem)] max-w-[min(var(--available-width,calc(100vw-2rem)),26rem)] overflow-hidden rounded-2xl border border-border/80 bg-popover/98 p-1.5 text-popover-foreground shadow-2xl shadow-black/20 backdrop-blur-xl duration-150 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 dark:border-white/10 dark:bg-popover/98 dark:shadow-black/60 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            "glass glass-thick z-50 max-h-72 origin-(--transform-origin) w-auto min-w-[max(var(--anchor-width,10rem),13rem)] max-w-[min(var(--available-width,calc(100vw-2rem)),26rem)] overflow-hidden rounded-3xl p-1.5 text-popover-foreground duration-200 ease-(--ease-smooth) outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
             className,
           )}
           {...props}
@@ -137,7 +137,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-[42px] sm:min-h-[38px] w-full cursor-pointer touch-manipulation items-center justify-between gap-3 rounded-xl py-2 pr-9 pl-3 text-xs sm:text-sm font-medium outline-hidden transition-colors select-none focus:bg-primary/10 focus:text-primary active:scale-[0.98] data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "relative flex min-h-[42px] sm:min-h-[38px] w-full cursor-pointer touch-manipulation items-center justify-between gap-3 rounded-2xl py-2 pr-9 pl-3 text-xs sm:text-sm font-medium outline-hidden transition-colors select-none focus:bg-primary/10 focus:text-primary active:scale-[0.98] data-[highlighted]:bg-primary/10 data-[highlighted]:text-primary data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}

@@ -12,6 +12,7 @@ import {
   Delete02Icon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { HaramBadge } from "@/components/haram-badge";
@@ -165,11 +166,12 @@ export function AdminUsersPanel({
             <Button
               type="submit"
               disabled={submitting || !newEmail.trim()}
-              className="h-10 rounded-xl px-5 text-sm font-semibold transition-all duration-200"
+              aria-busy={submitting}
+              className="h-10 px-5 text-sm font-semibold"
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
-                  <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <Spinner className="size-3.5" label="Granting" />
                   Granting...
                 </span>
               ) : (
@@ -203,7 +205,7 @@ export function AdminUsersPanel({
               void fetchAdmins();
             }}
             disabled={loading}
-            className="size-9 rounded-xl p-0"
+            className="size-9 p-0"
             title="Refresh admin list"
           >
             <RefreshSpinIcon spinKey={spinKey} size={16} />
@@ -211,8 +213,12 @@ export function AdminUsersPanel({
         </div>
 
         {loading && admins.length === 0 ? (
-          <div className="divide-y divide-border/60">
-            {Array.from({ length: 2 }).map((_, i) => (
+          <div
+            className="divide-y divide-border/60"
+            aria-busy="true"
+            aria-label="Loading administrators"
+          >
+            {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
                 className="flex flex-col justify-between gap-3 py-3.5 first:pt-1 last:pb-1 sm:flex-row sm:items-center"
@@ -318,14 +324,15 @@ export function AdminUsersPanel({
                       </span>
                     ) : !canManage ? null : (
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="sm"
                         onClick={() => handleRevokeAccess(admin.email)}
                         disabled={isRevoking}
-                        className="h-8 rounded-xl px-3 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+                        aria-busy={isRevoking}
+                        className="h-8 min-h-[44px] sm:min-h-8 px-3 text-xs font-semibold"
                       >
                         {isRevoking ? (
-                          <span className="mr-1.5 size-3 animate-spin rounded-full border-2 border-destructive border-t-transparent" />
+                          <Spinner className="mr-1.5 size-3" label="Revoking" />
                         ) : (
                           <HugeiconsIcon
                             icon={Delete02Icon}

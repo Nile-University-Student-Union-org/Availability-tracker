@@ -286,7 +286,7 @@ export function DateSlotsEditor({
                     type="button"
                     onClick={addOne}
                     disabled={Boolean(draftProblem)}
-                    className="min-h-[44px] cursor-pointer gap-1.5 rounded-xl px-4 text-sm font-semibold touch-manipulation active:scale-[0.97] md:min-h-9"
+                    className="min-h-[44px] cursor-pointer gap-1.5 px-4 text-sm font-semibold touch-manipulation active:scale-[0.97] md:min-h-9"
                   >
                     <HugeiconsIcon icon={PlusSignIcon} size={15} />
                     Add slot
@@ -300,20 +300,32 @@ export function DateSlotsEditor({
                     <Label className="text-xs font-semibold text-foreground/80">
                       From
                     </Label>
-                    <TimePicker value={from} onChange={setFrom} className="rounded-xl" />
+                    <TimePicker
+                      value={from}
+                      onChange={setFrom}
+                      className="rounded-xl"
+                    />
                   </div>
                   <div className="min-w-0 space-y-1.5">
                     <Label className="text-xs font-semibold text-foreground/80">
                       To
                     </Label>
-                    <TimePicker value={to} onChange={setTo} className="rounded-xl" />
+                    <TimePicker
+                      value={to}
+                      onChange={setTo}
+                      className="rounded-xl"
+                    />
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-foreground/80">
                     Each slot
                   </Label>
-                  <LengthPicker value={fillLength} onChange={setFillLength} max={720} />
+                  <LengthPicker
+                    value={fillLength}
+                    onChange={setFillLength}
+                    max={720}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold text-foreground/80">
@@ -321,7 +333,11 @@ export function DateSlotsEditor({
                   </Label>
                   <div className="flex flex-wrap gap-1.5">
                     {BREAKS.map((m) => (
-                      <Chip key={m} active={gap === m} onClick={() => setGap(m)}>
+                      <Chip
+                        key={m}
+                        active={gap === m}
+                        onClick={() => setGap(m)}
+                      >
                         {m === 0 ? "None" : formatDuration(m)}
                       </Chip>
                     ))}
@@ -340,7 +356,7 @@ export function DateSlotsEditor({
                         variant="outline"
                         disabled={generated.length === 0}
                         onClick={() => onChange(generated)}
-                        className="min-h-[44px] flex-1 cursor-pointer rounded-xl text-xs font-semibold touch-manipulation active:scale-[0.97] md:min-h-9"
+                        className="min-h-[44px] flex-1 cursor-pointer text-xs font-semibold touch-manipulation active:scale-[0.97] md:min-h-9"
                       >
                         Replace all
                       </Button>
@@ -348,8 +364,10 @@ export function DateSlotsEditor({
                     <Button
                       type="button"
                       disabled={fresh.length === 0}
-                      onClick={() => onChange([...sorted, ...fresh].sort(byStart))}
-                      className="min-h-[44px] flex-1 cursor-pointer gap-1.5 rounded-xl text-xs font-semibold touch-manipulation active:scale-[0.97] md:min-h-9"
+                      onClick={() =>
+                        onChange([...sorted, ...fresh].sort(byStart))
+                      }
+                      className="min-h-[44px] flex-1 cursor-pointer gap-1.5 text-xs font-semibold touch-manipulation active:scale-[0.97] md:min-h-9"
                     >
                       <HugeiconsIcon icon={PlusSignIcon} size={14} />
                       {sorted.length && fresh.length !== generated.length
@@ -376,9 +394,9 @@ export function DateSlotsEditor({
                 </span>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="destructive"
                   onClick={() => onChange([])}
-                  className="min-h-[44px] cursor-pointer rounded-xl px-2.5 text-xs font-semibold text-muted-foreground hover:bg-destructive/10 hover:text-destructive md:min-h-8"
+                  className="min-h-[44px] cursor-pointer px-2.5 text-xs font-semibold md:min-h-8"
                 >
                   Clear all
                 </Button>
@@ -392,16 +410,21 @@ export function DateSlotsEditor({
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-semibold tracking-tight tabular-nums whitespace-nowrap">
-                        {formatTimeSlot(slot.startTime)} → {formatTimeSlot(slot.endTime)}
+                        {formatTimeSlot(slot.startTime)} →{" "}
+                        {formatTimeSlot(slot.endTime)}
                       </p>
                       <p className="text-xs text-muted-foreground tabular-nums">
-                        {formatDuration(toMinutes(slot.endTime) - toMinutes(slot.startTime))}
+                        {formatDuration(
+                          toMinutes(slot.endTime) - toMinutes(slot.startTime),
+                        )}
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() =>
-                        onChange(sorted.filter((s) => s.startTime !== slot.startTime))
+                        onChange(
+                          sorted.filter((s) => s.startTime !== slot.startTime),
+                        )
                       }
                       aria-label={`Remove ${formatTimeSlot(slot.startTime)} slot`}
                       className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive md:size-9"
@@ -412,8 +435,8 @@ export function DateSlotsEditor({
                 ))}
               </ul>
               <p className="text-[11px] text-muted-foreground">
-                Removing a slot also clears members&apos; answers for it once you
-                save.
+                Removing a slot also clears members&apos; answers for it once
+                you save.
               </p>
             </div>
           )}

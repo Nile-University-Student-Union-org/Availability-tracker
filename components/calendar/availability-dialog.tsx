@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogClose,
@@ -486,7 +487,7 @@ export function AvailabilityDialog({
               className={cn(
                 "group relative flex min-h-[56px] cursor-pointer touch-manipulation items-center justify-between rounded-2xl border p-3 transition-all duration-150 active:scale-[0.97]",
                 isSelected
-                  ? "border-emerald-500/70 bg-emerald-500/15 shadow-sm ring-1 ring-emerald-500/30 dark:bg-emerald-500/20"
+                  ? "border-transparent bg-emerald-500/15 [box-shadow:var(--edge-slot-on)] dark:bg-emerald-500/20"
                   : "border-border/80 bg-card hover:border-primary/40 hover:bg-muted/30",
               )}
             >
@@ -539,7 +540,7 @@ export function AvailabilityDialog({
           <Button
             variant="ghost"
             size="sm"
-            className="min-h-[44px] touch-manipulation rounded-xl px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
+            className="min-h-[44px] touch-manipulation px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
           >
             Close
           </Button>
@@ -550,7 +551,7 @@ export function AvailabilityDialog({
             <Button
               variant="ghost"
               size="sm"
-              className="min-h-[36px] rounded-xl px-3 text-xs sm:text-sm"
+              className="min-h-[36px] px-3 text-xs sm:text-sm"
             >
               Cancel
             </Button>
@@ -566,19 +567,28 @@ export function AvailabilityDialog({
             size="sm"
             onClick={handleNext}
             disabled={isSaving}
-            className="min-h-[44px] touch-manipulation rounded-xl px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
+            className="min-h-[44px] touch-manipulation px-3 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
           >
             Next →
           </Button>
         )}
 
         <Button
+          variant="success"
           onClick={handleSaveClick}
           disabled={isSaving}
+          aria-busy={isSaving}
           size="sm"
-          className="min-h-[44px] touch-manipulation rounded-xl px-3.5 text-xs font-semibold shadow-sm sm:min-h-[36px] sm:text-sm"
+          className="min-h-[44px] touch-manipulation px-3.5 text-xs font-semibold sm:min-h-[36px] sm:text-sm"
         >
-          {isSaving ? "Saving..." : "Save Availability"}
+          {isSaving ? (
+            <>
+              <Spinner className="size-3.5" label="Saving" />
+              <span>Saving...</span>
+            </>
+          ) : (
+            "Save Availability"
+          )}
         </Button>
       </div>
     </div>
