@@ -455,8 +455,7 @@ export function AvailabilityDialog({
           </Badge>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Tap slots to mark your availability. Swipe down or use buttons to
-          save.
+          Tap the times you&apos;re free, then save.
         </p>
       </div>
 
@@ -602,7 +601,7 @@ export function AvailabilityDialog({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="flex max-h-[88vh] flex-col rounded-t-3xl border-t bg-card p-0 shadow-2xl">
+        <DrawerContent className="flex max-h-[88vh] flex-col rounded-t-3xl border-t bg-card p-0 shadow-2xl before:hidden">
           <DrawerHeader className="sr-only">
             <DrawerTitle>{formattedDate}</DrawerTitle>
             <DrawerDescription>Choose your free time slots</DrawerDescription>
@@ -611,7 +610,7 @@ export function AvailabilityDialog({
           {HeaderComponent}
 
           {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain">
             {BodyComponent}
           </div>
 

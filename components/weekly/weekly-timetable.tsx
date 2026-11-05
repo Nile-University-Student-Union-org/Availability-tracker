@@ -4,7 +4,7 @@ import * as React from "react";
 import { toast } from "@/lib/notify";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MemberSummary } from "@/components/member/member-summary";
 import { authClient } from "@/lib/auth-client";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -36,15 +36,6 @@ export interface WeeklyTimetableProps {
   weeklyDays: number[];
   weeklySlots: WeeklySlot[];
   initialSlots?: { dayOfWeek: number; startTime: string }[];
-}
-
-function getInitials(name?: string | null, email?: string | null): string {
-  if (name) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return email?.slice(0, 2).toUpperCase() ?? "NU";
 }
 
 export function WeeklyTimetable({
@@ -309,47 +300,13 @@ export function WeeklyTimetable({
   return (
     // pb-24 keeps the last slot clear of the floating save bar
     <div className="w-full flex flex-col items-center gap-6 pb-24">
-      {/* ─── Authenticated Member Summary Card (Matches /specific) ─────────────── */}
-      <div className="w-full max-w-sm rounded-2xl border border-border/80 bg-card p-4 shadow-xs transition-colors">
-        <div className="flex items-center gap-3.5">
-          <Avatar className="size-11 shrink-0 rounded-full ring-2 ring-emerald-500/20 ring-offset-2 ring-offset-background">
-            <AvatarImage
-              src={activeUser?.image ?? user?.image ?? undefined}
-              alt={memberName || "Member avatar"}
-            />
-            <AvatarFallback className="bg-emerald-500/10 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              {getInitials(memberName, memberEmail)}
-            </AvatarFallback>
-          </Avatar>
-
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-heading text-sm font-bold tracking-tight text-foreground">
-              {memberName || "Union Member"}
-            </p>
-            <p
-              className="truncate text-xs text-muted-foreground"
-              title={memberEmail}
-            >
-              {memberEmail}
-            </p>
-          </div>
-        </div>
-
-        {(memberCommittee || memberId) && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2.5">
-            {memberCommittee && (
-              <span className="inline-flex items-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                {memberCommittee}
-              </span>
-            )}
-            {memberId && (
-              <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/60 px-2.5 py-0.5 font-mono text-[11px] font-medium text-muted-foreground">
-                ID: {memberId}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+      <MemberSummary
+        name={memberName}
+        email={memberEmail}
+        image={activeUser?.image ?? user?.image}
+        committee={memberCommittee}
+        nuId={memberId}
+      />
 
       {/* ─── Day selector ─────────────────────────────────────────────────── */}
       <section className="w-full space-y-4" aria-label="Weekly availability">
