@@ -82,26 +82,15 @@ export function PollList({ polls }: PollListProps) {
               aria-busy={isThisOpening}
               onClick={(e) => handleClick(e, poll.id)}
               className={cn(
-                "group flex min-h-[56px] items-center gap-4 rounded-3xl glass glass-bloom p-4 transition-all duration-200 touch-manipulation sm:p-5",
+                "group flex min-h-[56px] items-center gap-4 rounded-3xl glass glass-bloom p-4 transition-[background-color,opacity,transform] duration-200 touch-manipulation sm:p-5",
                 isThisOpening
                   ? "bg-(--glass-hover)"
                   : "hover:bg-(--glass-hover) active:scale-[0.985]",
                 isOtherOpening && "pointer-events-none opacity-40",
               )}
             >
-              <span
-                className={`relative flex size-11 shrink-0 items-center justify-center rounded-full bg-(--lens-nile) text-(--glass-nile-fg) ${poll.answered ? "ring-2 ring-emerald-500/40 ring-offset-2 ring-offset-background" : ""}`}
-              >
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-foreground/5 text-muted-foreground">
                 <HugeiconsIcon icon={Calendar03Icon} size={20} />
-                {poll.answered && (
-                  <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white ring-2 ring-background">
-                    <HugeiconsIcon
-                      icon={Tick02Icon}
-                      size={12}
-                      strokeWidth={2.6}
-                    />
-                  </span>
-                )}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

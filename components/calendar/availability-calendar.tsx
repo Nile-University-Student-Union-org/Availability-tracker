@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/lib/notify";
 import { AvailabilityDialog } from "@/components/calendar/availability-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MemberSummary } from "@/components/member/member-summary";
 import { authClient } from "@/lib/auth-client";
 import {
   Select,
@@ -46,15 +46,6 @@ function formatTime(time: string): string {
   const suffix = h >= 12 ? "PM" : "AM";
   const hour = h % 12 || 12;
   return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
-}
-
-function getInitials(name?: string | null, email?: string | null): string {
-  if (name) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return email?.slice(0, 2).toUpperCase() ?? "?";
 }
 
 interface AvailabilityCalendarProps {
@@ -360,50 +351,18 @@ export function AvailabilityCalendar({
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
-      {/* Authenticated Member Summary Card */}
       {activeUser ? (
-        <div className="w-full max-w-sm rounded-2xl border border-border/80 bg-card p-4 shadow-xs transition-colors">
-          <div className="flex items-center gap-3.5">
-            <Avatar className="size-11 shrink-0 rounded-full ring-2 ring-emerald-500/20 ring-offset-2 ring-offset-background">
-              <AvatarImage
-                src={activeUser.image ?? undefined}
-                alt={memberName || "Member avatar"}
-              />
-              <AvatarFallback className="bg-emerald-500/10 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                {getInitials(memberName, memberEmail)}
-              </AvatarFallback>
-            </Avatar>
-
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-heading text-sm font-bold tracking-tight text-foreground">
-                {memberName || "Union Member"}
-              </p>
-              <p
-                className="truncate text-xs text-muted-foreground"
-                title={memberEmail}
-              >
-                {memberEmail}
-              </p>
-            </div>
-          </div>
-
-          {(memberCommittee || memberId) && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2.5">
-              {memberCommittee && (
-                <span className="inline-flex items-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                  {memberCommittee}
-                </span>
-              )}
-              {memberId && (
-                <span className="inline-flex items-center rounded-full border border-border/70 bg-muted/60 px-2.5 py-0.5 font-mono text-[11px] font-medium text-muted-foreground">
-                  ID: {memberId}
-                </span>
-              )}
-            </div>
-          )}
+        <div className="w-full max-w-sm space-y-3">
+          <MemberSummary
+            name={memberName}
+            email={memberEmail}
+            image={activeUser.image}
+            committee={memberCommittee}
+            nuId={memberId}
+          />
 
           {activeUser?.email === "admin@nu.edu.eg" ? (
-            <div className="mt-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-blue-800 dark:text-blue-300">
+            <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-800 dark:text-blue-300">
               <p className="font-semibold">Admin Account Notice</p>
               <p className="mt-0.5 text-[11px] text-blue-700 dark:text-blue-400">
                 You are logged in as Union Administrator. Admin accounts manage
@@ -416,9 +375,9 @@ export function AvailabilityCalendar({
       ) : (
         /* Fallback unauthenticated details form */
         <div className="w-full max-w-sm rounded-3xl border bg-card p-4">
-          <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-            Member Details
-          </p>
+          <h2 className="mb-3 text-sm font-semibold text-foreground">
+            Your details
+          </h2>
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="member-name">Name</Label>
@@ -507,16 +466,15 @@ export function AvailabilityCalendar({
         </div>
       ) : (
         <Calendar
-          mode="single"
           month={displayMonth}
           onMonthChange={() => undefined}
-          selected={undefined}
           onDayClick={(day) => {
             const iso = toISO(day);
             if (weekDates.includes(iso)) openDialog(iso);
           }}
           disabled={(day) => !activeDates.some((d) => isSameDay(d, day))}
           modifiers={{
+            available: activeDates,
             hasSlots: datesWithSlots,
           }}
           className="w-full max-w-sm rounded-3xl border border-border/80 bg-card p-3.5 shadow-xs"
@@ -537,9 +495,9 @@ export function AvailabilityCalendar({
       ) : config && datesWithSlotsISO.length > 0 ? (
         <div className="w-full max-w-sm overflow-hidden rounded-3xl border bg-card">
           <div className="border-b px-4 py-3">
-            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-              Your Availability
-            </p>
+            <h2 className="text-sm font-semibold text-foreground">
+              Your availability
+            </h2>
           </div>
 
           <div className="divide-y">
@@ -591,8 +549,7 @@ export function AvailabilityCalendar({
       ) : config && datesWithSlotsISO.length === 0 ? (
         <div className="w-full max-w-sm rounded-3xl border border-dashed px-4 py-6 text-center">
           <p className="text-sm text-muted-foreground">
-            No availability marked yet — click a highlighted day above to get
-            started.
+            No availability marked yet. Tap a highlighted day to get started.
           </p>
         </div>
       ) : null}

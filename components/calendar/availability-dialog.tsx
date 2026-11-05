@@ -399,9 +399,9 @@ export function AvailabilityDialog({
                   type="button"
                   onClick={() => handleNavigate(d)}
                   className={cn(
-                    "relative flex min-w-10 touch-manipulation flex-col items-center rounded-xl px-2 py-1.5 text-xs font-medium transition-all active:scale-95",
+                    "relative flex min-w-10 touch-manipulation flex-col items-center rounded-xl px-2 py-1.5 text-xs font-medium transition-[background-color,color,transform] active:scale-95",
                     isCurrent
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
@@ -455,15 +455,14 @@ export function AvailabilityDialog({
           </Badge>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Tap slots to mark your availability. Swipe down or use buttons to
-          save.
+          Tap the times you&apos;re free, then save.
         </p>
       </div>
 
       {/* Progress / Density bar */}
       <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full bg-emerald-500 transition-all duration-300"
+          className="h-full bg-emerald-500 transition-[width] duration-300"
           style={{ width: `${percentSelected}%` }}
         />
       </div>
@@ -485,7 +484,7 @@ export function AvailabilityDialog({
               onPointerDown={(e) => handleSlotPointerDown(slot, e)}
               onPointerEnter={() => handleSlotPointerEnter(slot)}
               className={cn(
-                "group relative flex min-h-[56px] cursor-pointer touch-manipulation items-center justify-between rounded-2xl border p-3 transition-all duration-150 active:scale-[0.97]",
+                "group relative flex min-h-[56px] cursor-pointer touch-manipulation items-center justify-between rounded-2xl border p-3 transition-[background-color,border-color,box-shadow,transform] duration-150 active:scale-[0.97]",
                 isSelected
                   ? "border-transparent bg-emerald-500/15 [box-shadow:var(--edge-slot-on)] dark:bg-emerald-500/20"
                   : "border-border/80 bg-card hover:border-primary/40 hover:bg-muted/30",
@@ -509,7 +508,7 @@ export function AvailabilityDialog({
 
               <div
                 className={cn(
-                  "flex size-6 shrink-0 items-center justify-center rounded-full transition-all",
+                  "flex size-6 shrink-0 items-center justify-center rounded-full transition-[background-color,border-color,color]",
                   isSelected
                     ? "bg-emerald-500 text-white shadow-xs"
                     : "border border-border/80 text-transparent group-hover:border-primary/40",
@@ -602,7 +601,7 @@ export function AvailabilityDialog({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="flex max-h-[88vh] flex-col rounded-t-3xl border-t bg-card p-0 shadow-2xl">
+        <DrawerContent className="flex max-h-[88vh] flex-col rounded-t-3xl border-t bg-card p-0 shadow-2xl before:hidden">
           <DrawerHeader className="sr-only">
             <DrawerTitle>{formattedDate}</DrawerTitle>
             <DrawerDescription>Choose your free time slots</DrawerDescription>
@@ -611,7 +610,7 @@ export function AvailabilityDialog({
           {HeaderComponent}
 
           {/* Scrollable body */}
-          <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="no-scrollbar flex-1 overflow-y-auto overscroll-contain">
             {BodyComponent}
           </div>
 
