@@ -312,7 +312,7 @@ export function AdminLayoutShell({
                     <NusuLogo
                       size="sm"
                       showText={false}
-                      className="size-5 brightness-0 invert"
+                      className="justify-center brightness-0 invert [&_svg]:size-5!"
                     />
                   </div>
                   {/* nowrap: the label must not reflow while the panel animates its width */}
