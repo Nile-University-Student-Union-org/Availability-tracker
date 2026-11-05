@@ -209,3 +209,12 @@ model MailerCredential {
   updatedAt DateTime @updatedAt
   @@map("mailer_credential")
 }
+
+// Better Auth's rate limit counters, one row per IP and path
+model RateLimit {
+  id String @id @default(cuid())
+  key String @unique
+  count Int
+  lastRequest BigInt
+  @@map("rate_limit")
+}
