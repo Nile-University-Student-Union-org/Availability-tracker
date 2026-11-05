@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { pollRequestEmail } from "./poll-request";
+import { pollDecisionEmail, pollRequestEmail } from "./poll-request";
 
 const base = {
   kind: "new" as const,
@@ -29,5 +29,25 @@ assert.equal(
   pollRequestEmail({ ...base, kind: "resubmitted" }).subject,
   "Resubmitted for approval: Tech x PR weekly sync",
 );
+
+const decision = {
+  pollName: "Tech x PR weekly sync",
+  type: "weekly" as const,
+  reviewerName: "Ahmed Wesam",
+  requested: ["Technical", "PR"],
+  startDate: null,
+  endDate: null,
+  weeklyDays: [0, 3],
+  pollUrl: "https://example.test/admin?tab=polls&poll=abc",
+};
+const approved = pollDecisionEmail({ ...decision, decision: "approved" });
+assert.equal(approved.subject, "Approved: Tech x PR weekly sync");
+assert.match(approved.html, /Now open for/);
+assert.doesNotMatch(approved.html, /Reason/);
+
+const rejected = pollDecisionEmail({ ...decision, decision: "rejected", rejectionReason: "Too <b>many</b> slots" });
+assert.equal(rejected.subject, "Not approved: Tech x PR weekly sync");
+assert.match(rejected.html, /Too &lt;b&gt;many&lt;\/b&gt; slots/, "the reason is shown, escaped");
+assert.match(rejected.html, /admin\?tab=polls&amp;poll=abc/);
 
 console.log("poll-request email checks passed");

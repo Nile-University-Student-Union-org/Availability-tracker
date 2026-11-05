@@ -55,6 +55,62 @@ function row(label: string, valueHtml: string) {
   </tr>`;
 }
 
+/** The one blue card every email uses. `intro` and `rows` are HTML, so callers escape user text. */
+function emailLayout(e: {
+  subject: string;
+  preheader: string;
+  title: string;
+  intro: string;
+  rows: string;
+  action: { label: string; href: string };
+  note: string;
+  footer: string;
+}) {
+  return `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(e.subject)}</title></head>
+<body style="margin:0;padding:0;font-family:Poppins,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif">
+  <div style="display:none;max-height:0;overflow:hidden">${esc(e.preheader)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:24px 12px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${CARD}" style="max-width:560px;background-color:${CARD};border:1px solid #6F8DB3;border-color:${RIM};border-radius:28px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4)">
+        <tr><td style="padding:24px 28px 0">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td style="vertical-align:middle;padding-right:12px">
+              <img src="cid:${NUSU_EMBLEM.cid}" width="32" height="37" alt="NUSU" style="display:block;border:0;outline:none">
+            </td>
+            <td style="vertical-align:middle;font-size:16px;line-height:20px;font-weight:600;color:${INK}">NUSU Availability Tracker</td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="padding:24px 28px 0">
+          <h1 style="margin:0 0 10px;font-size:28px;line-height:34px;font-weight:700;letter-spacing:-0.5px;color:${INK};word-break:break-word">${esc(e.title)}</h1>
+          <p style="margin:0;font-size:16px;line-height:24px;color:${BODY}">${e.intro}</p>
+        </td></tr>
+        <tr><td style="padding:22px 16px 0">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #5B7BA3;border-color:${RIM};border-radius:20px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.25)">
+            <tr><td style="padding:10px 16px">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                ${e.rows}
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:24px 28px 24px">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td bgcolor="${BUTTON}" style="background-color:${BUTTON};border:1px solid ${NILE};border-radius:999px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.55)">
+              <a href="${esc(e.action.href)}" style="display:inline-block;padding:13px 28px;color:${INK};text-decoration:none;font-size:15px;line-height:20px;font-weight:600">${esc(e.action.label)}</a>
+            </td>
+          </tr></table>
+          <p style="margin:16px 0 0;font-size:14px;line-height:21px;color:${BODY}">${esc(e.note)}</p>
+          <p style="margin:14px 0 0;font-size:13px;line-height:18px;color:${MUTED}">${esc(e.footer)}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 /**
  * Approval-request email for superadmins. Table layout with inline styles, so it
  * holds up in Outlook, Gmail and Apple Mail. Every piece of user text is escaped.
@@ -78,53 +134,70 @@ export function pollRequestEmail(p: PollRequestEmail) {
       ? "Members pick their own times"
       : `${p.slotCount} ${p.slotCount === 1 ? "time slot" : "time slots"}`;
 
-  const html = `<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;font-family:Poppins,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif">
-  <div style="display:none;max-height:0;overflow:hidden">${esc(p.creatorName)} needs your approval for ${esc(p.requested.join(", "))}.</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-    <tr><td align="center" style="padding:24px 12px">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${CARD}" style="max-width:560px;background-color:${CARD};border:1px solid #6F8DB3;border-color:${RIM};border-radius:28px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4)">
-        <tr><td style="padding:24px 28px 0">
-          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-            <td style="vertical-align:middle;padding-right:12px">
-              <img src="cid:${NUSU_EMBLEM.cid}" width="32" height="37" alt="NUSU" style="display:block;border:0;outline:none">
-            </td>
-            <td style="vertical-align:middle;font-size:16px;line-height:20px;font-weight:600;color:${INK}">NUSU Availability Tracker</td>
-          </tr></table>
-        </td></tr>
-        <tr><td style="padding:24px 28px 0">
-          <h1 style="margin:0 0 10px;font-size:28px;line-height:34px;font-weight:700;letter-spacing:-0.5px;color:${INK};word-break:break-word">${esc(p.pollName)}</h1>
-          <p style="margin:0;font-size:16px;line-height:24px;color:${BODY}">${who} ${INTRO[p.kind]} It's waiting for your approval.</p>
-        </td></tr>
-        <tr><td style="padding:22px 16px 0">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #5B7BA3;border-color:${RIM};border-radius:20px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.25)">
-            <tr><td style="padding:10px 16px">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                ${row("Wants access", chips(p.requested, INK))}
+  const html = emailLayout({
+    subject,
+    preheader: `${p.creatorName} needs your approval for ${p.requested.join(", ")}.`,
+    title: p.pollName,
+    intro: `${who} ${INTRO[p.kind]} It's waiting for your approval.`,
+    rows: `${row("Wants access", chips(p.requested, INK))}
                 ${p.live.length ? row("Already live", chips(p.live, EMERALD)) : ""}
                 ${row("Type", esc(POLL_TYPE_LABEL[p.type]))}
                 ${row(p.type === "date" ? "Dates" : "Days", esc(when))}
-                ${row("Slots", esc(slots))}
-              </table>
-            </td></tr>
-          </table>
-        </td></tr>
-        <tr><td style="padding:24px 28px 24px">
-          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-            <td bgcolor="${BUTTON}" style="background-color:${BUTTON};border:1px solid ${NILE};border-radius:999px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.55)">
-              <a href="${esc(p.reviewUrl)}" style="display:inline-block;padding:13px 28px;color:${INK};text-decoration:none;font-size:15px;line-height:20px;font-weight:600">Review request</a>
-            </td>
-          </tr></table>
-          <p style="margin:16px 0 0;font-size:14px;line-height:21px;color:${BODY}">Approve to make it live for these committees, or reject it with a reason. The head can edit and send it again.</p>
-          <p style="margin:14px 0 0;font-size:13px;line-height:18px;color:${MUTED}">You get this because you're a HARAM admin of NUSU Availability Tracker.</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+                ${row("Slots", esc(slots))}`,
+    action: { label: "Review request", href: p.reviewUrl },
+    note: "Approve to make it live for these committees, or reject it with a reason. The head can edit and send it again.",
+    footer: "You get this because you're a HARAM admin of NUSU Availability Tracker.",
+  });
+
+  return { subject, html, inlineImages: [NUSU_EMBLEM] };
+}
+
+export type PollDecisionEmail = {
+  decision: "approved" | "rejected";
+  pollName: string;
+  type: PollType;
+  reviewerName: string;
+  /** Committees the head asked for */
+  requested: string[];
+  rejectionReason?: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  weeklyDays: number[];
+  pollUrl: string;
+};
+
+/** Tells the head who asked for a poll what the superadmins decided. */
+export function pollDecisionEmail(p: PollDecisionEmail) {
+  const approved = p.decision === "approved";
+  const subject = `${approved ? "Approved" : "Not approved"}: ${p.pollName}`;
+  const when = pollSummary({
+    type: p.type,
+    startDate: p.startDate,
+    endDate: p.endDate,
+    weeklyDays: p.weeklyDays,
+  });
+  const reviewer = `<strong style="color:${INK};font-weight:600">${esc(p.reviewerName)}</strong>`;
+  const html = emailLayout({
+    subject,
+    preheader: approved
+      ? `Your poll is now open for ${p.requested.join(", ")}.`
+      : "Your poll request wasn't approved.",
+    title: p.pollName,
+    intro: approved
+      ? `${reviewer} approved your request. The poll is now open for these committees.`
+      : `${reviewer} didn't approve your request. The poll isn't open for these committees.`,
+    rows: `${row(approved ? "Now open for" : "You asked for", chips(p.requested, approved ? EMERALD : INK))}
+                ${!approved && p.rejectionReason ? row("Reason", `<span style="white-space:pre-wrap">${esc(p.rejectionReason)}</span>`) : ""}
+                ${row("Type", esc(POLL_TYPE_LABEL[p.type]))}
+                ${row(p.type === "date" ? "Dates" : "Days", esc(when))}`,
+    action: approved
+      ? { label: "View poll", href: p.pollUrl }
+      : { label: "Edit and send again", href: p.pollUrl },
+    note: approved
+      ? "Members of these committees can answer it now."
+      : "You can change the poll and send it for approval again.",
+    footer: "You get this because you asked for this poll on NUSU Availability Tracker.",
+  });
 
   return { subject, html, inlineImages: [NUSU_EMBLEM] };
 }
