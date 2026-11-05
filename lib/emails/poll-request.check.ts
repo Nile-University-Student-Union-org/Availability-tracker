@@ -43,10 +43,12 @@ const decision = {
 const approved = pollDecisionEmail({ ...decision, decision: "approved" });
 assert.equal(approved.subject, "Approved: Tech x PR weekly sync");
 assert.match(approved.html, /Now open for/);
+assert.match(approved.html, /Approved<\/td>/);
 assert.doesNotMatch(approved.html, /Reason/);
 
 const rejected = pollDecisionEmail({ ...decision, decision: "rejected", rejectionReason: "Too <b>many</b> slots" });
-assert.equal(rejected.subject, "Not approved: Tech x PR weekly sync");
+assert.equal(rejected.subject, "Rejected: Tech x PR weekly sync");
+assert.match(rejected.html, /Rejected<\/td>/);
 assert.match(rejected.html, /Too &lt;b&gt;many&lt;\/b&gt; slots/, "the reason is shown, escaped");
 assert.match(rejected.html, /admin\?tab=polls&amp;poll=abc/);
 

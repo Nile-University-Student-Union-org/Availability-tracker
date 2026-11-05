@@ -59,6 +59,8 @@ function row(label: string, valueHtml: string) {
 function emailLayout(e: {
   subject: string;
   preheader: string;
+  /** A big filled capsule above the title, for the one thing the email is about */
+  status?: { label: string; fill: string; rim: string };
   title: string;
   intro: string;
   rows: string;
@@ -82,7 +84,16 @@ function emailLayout(e: {
             <td style="vertical-align:middle;font-size:16px;line-height:20px;font-weight:600;color:${INK}">NUSU Availability Tracker</td>
           </tr></table>
         </td></tr>
-        <tr><td style="padding:24px 28px 0">
+        ${
+          e.status
+            ? `<tr><td style="padding:22px 28px 0">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td bgcolor="${e.status.fill}" style="padding:10px 22px;background-color:${e.status.fill};border:2px solid ${e.status.rim};border-radius:999px;color:${INK};font-size:24px;line-height:30px;font-weight:800;letter-spacing:-0.3px">${esc(e.status.label)}</td>
+          </tr></table>
+        </td></tr>`
+            : ""
+        }
+        <tr><td style="padding:${e.status ? "16px" : "24px"} 28px 0">
           <h1 style="margin:0 0 10px;font-size:28px;line-height:34px;font-weight:700;letter-spacing:-0.5px;color:${INK};word-break:break-word">${esc(e.title)}</h1>
           <p style="margin:0;font-size:16px;line-height:24px;color:${BODY}">${e.intro}</p>
         </td></tr>
@@ -169,7 +180,7 @@ export type PollDecisionEmail = {
 /** Tells the head who asked for a poll what the superadmins decided. */
 export function pollDecisionEmail(p: PollDecisionEmail) {
   const approved = p.decision === "approved";
-  const subject = `${approved ? "Approved" : "Not approved"}: ${p.pollName}`;
+  const subject = `${approved ? "Approved" : "Rejected"}: ${p.pollName}`;
   const when = pollSummary({
     type: p.type,
     startDate: p.startDate,
@@ -181,11 +192,14 @@ export function pollDecisionEmail(p: PollDecisionEmail) {
     subject,
     preheader: approved
       ? `Your poll is now open for ${p.requested.join(", ")}.`
-      : "Your poll request wasn't approved.",
+      : "Your poll request was rejected.",
+    status: approved
+      ? { label: "\u2713 Approved", fill: "#047857", rim: "#6EE7B7" }
+      : { label: "\u2715 Rejected", fill: "#B91C1C", rim: "#FCA5A5" },
     title: p.pollName,
     intro: approved
       ? `${reviewer} approved your request. The poll is now open for these committees.`
-      : `${reviewer} didn't approve your request. The poll isn't open for these committees.`,
+      : `${reviewer} rejected your request. The poll isn't open for these committees.`,
     rows: `${row(approved ? "Now open for" : "You asked for", chips(p.requested, approved ? EMERALD : INK))}
                 ${!approved && p.rejectionReason ? row("Reason", `<span style="white-space:pre-wrap">${esc(p.rejectionReason)}</span>`) : ""}
                 ${row("Type", esc(POLL_TYPE_LABEL[p.type]))}
