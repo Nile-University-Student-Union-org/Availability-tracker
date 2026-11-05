@@ -221,6 +221,12 @@ function CalendarDayButton({
     (modifiers as Record<string, unknown>).hasSlots && !modifiers.selected,
   );
 
+  const isAvailable = Boolean(
+    (modifiers as Record<string, unknown>).available &&
+    !modifiers.selected &&
+    !isHasSlots,
+  );
+
   const isToday = Boolean(
     modifiers.today && !modifiers.selected && !isHasSlots,
   );
@@ -233,6 +239,7 @@ function CalendarDayButton({
       data-selected-single={isSelectedSingle}
       data-has-slots={isHasSlots}
       data-today={isToday}
+      data-available={isAvailable}
       data-range-start={modifiers.range_start}
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
@@ -240,7 +247,8 @@ function CalendarDayButton({
         "relative isolate z-10 flex aspect-square h-auto w-full min-w-(--cell-size) max-w-9 sm:max-w-10 items-center justify-center p-0 border-0 leading-none font-medium text-xs rounded-full transition-[background-color,color,box-shadow,transform] duration-150 ease-out cursor-pointer select-none active:scale-[0.94] motion-reduce:transition-none",
         "group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-2 group-data-[focused=true]/day:ring-primary/40",
         "text-foreground hover:bg-[#0F3056]/10 hover:text-[#0F3056] dark:hover:bg-emerald-500/20 dark:hover:text-emerald-300 hover:ring-1 hover:ring-[#0F3056]/20 dark:hover:ring-emerald-400/25",
-        "data-[today=true]:bg-muted/80 data-[today=true]:text-foreground data-[today=true]:font-semibold",
+        "data-[today=true]:text-foreground data-[today=true]:font-semibold data-[today=true]:underline data-[today=true]:underline-offset-4",
+        "data-[available=true]:bg-sky-500/15 data-[available=true]:font-semibold data-[available=true]:ring-1 data-[available=true]:ring-sky-600/30 dark:data-[available=true]:ring-sky-300/35",
         "data-[has-slots=true]:bg-emerald-500/20 data-[has-slots=true]:text-emerald-700 dark:data-[has-slots=true]:text-emerald-400 data-[has-slots=true]:font-semibold data-[has-slots=true]:hover:bg-emerald-500/30",
         "data-[selected-single=true]:bg-[#0F3056] data-[selected-single=true]:text-white data-[selected-single=true]:font-bold data-[selected-single=true]:shadow-sm data-[selected-single=true]:ring-2 data-[selected-single=true]:ring-[#0F3056]/25 data-[selected-single=true]:hover:bg-[#0F3056]/90 dark:data-[selected-single=true]:bg-emerald-500 dark:data-[selected-single=true]:text-neutral-950 dark:data-[selected-single=true]:font-bold dark:data-[selected-single=true]:ring-emerald-400/35 dark:data-[selected-single=true]:shadow-emerald-950/40 dark:data-[selected-single=true]:hover:bg-emerald-400",
         "data-[range-start=true]:animate-in data-[range-start=true]:zoom-in-90 data-[range-start=true]:duration-200 data-[range-end=true]:animate-in data-[range-end=true]:zoom-in-90 data-[range-end=true]:duration-200 data-[selected-single=true]:animate-in data-[selected-single=true]:zoom-in-90 data-[selected-single=true]:duration-200 motion-reduce:animate-none",

@@ -1,3 +1,6 @@
+import { prisma } from "@/lib/prisma";
+import { decryptRefreshToken, encryptRefreshToken, MAILER_SCOPE, mailerConfig } from "@/lib/mailer-oauth";
+
 type InlineImage = { cid: string; contentType: string; base64: string };
 type Mail = {
   to: string[];
@@ -8,9 +11,55 @@ type Mail = {
 };
 let warned = false;
 
+type MailerConfig = NonNullable<ReturnType<typeof mailerConfig>>;
+
+/** Fresh Graph token for the connected mailbox, or null when nobody has connected it. */
+async function graphAccessToken(config: MailerConfig): Promise<string | null> {
+  const credential = await prisma.mailerCredential.findUnique({ where: { id: "graph" } });
+  if (credential?.status !== "connected" || !credential.encryptedRefreshToken) return null;
+
+  const refreshToken = decryptRefreshToken(credential.encryptedRefreshToken, config.key);
+  const response = await fetch(`${config.oauthBase}/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      scope: MAILER_SCOPE,
+    }),
+  });
+  if (!response.ok) {
+    const failure = await response.json().catch(() => null);
+    if (failure?.error === "invalid_grant") {
+      await prisma.mailerCredential.update({
+        where: { id: "graph" },
+        data: {
+          status: "disconnected",
+          encryptedRefreshToken: null,
+          lastError: "Microsoft sign-in expired. Connect the mailbox again.",
+        },
+      });
+      return null;
+    }
+    throw new Error(`Graph token failed (${response.status})`);
+  }
+  const token = await response.json();
+  // shortcut: no row lock, so concurrent sends can store either new token. Microsoft keeps older refresh tokens valid; lock if that changes.
+  await prisma.mailerCredential.update({
+    where: { id: "graph" },
+    data: {
+      encryptedRefreshToken: encryptRefreshToken(token.refresh_token ?? refreshToken, config.key),
+      lastError: null,
+    },
+  });
+  return token.access_token;
+}
+
 export async function sendMail({ to, subject, html, inlineImages = [] }: Mail) {
-  const { MS_GRAPH_TENANT_ID, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MAIL_SENDER } = process.env;
-  if (!MS_GRAPH_TENANT_ID || !MICROSOFT_CLIENT_ID || !MICROSOFT_CLIENT_SECRET || !MAIL_SENDER) {
+  const config = mailerConfig();
+  if (!config) {
     if (!warned) {
       console.warn("Mail is disabled: Microsoft Graph environment is incomplete");
       warned = true;
@@ -20,23 +69,16 @@ export async function sendMail({ to, subject, html, inlineImages = [] }: Mail) {
   if (!to.length) return;
 
   try {
-    const tokenResponse = await fetch(`https://login.microsoftonline.com/${MS_GRAPH_TENANT_ID}/oauth2/v2.0/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: MICROSOFT_CLIENT_ID,
-        client_secret: MICROSOFT_CLIENT_SECRET,
-        scope: "https://graph.microsoft.com/.default",
-        grant_type: "client_credentials",
-      }),
-    });
-    if (!tokenResponse.ok) throw new Error(`Graph token failed (${tokenResponse.status})`);
-    const { access_token } = await tokenResponse.json();
+    const accessToken = await graphAccessToken(config);
+    if (!accessToken) {
+      console.warn("Mail skipped: no mailbox is connected");
+      return;
+    }
 
-    const response = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(MAIL_SENDER)}/sendMail`, {
+    const response = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${access_token}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -59,6 +101,10 @@ export async function sendMail({ to, subject, html, inlineImages = [] }: Mail) {
     if (!response.ok) throw new Error(`Graph sendMail failed (${response.status})`);
   } catch (error) {
     console.error("Mail send failed:", error);
+    // Sends run in the background, so this is the only place a super admin can see a failure
+    await prisma.mailerCredential
+      .updateMany({ where: { id: "graph" }, data: { lastError: error instanceof Error ? error.message : "Mail send failed" } })
+      .catch(() => {});
   }
 }
 

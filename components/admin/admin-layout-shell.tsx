@@ -43,6 +43,7 @@ import { AdminOverview } from "@/components/admin/admin-overview";
 import type { AdminUserInfo } from "@/lib/admin";
 import { cn } from "@/lib/utils";
 import { NusuLogo } from "@/components/nusu-logo";
+import { MailerCard } from "@/components/admin/mailer-card";
 
 function PanelSkeleton() {
   return (
@@ -602,7 +603,10 @@ export function AdminLayoutShell({
                   />
                 )}
                 {activeTab === "requests" && viewer.isSuperAdmin && (
-                  <PollRequestsPanel onCountChange={setPendingCount} />
+                  <div className="space-y-4">
+                    <MailerCard />
+                    <PollRequestsPanel onCountChange={setPendingCount} />
+                  </div>
                 )}
                 {activeTab === "admins" && (
                   <AdminUsersPanel
