@@ -10,7 +10,7 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "test": "node --test hooks/*.test.mjs && tsx lib/poll-access.check.ts && tsx lib/weekly-slots.check.ts && tsx lib/emails/poll-request.check.ts && tsx lib/member-access.check.ts",
+    "test": "node --test hooks/*.test.mjs && tsx lib/poll-access.check.ts && tsx lib/weekly-slots.check.ts && tsx lib/emails/poll-request.check.ts && tsx lib/member-access.check.ts && tsx lib/mailer-oauth.check.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

@@ -21,14 +21,17 @@ export type PollRequestEmail = {
   reviewUrl: string;
 };
 
-// NUSU brand: navy and cyan from components/nusu-logo.tsx
-const NAVY = "#143459";
-const CYAN = "#068DCE";
-const EMERALD = "#047857";
-const AMBER_BG = "#FEF3C7";
-const AMBER_TEXT = "#92400E";
-const MUTED = "#64748B";
-const BORDER = "#E2E8F0";
+// Liquid glass for email, built on what Outlook's dark mode was measured to do: it recolours dark
+// fills and strips gradients and background images. So the email has no ground of its own: one blue
+// card sits on the client's surface in light and dark mode, and glass comes from rims and capsules.
+const CARD = "#1C3A5E";
+const BUTTON = "#0E4C86";
+const INK = "#FFFFFF";
+const BODY = "#E2EAF4";
+const MUTED = "#B4C4D9";
+const NILE = "#7DD3FC";
+const RIM = "rgba(255,255,255,0.32)";
+const EMERALD = "#6EE7B7";
 
 const INTRO: Record<PollRequestEmail["kind"], string> = {
   new: "wants to open a new poll for other committees.",
@@ -36,26 +39,25 @@ const INTRO: Record<PollRequestEmail["kind"], string> = {
   resubmitted: "edited a rejected poll and sent it again.",
 };
 
-function chips(names: string[], bg: string, color: string) {
+function chips(names: string[], color: string) {
   return names
     .map(
       (n) =>
-        `<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;background:${bg};color:${color};font-size:13px;font-weight:600;line-height:18px">${esc(n)}</span>`,
+        `<span style="display:inline-block;margin:2px 6px 2px 0;padding:5px 12px;border-radius:999px;background-color:#2A4A70;border:1px solid #5B7BA3;border-color:${RIM};color:${color};font-size:14px;font-weight:600;line-height:20px">${esc(n)}</span>`,
     )
     .join("");
 }
 
 function row(label: string, valueHtml: string) {
   return `<tr>
-    <td style="padding:10px 0;border-top:1px solid ${BORDER};width:130px;vertical-align:top;color:${MUTED};font-size:13px">${label}</td>
-    <td style="padding:10px 0;border-top:1px solid ${BORDER};vertical-align:top;color:#0F172A;font-size:14px">${valueHtml}</td>
+    <td style="padding:9px 12px 9px 0;width:112px;vertical-align:top;color:${MUTED};font-size:14px;line-height:22px">${label}</td>
+    <td style="padding:9px 0;vertical-align:top;color:${INK};font-size:15px;line-height:22px;font-weight:500">${valueHtml}</td>
   </tr>`;
 }
 
 /**
- * Approval-request email for superadmins. Table layout with inline styles and
- * no images, so it renders the same in Outlook, Gmail and Apple Mail.
- * Every piece of user text is escaped.
+ * Approval-request email for superadmins. Table layout with inline styles, so it
+ * holds up in Outlook, Gmail and Apple Mail. Every piece of user text is escaped.
  */
 export function pollRequestEmail(p: PollRequestEmail) {
   const subject =
@@ -63,8 +65,8 @@ export function pollRequestEmail(p: PollRequestEmail) {
       ? `Resubmitted for approval: ${p.pollName}`
       : `Approval needed: ${p.pollName}`;
   const who = p.creatorCommittee
-    ? `${esc(p.creatorName)} <span style="color:${MUTED}">(${esc(p.creatorCommittee)})</span>`
-    : esc(p.creatorName);
+    ? `<strong style="color:${INK};font-weight:600">${esc(p.creatorName)}</strong> (${esc(p.creatorCommittee)})`
+    : `<strong style="color:${INK};font-weight:600">${esc(p.creatorName)}</strong>`;
   const when = pollSummary({
     type: p.type,
     startDate: p.startDate,
@@ -79,46 +81,46 @@ export function pollRequestEmail(p: PollRequestEmail) {
   const html = `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:#F1F5F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif">
+<body style="margin:0;padding:0;font-family:Poppins,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif">
   <div style="display:none;max-height:0;overflow:hidden">${esc(p.creatorName)} needs your approval for ${esc(p.requested.join(", "))}.</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:24px 12px">
-    <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border-radius:16px;border:1px solid ${BORDER};overflow:hidden">
-        <tr><td style="height:4px;background:${CYAN};font-size:0;line-height:0">&nbsp;</td></tr>
-        <tr><td style="padding:20px 28px;border-bottom:1px solid ${BORDER}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center" style="padding:24px 12px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${CARD}" style="max-width:560px;background-color:${CARD};border:1px solid #6F8DB3;border-color:${RIM};border-radius:28px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.4)">
+        <tr><td style="padding:24px 28px 0">
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
             <td style="vertical-align:middle;padding-right:12px">
-              <img src="cid:${NUSU_EMBLEM.cid}" width="40" height="47" alt="NUSU" style="display:block;border:0;outline:none">
+              <img src="cid:${NUSU_EMBLEM.cid}" width="32" height="37" alt="NUSU" style="display:block;border:0;outline:none">
             </td>
-            <td style="vertical-align:middle;padding-right:16px">
-              <div style="font-size:22px;line-height:22px;font-weight:900;color:${NAVY};letter-spacing:-0.5px">NUSU</div>
-              <div style="margin-top:3px;font-size:10px;line-height:12px;font-weight:700;color:${CYAN};letter-spacing:1.5px">STUDENT UNION</div>
-            </td>
-            <td style="vertical-align:middle;padding-left:16px;border-left:1px solid ${BORDER}">
-              <div style="margin-left:16px;font-size:12px;line-height:16px;color:${MUTED}">Availability<br>Tracker</div>
-            </td>
+            <td style="vertical-align:middle;font-size:16px;line-height:20px;font-weight:600;color:${INK}">NUSU Availability Tracker</td>
           </tr></table>
         </td></tr>
-        <tr><td style="padding:28px 28px 8px">
-          <span style="display:inline-block;padding:4px 10px;border-radius:999px;background:${AMBER_BG};color:${AMBER_TEXT};font-size:12px;font-weight:700">Waiting for your approval</span>
-          <h1 style="margin:14px 0 6px;font-size:22px;line-height:28px;color:#0F172A">${esc(p.pollName)}</h1>
-          <p style="margin:0;font-size:15px;line-height:22px;color:#334155">${who} ${INTRO[p.kind]}</p>
+        <tr><td style="padding:24px 28px 0">
+          <h1 style="margin:0 0 10px;font-size:28px;line-height:34px;font-weight:700;letter-spacing:-0.5px;color:${INK};word-break:break-word">${esc(p.pollName)}</h1>
+          <p style="margin:0;font-size:16px;line-height:24px;color:${BODY}">${who} ${INTRO[p.kind]} It's waiting for your approval.</p>
         </td></tr>
-        <tr><td style="padding:16px 28px 4px">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            ${row("Wants access for", chips(p.requested, AMBER_BG, AMBER_TEXT))}
-            ${p.live.length ? row("Already live for", chips(p.live, "#D1FAE5", EMERALD)) : ""}
-            ${row("Type", esc(POLL_TYPE_LABEL[p.type]))}
-            ${row(p.type === "date" ? "Dates" : "Days", esc(when))}
-            ${row("Slots", esc(slots))}
+        <tr><td style="padding:22px 16px 0">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #5B7BA3;border-color:${RIM};border-radius:20px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.25)">
+            <tr><td style="padding:10px 16px">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                ${row("Wants access", chips(p.requested, INK))}
+                ${p.live.length ? row("Already live", chips(p.live, EMERALD)) : ""}
+                ${row("Type", esc(POLL_TYPE_LABEL[p.type]))}
+                ${row(p.type === "date" ? "Dates" : "Days", esc(when))}
+                ${row("Slots", esc(slots))}
+              </table>
+            </td></tr>
           </table>
         </td></tr>
-        <tr><td style="padding:20px 28px 28px">
-          <a href="${esc(p.reviewUrl)}" style="display:inline-block;background:${NAVY};color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:600;padding:12px 22px;border-radius:12px">Review request</a>
-          <p style="margin:14px 0 0;font-size:13px;line-height:19px;color:${MUTED}">Approve to make it live for these committees, or reject it with a reason. The head can edit and send it again.</p>
+        <tr><td style="padding:24px 28px 24px">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td bgcolor="${BUTTON}" style="background-color:${BUTTON};border:1px solid ${NILE};border-radius:999px;box-shadow:inset 0 1px 1px rgba(255,255,255,0.55)">
+              <a href="${esc(p.reviewUrl)}" style="display:inline-block;padding:13px 28px;color:${INK};text-decoration:none;font-size:15px;line-height:20px;font-weight:600">Review request</a>
+            </td>
+          </tr></table>
+          <p style="margin:16px 0 0;font-size:14px;line-height:21px;color:${BODY}">Approve to make it live for these committees, or reject it with a reason. The head can edit and send it again.</p>
+          <p style="margin:14px 0 0;font-size:13px;line-height:18px;color:${MUTED}">You get this because you're a HARAM admin of NUSU Availability Tracker.</p>
         </td></tr>
       </table>
-      <p style="margin:16px 0 0;font-size:12px;color:#94A3B8">You get this because you're a HARAM admin of NUSU Availability Tracker.</p>
     </td></tr>
   </table>
 </body>
