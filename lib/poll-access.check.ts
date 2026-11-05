@@ -8,12 +8,16 @@ import {
   createAudience,
   editAudience,
   rejectAudience,
+  resultsCommittees,
 } from "./poll-access";
 
 // 1. Own-committee create is live
 assert.equal(canCreatePoll(true, false, "Design").allowed, true);
 assert.equal(canCreatePoll(true, false, null).allowed, true);
-assert.equal(canCreatePoll(true, false, null).error, "Set your committee in your profile first");
+assert.equal(
+  canCreatePoll(true, false, null).error,
+  "Set your committee in your profile first",
+);
 assert.deepEqual(createAudience("Design", ["Design"], false), {
   committees: ["Design"],
   requestedCommittees: [],
@@ -40,11 +44,14 @@ assert.deepEqual(createAudience(null, ["Media"], true), {
 });
 
 // 4. Edit adding a committee keeps old live + pends the new one
-assert.deepEqual(editAudience(["Design"], ["Design", "Media"], "Design", false), {
-  committees: ["Design"],
-  requestedCommittees: ["Media"],
-  requestStatus: "pending",
-});
+assert.deepEqual(
+  editAudience(["Design"], ["Design", "Media"], "Design", false),
+  {
+    committees: ["Design"],
+    requestedCommittees: ["Media"],
+    requestStatus: "pending",
+  },
+);
 assert.deepEqual(editAudience(["Design"], ["Design"], "Design", false), {
   committees: ["Design"],
   requestedCommittees: [],
@@ -70,7 +77,10 @@ assert.deepEqual(rejectAudience(["Media"], "Not appropriate at this time"), {
   rejectionReason: "Not appropriate at this time",
   requestedCommittees: ["Media"],
 });
-assert.throws(() => rejectAudience(["Media"], ""), /Rejection reason is required/);
+assert.throws(
+  () => rejectAudience(["Media"], ""),
+  /Rejection reason is required/,
+);
 
 // 7. Visibility for member/creator/head/superadmin/allCommittees
 const poll = {
@@ -88,9 +98,15 @@ assert.equal(canSeePoll(poll, { committee: null }), false);
 // Admin/superadmin filling as member follows the same rule
 assert.equal(canSeePoll(poll, { committee: null }), false);
 // Inactive poll is hidden from members
-assert.equal(canSeePoll({ ...poll, active: false }, { committee: "Design" }), false);
+assert.equal(
+  canSeePoll({ ...poll, active: false }, { committee: "Design" }),
+  false,
+);
 // allCommittees poll is visible to all active members
-assert.equal(canSeePoll({ ...poll, allCommittees: true }, { committee: null }), true);
+assert.equal(
+  canSeePoll({ ...poll, allCommittees: true }, { committee: null }),
+  true,
+);
 
 // Results visibility (analytics + poll list in admin)
 // Creator
@@ -102,7 +118,16 @@ assert.equal(canSeeResults(poll, "head2", "Media", true, false), false);
 // Superadmin
 assert.equal(canSeeResults(poll, "super", null, false, true), true);
 // Every admin when allCommittees
-assert.equal(canSeeResults({ ...poll, allCommittees: true }, "admin", "Other", true, false), true);
+assert.equal(
+  canSeeResults(
+    { ...poll, allCommittees: true },
+    "admin",
+    "Other",
+    true,
+    false,
+  ),
+  true,
+);
 // Regular member cannot see results
 assert.equal(canSeeResults(poll, "member", "Design", false, false), false);
 
@@ -123,5 +148,25 @@ assert.deepEqual(editAudience([], ["Technical"], "Technical", false), {
   requestedCommittees: [],
   requestStatus: null,
 });
+
+// A committee filter narrows a poll's audience and can never widen past it
+const scoped = { committees: ["Technical", "PR"], allCommittees: false };
+assert.deepEqual(resultsCommittees(scoped), ["Technical", "PR"]);
+assert.deepEqual(resultsCommittees(scoped, "all"), ["Technical", "PR"]);
+assert.deepEqual(resultsCommittees(scoped, "PR"), ["PR"]);
+assert.deepEqual(
+  resultsCommittees(scoped, "Media"),
+  [],
+  "outside the audience",
+);
+assert.deepEqual(resultsCommittees(scoped, "PR,Media"), ["PR"]);
+assert.deepEqual(
+  resultsCommittees(null, "PR"),
+  [],
+  "unknown poll shows nobody",
+);
+const open = { committees: [], allCommittees: true };
+assert.equal(resultsCommittees(open), null);
+assert.deepEqual(resultsCommittees(open, "Media"), ["Media"]);
 
 console.log("poll-access checks passed");

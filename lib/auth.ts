@@ -106,10 +106,16 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async (session) => {
-          const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { email: true, role: true } });
+          const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { email: true, role: true },
+          });
           const { isSuperAdmin } = await import("@/lib/admin");
-          if (user && isSuperAdmin(user.email) && user.role !== "super-admin") await prisma.user.update({ where: { id: session.userId }, data: { role: "super-admin" } });
-
+          if (user && isSuperAdmin(user.email) && user.role !== "super-admin")
+            await prisma.user.update({
+              where: { id: session.userId },
+              data: { role: "super-admin" },
+            });
         },
       },
     },
@@ -134,16 +140,22 @@ export const auth = betterAuth({
               : null;
             if (existing?.committee) {
               (user as Record<string, unknown>).committee = existing.committee;
-            } else if (typeof updateCommittee === "string" && updateCommittee.trim()) {
+            } else if (
+              typeof updateCommittee === "string" &&
+              updateCommittee.trim()
+            ) {
               const committeeExists = await prisma.committee.findFirst({
-                where: { name: { equals: updateCommittee.trim(), mode: "insensitive" } },
+                where: {
+                  name: { equals: updateCommittee.trim(), mode: "insensitive" },
+                },
               });
               if (!committeeExists) {
                 throw new APIError("BAD_REQUEST", {
                   message: "Invalid committee",
                 });
               }
-              (user as Record<string, unknown>).committee = committeeExists.name;
+              (user as Record<string, unknown>).committee =
+                committeeExists.name;
             }
           }
         },
@@ -170,7 +182,9 @@ export const auth = betterAuth({
           const committee = (user as Record<string, unknown>).committee;
           if (typeof committee === "string" && committee.trim()) {
             const committeeExists = await prisma.committee.findFirst({
-              where: { name: { equals: committee.trim(), mode: "insensitive" } },
+              where: {
+                name: { equals: committee.trim(), mode: "insensitive" },
+              },
             });
             if (!committeeExists) {
               throw new APIError("BAD_REQUEST", {
@@ -186,20 +200,20 @@ export const auth = betterAuth({
       },
     },
   },
+  // In the database because each serverless instance has its own memory, so a memory limit
+  // is easy to spread past. Counted per IP and path, and a campus shares one IP, so password
+  // guessing is tight while Microsoft sign-in stays roomy.
   rateLimit: {
     enabled: process.env.RATE_LIMIT_ENABLED !== "false",
     window: 60,
     max: 1000,
-    storage: "memory",
+    storage: "database",
     customRules: {
-      "/sign-in/*": {
-        window: 60,
-        max: 30,
-      },
-      "/sign-up/*": {
-        window: 60,
-        max: 30,
-      },
+      // Every page load asks for the session; a database write each time isn't worth it
+      "/get-session": false,
+      "/sign-in/email": { window: 60, max: 10 },
+      "/sign-up/email": { window: 60, max: 10 },
+      "/sign-in/social": { window: 60, max: 120 },
     },
   },
   advanced: {
