@@ -375,9 +375,9 @@ export function AvailabilityCalendar({
       ) : (
         /* Fallback unauthenticated details form */
         <div className="w-full max-w-sm rounded-3xl border bg-card p-4">
-          <p className="mb-3 text-xs font-semibold tracking-widest text-muted-foreground uppercase">
-            Member Details
-          </p>
+          <h2 className="mb-3 text-sm font-semibold text-foreground">
+            Your details
+          </h2>
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="member-name">Name</Label>
