@@ -197,3 +197,15 @@ model PollWeeklySlot {
   @@index([pollId])
   @@map("poll_weekly_slot")
 }
+
+// The mailbox that sends app email. One row, id "graph"; the refresh token is AES-GCM encrypted.
+model MailerCredential {
+  id String @id
+  accountEmail String
+  encryptedRefreshToken String?
+  status String @default("disconnected")
+  lastError String?
+  connectedAt DateTime?
+  updatedAt DateTime @updatedAt
+  @@map("mailer_credential")
+}
