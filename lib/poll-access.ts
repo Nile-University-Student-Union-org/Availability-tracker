@@ -5,6 +5,21 @@ export type PollAudience = {
   createdById?: string | null;
 };
 
+/**
+ * Which committees a poll's results may show. A filter can only narrow the poll's audience,
+ * never widen past it. Null means every committee.
+ */
+export function resultsCommittees(
+  poll: Pick<PollAudience, "committees" | "allCommittees"> | null,
+  filter?: string | null,
+): string[] | null {
+  const wanted =
+    filter && filter !== "all" ? filter.split(",").map((c) => c.trim()) : null;
+  if (poll?.allCommittees) return wanted;
+  const audience = poll?.committees ?? [];
+  return wanted ? wanted.filter((c) => audience.includes(c)) : audience;
+}
+
 export function canCreatePoll(
   isAdmin: boolean,
   isSuperAdmin: boolean,
