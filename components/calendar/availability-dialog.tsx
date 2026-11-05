@@ -367,7 +367,8 @@ export function AvailabilityDialog({
   const HeaderComponent = (
     <div className="border-b bg-muted/20 px-4 pt-3 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
       {allDates.length > 1 && (
-        <div className="mb-2.5 flex items-center justify-between gap-1 sm:mb-3 sm:gap-2">
+        // md:pr-10 keeps Next Day clear of the dialog's close button
+        <div className="mb-2.5 flex items-center justify-between gap-1 sm:mb-3 sm:gap-2 md:pr-10">
           <Button
             variant="ghost"
             size="icon-sm"
